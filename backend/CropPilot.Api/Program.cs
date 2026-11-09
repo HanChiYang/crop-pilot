@@ -14,7 +14,7 @@ builder.Services.AddDbContext<CropPilotDbContext>(options => options
         postgres => postgres.MigrationsHistoryTable("ef_migrations_history"))
     .UseSnakeCaseNamingConvention());
 builder.Services.AddIdentityCore<IdentityUser<Guid>>(options => options.User.RequireUniqueEmail = true)
-    .AddEntityFrameworkStores<CropPilotDbContext>()
+    .AddUserStore<CropPilotUserStore>()
     .AddSignInManager();
 
 var authentication = builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme);

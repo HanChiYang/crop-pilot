@@ -24,11 +24,15 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 ## 目前進度
 
+登入資料模型回到設計審查。主帳號採 `main_account`，外部身分與本地帳密分別採 `federated_identities`、`local_credentials`。兩張登入表和 `user_profiles` 都各自以 `id` 為主鍵，並透過 `main_account_id` 關聯主帳號。`user_profiles` 保存小寫 Email 與名稱資料。本地帳號通過 Email OTP 後，主帳號從 `PENDING` 轉為 `ACTIVE`。未綁定的 Google 身分遇到相同 Email 時，依主帳號回查並提示既有的登入方式。待設計審查後再接續 migration、後端調整與驗證。[資料表與 ER 圖](design/first-desktop-slice-database.md)
+
+角色設計採 `user_roles`。一般農民使用 `USER`，後臺管理者使用 `ADMIN`。現行 Identity 輔助表的移除會與儲存層調整一併實作。[角色授權設計](design/first-desktop-slice-data-api.md#角色授權)
+
 首個驗收切片涵蓋「首頁 → 登入 → 新增田區 → 新增規劃中的栽培 → 回總覽」。田區名稱和面積必填，座標選填。[桌機畫面及 Figma 原型](ui/first-desktop-slice/README.md)已加入「以 Google 帳號登入」。登入部分已確認使用官方套件，首次用 Google 登入時自動建立 CropPilot 帳號，並進入後端實作。[桌機版需求](requirements/desktop-field-and-planting.md)
 
 首個桌機切片的 API 契約已通過 OpenAPI Generator 7.27.0 驗證，也已在暫存目錄試產 C# 抽象 Controller、DTO 和 Angular client，並核對新增田區的必填欄位及可為 `null` 的座標。PostgreSQL 欄位、ERD、外鍵與刪除行為仍在第 3 階段審查。[OpenAPI 契約](openapi/openapi.yaml)
 
-登入後端的本機設定和 migration 指令見[登入後端操作說明](../backend/CropPilot.Api/README.md)。田區與栽培的資料庫設計仍待審查。進入田區實作後，用 `POST /api/fields` 驗證兩端編譯、HTTP 回應和重新生成，再擴及其他端點。[資料庫與 API 設計](design/first-desktop-slice-data-api.md)
+登入後端的本機設定和 migration 指令見[登入後端操作說明](../backend/CropPilot.Api/README.md)。田區與栽培的資料庫設計仍待審查。進入田區實作後，用 `POST /api/fields` 驗證兩端編譯、HTTP 回應和重新生成，再擴及其他端點。[資料庫設計](design/first-desktop-slice-database.md) · [API 設計](design/first-desktop-slice-data-api.md)
 
 登入後端已通過編譯及 HTTP 測試。測試以暫存 SQLite 和模擬 Google OIDC 驗證帳密登入、防偽權杖、登出、首登建帳、重複登入和失敗處理。初始 Identity migration 已匯出 PostgreSQL SQL，核對了命名、外鍵和唯一索引。實際 Google 帳號與 PostgreSQL 的驗收在設定開發環境後進行。
 

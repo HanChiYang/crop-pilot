@@ -35,5 +35,5 @@ SVG 已匯入 Figma Design 並保留圖層，繁體中文文字已改用 Noto Sa
 ## 田區表單的審查結果
 
 - 已確認田區名稱及面積（平方公尺）必填，座標及備註選填。
-- Figma 以十進位的緯度和經度表示單一定位點。資料驗證規則見[資料庫與 API 草案](../../design/first-desktop-slice-data-api.md)。
+- Figma 以十進位的緯度和經度表示單一定位點。資料庫設計列出座標的精度和成對填寫規則。[資料庫設計](../../design/first-desktop-slice-database.md#postgresql-資料表)
 - 畫面中的田區、座標、作物及帳號皆為示意。
