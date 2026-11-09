@@ -9,8 +9,8 @@ using Npgsql;
 namespace CropPilot.Api.Authentication;
 
 internal sealed class GoogleSignIn(
-    UserManager<IdentityUser<Guid>> users,
-    SignInManager<IdentityUser<Guid>> signInManager,
+    UserManager<MainAccount> users,
+    SignInManager<MainAccount> signInManager,
     CropPilotDbContext database,
     ILogger<GoogleSignIn> logger)
 {
@@ -69,10 +69,7 @@ internal sealed class GoogleSignIn(
         var destination = FailedPath;
         try
         {
-            if (await TrySignInAsync(principal, context.RequestAborted))
-            {
-                destination = "/dashboard";
-            }
+            destination = await SignInAsync(principal, context.RequestAborted);
         }
         catch (Exception exception) when (!context.RequestAborted.IsCancellationRequested)
         {
@@ -82,24 +79,27 @@ internal sealed class GoogleSignIn(
         context.Response.Redirect(destination);
     }
 
-    private async Task<bool> TrySignInAsync(ClaimsPrincipal? principal, CancellationToken cancellationToken)
+    private async Task<string> SignInAsync(ClaimsPrincipal? principal, CancellationToken cancellationToken)
     {
         var subject = principal?.FindFirstValue("sub");
         if (string.IsNullOrWhiteSpace(subject) || subject.Length > 255)
         {
-            return false;
+            return FailedPath;
         }
 
-        if (await users.FindByLoginAsync(Scheme, subject) is null)
+        var account = await FindAccountAsync(subject, cancellationToken);
+        if (account is null)
         {
-            var email = principal?.FindFirstValue("email");
+            var providedEmail = principal?.FindFirstValue("email")?.Trim();
             var verified = bool.TryParse(principal?.FindFirstValue("email_verified"), out var isVerified) && isVerified;
-            if (string.IsNullOrWhiteSpace(email) || email.Length > 256 || !verified)
+            if (string.IsNullOrEmpty(providedEmail) || providedEmail.Length > 256 || !verified)
             {
-                return false;
+                return FailedPath;
             }
 
-            if (await users.FindByEmailAsync(email) is null && await users.FindByNameAsync(email) is null)
+            var email = await database.Database.SqlQuery<string>($"SELECT lower({providedEmail}) AS \"Value\"")
+                .SingleAsync(cancellationToken);
+            if (!await database.UserProfiles.AnyAsync(profile => profile.Email == email, cancellationToken))
             {
                 try
                 {
@@ -109,37 +109,68 @@ internal sealed class GoogleSignIn(
                     { SqlState: PostgresErrorCodes.UniqueViolation })
                 {
                     // A simultaneous callback can win the unique email or external login constraint.
+                    database.ChangeTracker.Clear();
                 }
+            }
 
-                database.ChangeTracker.Clear();
+            account = await FindAccountAsync(subject, cancellationToken);
+            if (account is null)
+            {
+                return await GetExistingAccountPathAsync(email, cancellationToken);
             }
         }
 
-        var result = await signInManager.ExternalLoginSignInAsync(Scheme, subject, isPersistent: false);
-        return result.Succeeded;
+        if (account.Status != MainAccount.Active || await users.IsLockedOutAsync(account))
+        {
+            return FailedPath;
+        }
+
+        await signInManager.SignInAsync(account, isPersistent: false, authenticationMethod: Scheme);
+        return "/dashboard";
     }
+
+    private Task<MainAccount?> FindAccountAsync(string subject, CancellationToken cancellationToken) =>
+        database.MainAccounts.Include(account => account.LocalCredential)
+            .SingleOrDefaultAsync(account => database.FederatedIdentities.Any(identity =>
+                identity.MainAccountId == account.Id && identity.IdentityProvider == FederatedIdentity.Google
+                && identity.ProviderUserId == subject), cancellationToken);
 
     private async Task CreateAccountAsync(string subject, string email, CancellationToken cancellationToken)
     {
-        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
-        var id = Guid.NewGuid();
-        var user = new IdentityUser<Guid>
+        var account = new MainAccount { Status = MainAccount.Active };
+        database.MainAccounts.Add(account);
+        database.UserProfiles.Add(new UserProfile { MainAccountId = account.Id, Email = email });
+        database.UserRoles.Add(new UserRole { MainAccountId = account.Id, Role = UserRole.User });
+        database.FederatedIdentities.Add(new FederatedIdentity
         {
-            Id = id,
-            UserName = $"google_{id:N}",
-            Email = email,
-            EmailConfirmed = true
-        };
-        var created = await users.CreateAsync(user);
-        if (!created.Succeeded)
+            MainAccountId = account.Id,
+            IdentityProvider = FederatedIdentity.Google,
+            ProviderUserId = subject
+        });
+        await database.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<string> GetExistingAccountPathAsync(string email, CancellationToken cancellationToken)
+    {
+        var existing = await database.UserProfiles.Where(profile => profile.Email == email)
+            .Select(profile => new
+            {
+                profile.MainAccount.Status,
+                Local = profile.MainAccount.LocalCredential != null,
+                Google = database.FederatedIdentities.Any(identity => identity.MainAccountId == profile.MainAccountId)
+            }).SingleOrDefaultAsync(cancellationToken);
+        if (existing is null)
         {
-            return;
+            return FailedPath;
         }
 
-        var linked = await users.AddLoginAsync(user, new UserLoginInfo(Scheme, subject, "Google"));
-        if (linked.Succeeded)
+        return existing switch
         {
-            await transaction.CommitAsync(cancellationToken);
-        }
+            { Status: MainAccount.Pending, Local: true } => "/login?error=account_pending",
+            { Local: true, Google: true } => "/login?error=use_existing_sign_in",
+            { Local: true } => "/login?error=use_existing_password",
+            { Google: true } => "/login?error=use_existing_google",
+            _ => FailedPath
+        };
     }
 }

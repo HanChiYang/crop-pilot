@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | 取得防偽權杖 | `GET /api/auth/csrf`，可在登入前呼叫 | `204`，設定供 Angular 讀取的 `XSRF-TOKEN` Cookie。 |
 | 登入 | `POST /api/auth/login`，傳 `username`、`password` | `204`，設定登入 Cookie。 |
+| 確認登入狀態 | `GET /api/auth/session`，由 Angular 進入總覽前呼叫 | 有效工作階段回 `204`，失效時回 `401`。 |
 | 開始 Google 登入 | `GET /api/auth/google`，由瀏覽器整頁導覽 | `302`，透過 `Location` 跳轉到 Google。 |
 | 登出 | `POST /api/auth/logout` | `204`，清除登入 Cookie。 |
 | 田區管理與田區選單 | `GET /api/fields` | `200`，回傳自己的田區陣列。 |

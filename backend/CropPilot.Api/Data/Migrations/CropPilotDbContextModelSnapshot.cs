@@ -22,7 +22,46 @@ namespace CropPilot.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUser<System.Guid>", b =>
+            modelBuilder.Entity("CropPilot.Api.Data.FederatedIdentity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("IdentityProvider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("identity_provider");
+
+                    b.Property<Guid>("MainAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("main_account_id");
+
+                    b.Property<string>("ProviderUserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("provider_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_federated_identities");
+
+                    b.HasIndex("MainAccountId")
+                        .HasDatabaseName("ix_federated_identities_main_account_id");
+
+                    b.HasIndex("IdentityProvider", "ProviderUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_federated_identities_identity_provider_provider_user_id");
+
+                    b.ToTable("federated_identities", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_federated_identities_provider", "identity_provider = 'GOOGLE'");
+                        });
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.LocalCredential", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -33,19 +72,10 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("access_failed_count");
 
-                    b.Property<string>("ConcurrencyStamp")
+                    b.Property<Guid>("ConcurrencyStamp")
                         .IsConcurrencyToken()
-                        .HasColumnType("text")
+                        .HasColumnType("uuid")
                         .HasColumnName("concurrency_stamp");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("email");
-
-                    b.Property<bool>("EmailConfirmed")
-                        .HasColumnType("boolean")
-                        .HasColumnName("email_confirmed");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean")
@@ -55,190 +85,186 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("lockout_end");
 
-                    b.Property<string>("NormalizedEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("normalized_email");
-
-                    b.Property<string>("NormalizedUserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("normalized_user_name");
+                    b.Property<Guid>("MainAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("main_account_id");
 
                     b.Property<string>("PasswordHash")
-                        .HasColumnType("text")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
                         .HasColumnName("password_hash");
 
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("text")
-                        .HasColumnName("phone_number");
-
-                    b.Property<bool>("PhoneNumberConfirmed")
-                        .HasColumnType("boolean")
-                        .HasColumnName("phone_number_confirmed");
-
-                    b.Property<string>("SecurityStamp")
-                        .HasColumnType("text")
-                        .HasColumnName("security_stamp");
-
-                    b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("two_factor_enabled");
-
-                    b.Property<string>("UserName")
+                    b.Property<string>("Username")
+                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .HasColumnName("user_name");
+                        .HasColumnName("username");
+
+                    b.HasKey("Id")
+                        .HasName("pk_local_credentials");
+
+                    b.HasIndex("MainAccountId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_credentials_main_account_id");
+
+                    b.ToTable("local_credentials", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_local_credentials_username", "length(username) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.MainAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("security_stamp");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("PENDING")
+                        .HasColumnName("status");
 
                     b.HasKey("Id")
                         .HasName("pk_main_account");
 
-                    b.HasIndex("NormalizedEmail")
-                        .IsUnique()
-                        .HasDatabaseName("ux_main_account_normalized_email");
-
-                    b.HasIndex("NormalizedUserName")
-                        .IsUnique()
-                        .HasDatabaseName("ux_main_account_normalized_user_name");
-
-                    b.ToTable("main_account", (string)null);
+                    b.ToTable("main_account", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_main_account_status", "status IN ('PENDING', 'ACTIVE', 'DISABLED')");
+                        });
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+            modelBuilder.Entity("CropPilot.Api.Data.UserProfile", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("display_name");
 
-                    b.Property<string>("ClaimType")
-                        .HasColumnType("text")
-                        .HasColumnName("claim_type");
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
 
-                    b.Property<string>("ClaimValue")
-                        .HasColumnType("text")
-                        .HasColumnName("claim_value");
+                    b.Property<string>("GivenName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("given_name");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid>("MainAccountId")
                         .HasColumnType("uuid")
-                        .HasColumnName("user_id");
+                        .HasColumnName("main_account_id");
+
+                    b.Property<string>("Surname")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("surname");
 
                     b.HasKey("Id")
-                        .HasName("pk_asp_net_user_claims");
+                        .HasName("pk_user_profiles");
 
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_asp_net_user_claims_user_id");
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_profiles_email");
 
-                    b.ToTable("asp_net_user_claims", (string)null);
+                    b.HasIndex("MainAccountId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_profiles_main_account_id");
+
+                    b.ToTable("user_profiles", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+            modelBuilder.Entity("CropPilot.Api.Data.UserRole", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("LoginProvider")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("login_provider");
-
-                    b.Property<string>("ProviderDisplayName")
-                        .HasColumnType("text")
-                        .HasColumnName("provider_display_name");
-
-                    b.Property<string>("ProviderKey")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("provider_key");
-
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid>("MainAccountId")
                         .HasColumnType("uuid")
-                        .HasColumnName("user_id");
+                        .HasColumnName("main_account_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("role");
 
                     b.HasKey("Id")
-                        .HasName("pk_user_external_logins");
+                        .HasName("pk_user_roles");
 
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_user_external_logins_user_id");
-
-                    b.HasIndex("LoginProvider", "ProviderKey")
+                    b.HasIndex("MainAccountId", "Role")
                         .IsUnique()
-                        .HasDatabaseName("ux_user_external_logins_provider_key");
+                        .HasDatabaseName("ix_user_roles_main_account_id_role");
 
-                    b.ToTable("user_external_logins", (string)null);
+                    b.ToTable("user_roles", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_user_roles_role", "role IN ('USER', 'ADMIN')");
+                        });
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+            modelBuilder.Entity("CropPilot.Api.Data.FederatedIdentity", b =>
                 {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("LoginProvider")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("login_provider");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("Value")
-                        .HasColumnType("text")
-                        .HasColumnName("value");
-
-                    b.HasKey("Id")
-                        .HasName("pk_asp_net_user_tokens");
-
-                    b.HasIndex("UserId", "LoginProvider", "Name")
-                        .IsUnique()
-                        .HasDatabaseName("ux_asp_net_user_tokens_user_provider_name");
-
-                    b.ToTable("asp_net_user_tokens", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
-                {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser<System.Guid>", null)
+                    b.HasOne("CropPilot.Api.Data.MainAccount", "MainAccount")
                         .WithMany()
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("MainAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_asp_net_user_claims_main_account_user_id");
+                        .HasConstraintName("fk_federated_identities_main_accounts_main_account_id");
+
+                    b.Navigation("MainAccount");
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+            modelBuilder.Entity("CropPilot.Api.Data.LocalCredential", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser<System.Guid>", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
+                    b.HasOne("CropPilot.Api.Data.MainAccount", null)
+                        .WithOne("LocalCredential")
+                        .HasForeignKey("CropPilot.Api.Data.LocalCredential", "MainAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_user_external_logins_main_account_user_id");
+                        .HasConstraintName("fk_local_credentials_main_accounts_main_account_id");
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+            modelBuilder.Entity("CropPilot.Api.Data.UserProfile", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser<System.Guid>", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
+                    b.HasOne("CropPilot.Api.Data.MainAccount", "MainAccount")
+                        .WithOne()
+                        .HasForeignKey("CropPilot.Api.Data.UserProfile", "MainAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_asp_net_user_tokens_main_account_user_id");
+                        .HasConstraintName("fk_user_profiles_main_accounts_main_account_id");
+
+                    b.Navigation("MainAccount");
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.UserRole", b =>
+                {
+                    b.HasOne("CropPilot.Api.Data.MainAccount", null)
+                        .WithMany()
+                        .HasForeignKey("MainAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_roles_main_account_main_account_id");
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.MainAccount", b =>
+                {
+                    b.Navigation("LocalCredential");
                 });
 #pragma warning restore 612, 618
         }

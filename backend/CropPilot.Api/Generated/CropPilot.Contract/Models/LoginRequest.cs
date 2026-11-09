@@ -27,8 +27,9 @@ namespace CropPilot.Contract.Models
     public class LoginRequest : IEquatable<LoginRequest>
     {
         /// <summary>
-        /// Gets or Sets Username
+        /// 本地登入帳號。後端去除頭尾空白後，要求至少有一個字元，並區分大小寫比對。
         /// </summary>
+        /// <value>本地登入帳號。後端去除頭尾空白後，要求至少有一個字元，並區分大小寫比對。</value>
         [Required]
         [StringLength(256, MinimumLength=1)]
         [DataMember(Name="username", EmitDefaultValue=false)]

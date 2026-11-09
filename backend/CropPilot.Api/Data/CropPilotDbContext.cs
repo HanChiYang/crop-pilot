@@ -1,48 +1,66 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace CropPilot.Api.Data;
 
-public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> options)
-    : IdentityUserContext<IdentityUser<Guid>, Guid>(options)
+public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> options) : DbContext(options)
 {
+    public DbSet<MainAccount> MainAccounts => Set<MainAccount>();
+    public DbSet<LocalCredential> LocalCredentials => Set<LocalCredential>();
+    public DbSet<FederatedIdentity> FederatedIdentities => Set<FederatedIdentity>();
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        base.OnModelCreating(builder);
+        builder.Entity<MainAccount>(account =>
+        {
+            account.ToTable("main_account", table => table.HasCheckConstraint(
+                "ck_main_account_status", "status IN ('PENDING', 'ACTIVE', 'DISABLED')"));
+            account.Property(value => value.Status).HasMaxLength(32).HasDefaultValue(MainAccount.Pending);
+            account.Property(value => value.SecurityStamp).HasMaxLength(256);
+        });
 
-        builder.Entity<IdentityUser<Guid>>(user =>
+        builder.Entity<LocalCredential>(credential =>
         {
-            user.ToTable("main_account");
-            user.HasIndex(account => account.NormalizedEmail)
-                .HasDatabaseName("ux_main_account_normalized_email")
-                .IsUnique();
-            user.HasIndex(account => account.NormalizedUserName)
-                .HasDatabaseName("ux_main_account_normalized_user_name")
-                .IsUnique();
+            credential.ToTable("local_credentials", table => table.HasCheckConstraint(
+                "ck_local_credentials_username", "length(username) > 0"));
+            credential.HasOne<MainAccount>().WithOne(account => account.LocalCredential)
+                .HasForeignKey<LocalCredential>(value => value.MainAccountId);
+            credential.Property(value => value.Username).HasMaxLength(256);
+            credential.Property(value => value.PasswordHash).HasMaxLength(512).IsRequired();
+            credential.Property(value => value.ConcurrencyStamp).IsConcurrencyToken();
         });
-        builder.Entity<IdentityUserLogin<Guid>>(login =>
+
+        builder.Entity<FederatedIdentity>(identity =>
         {
-            login.ToTable("user_external_logins");
-            login.Property<long>("Id");
-            login.HasKey("Id");
-            login.Property(entry => entry.LoginProvider).IsRequired();
-            login.Property(entry => entry.ProviderKey).IsRequired();
-            login.HasIndex(entry => new { entry.LoginProvider, entry.ProviderKey })
-                .HasDatabaseName("ux_user_external_logins_provider_key")
-                .IsUnique();
+            identity.ToTable("federated_identities", table => table.HasCheckConstraint(
+                "ck_federated_identities_provider", "identity_provider = 'GOOGLE'"));
+            identity.HasOne(value => value.MainAccount).WithMany()
+                .HasForeignKey(value => value.MainAccountId);
+            identity.Property(value => value.IdentityProvider).HasMaxLength(32);
+            identity.Property(value => value.ProviderUserId).HasMaxLength(255);
+            identity.HasIndex(value => new { value.IdentityProvider, value.ProviderUserId }).IsUnique();
         });
-        builder.Entity<IdentityUserClaim<Guid>>().ToTable("asp_net_user_claims");
-        builder.Entity<IdentityUserToken<Guid>>(token =>
+
+        builder.Entity<UserProfile>(profile =>
         {
-            token.ToTable("asp_net_user_tokens");
-            token.Property<long>("Id");
-            token.HasKey("Id");
-            token.Property(entry => entry.LoginProvider).IsRequired();
-            token.Property(entry => entry.Name).IsRequired();
-            token.HasIndex(entry => new { entry.UserId, entry.LoginProvider, entry.Name })
-                .HasDatabaseName("ux_asp_net_user_tokens_user_provider_name")
-                .IsUnique();
+            profile.ToTable("user_profiles");
+            profile.HasOne(value => value.MainAccount).WithOne()
+                .HasForeignKey<UserProfile>(value => value.MainAccountId);
+            profile.Property(value => value.Email).HasMaxLength(256);
+            profile.Property(value => value.DisplayName).HasMaxLength(120);
+            profile.Property(value => value.Surname).HasMaxLength(120);
+            profile.Property(value => value.GivenName).HasMaxLength(120);
+            profile.HasIndex(value => value.Email).IsUnique();
+        });
+
+        builder.Entity<UserRole>(role =>
+        {
+            role.ToTable("user_roles", table => table.HasCheckConstraint(
+                "ck_user_roles_role", "role IN ('USER', 'ADMIN')"));
+            role.HasOne<MainAccount>().WithMany().HasForeignKey(value => value.MainAccountId);
+            role.Property(value => value.Role).HasMaxLength(16);
+            role.HasIndex(value => new { value.MainAccountId, value.Role }).IsUnique();
         });
     }
 }

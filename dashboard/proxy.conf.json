@@ -1,0 +1,12 @@
+{
+  "/api/**": {
+    "target": "https://localhost:7081",
+    "secure": false,
+    "changeOrigin": false
+  },
+  "/signin-google": {
+    "target": "https://localhost:7081",
+    "secure": false,
+    "changeOrigin": false
+  }
+}

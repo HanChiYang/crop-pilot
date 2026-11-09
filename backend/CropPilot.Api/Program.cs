@@ -2,6 +2,7 @@ using System.Text.Json;
 using CropPilot.Api.Authentication;
 using CropPilot.Api.Data;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
@@ -13,9 +14,11 @@ builder.Services.AddDbContext<CropPilotDbContext>(options => options
     .UseNpgsql(builder.Configuration.GetConnectionString("CropPilot"),
         postgres => postgres.MigrationsHistoryTable("ef_migrations_history"))
     .UseSnakeCaseNamingConvention());
-builder.Services.AddIdentityCore<IdentityUser<Guid>>(options => options.User.RequireUniqueEmail = true)
+builder.Services.AddIdentityCore<MainAccount>()
     .AddUserStore<CropPilotUserStore>()
+    .AddClaimsPrincipalFactory<AccountPrincipalFactory>()
     .AddSignInManager();
+builder.Services.AddSingleton<ILookupNormalizer, AccountLookupNormalizer>();
 
 var authentication = builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme);
 authentication.AddIdentityCookies();
@@ -26,6 +29,15 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Events.OnValidatePrincipal = async context =>
+    {
+        var signIn = context.HttpContext.RequestServices.GetRequiredService<SignInManager<MainAccount>>();
+        if (await signIn.ValidateSecurityStampAsync(context.Principal) is not { Status: MainAccount.Active })
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+        }
+    };
     options.Events.OnRedirectToLogin = context =>
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -77,6 +89,17 @@ builder.Services.AddControllers(options =>
 });
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue<bool>("SeedDevelopmentAccount"))
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException("Test accounts can only be seeded in Development.");
+    }
+
+    await DevelopmentAccount.SeedAsync(app.Services, app.Configuration);
+    return;
+}
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();

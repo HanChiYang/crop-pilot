@@ -1,0 +1,15 @@
+api.base.service.ts
+api.module.ts
+api/api.ts
+api/auth.service.ts
+configuration.ts
+encoder.ts
+index.ts
+model/apiProblem.ts
+model/apiValidationProblem.ts
+model/loginRequest.ts
+model/models.ts
+param.ts
+provide-api.ts
+query.params.ts
+variables.ts
