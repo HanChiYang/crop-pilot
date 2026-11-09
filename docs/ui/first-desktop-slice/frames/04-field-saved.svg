@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="540" viewBox="0 0 880 540" role="img"><title>04  田區管理</title>
+<rect x="0" y="0" width="880" height="540" rx="0" fill="#f5f7f3"/>
+<rect x="0" y="0" width="172" height="540" rx="0" fill="#ffffff"/>
+<rect x="172" y="0" width="1" height="540" rx="0" fill="#d9e3db"/>
+<rect x="17" y="18" width="29" height="29" rx="7" fill="#255a41"/>
+<text x="31" y="38" fill="#ffffff" font-size="16" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">C</text>
+<text x="56" y="38" fill="#172b22" font-size="17" font-weight="700" font-family="Microsoft JhengHei, sans-serif">CropPilot</text>
+<text x="17" y="82" fill="#566960" font-size="12" font-weight="400" font-family="Microsoft JhengHei, sans-serif">農場管理</text>
+<text x="24" y="121" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">田區總覽</text>
+<rect x="12" y="142" width="147" height="38" rx="7" fill="#e6f1e8"/>
+<text x="24" y="166" fill="#255a41" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif">田區管理</text>
+<text x="24" y="211" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">作物栽培管理</text>
+<path d="M14 457H158" fill="none" stroke="#d9e3db"/>
+<text x="18" y="481" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">農民帳號</text>
+<text x="18" y="505" fill="#255a41" font-size="13" font-weight="400" font-family="Microsoft JhengHei, sans-serif">登出</text>
+<text x="202" y="50" fill="#172b22" font-size="26" font-weight="700" font-family="Microsoft JhengHei, sans-serif">田區管理</text>
+<text x="203" y="75" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">查看並維護自己的田區資料</text>
+<rect x="724" y="36" width="124" height="37" rx="7" fill="#255a41"/>
+<text x="786" y="59" fill="#ffffff" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">＋ 新增田區</text>
+<rect x="202" y="100" width="646" height="43" rx="7" fill="#e6f1e8"/>
+<text x="219" y="127" fill="#22543b" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif">已新增田區「北側田」</text>
+<rect x="202" y="160" width="646" height="129" rx="10" fill="#ffffff" stroke="#d9e3db"/>
+<text x="220" y="191" fill="#566960" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">田區名稱</text>
+<text x="401" y="191" fill="#566960" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">面積</text>
+<text x="568" y="191" fill="#566960" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">座標（緯度、經度）</text>
+<path d="M219 207H830" fill="none" stroke="#d9e3db"/>
+<text x="220" y="237" fill="#172b22" font-size="16" font-weight="700" font-family="Microsoft JhengHei, sans-serif">北側田</text>
+<text x="401" y="237" fill="#172b22" font-size="15" font-weight="400" font-family="Microsoft JhengHei, sans-serif">1,200 m²</text>
+<text x="568" y="237" fill="#172b22" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">23.500000, 120.500000</text>
+<text x="220" y="263" fill="#566960" font-size="13" font-weight="400" font-family="Microsoft JhengHei, sans-serif">靠近灌溉入口</text>
+<rect x="202" y="307" width="190" height="37" rx="7" fill="#ffffff" stroke="#d9e3db"/>
+<text x="297" y="330" fill="#255a41" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">前往作物栽培管理</text>
+</svg>

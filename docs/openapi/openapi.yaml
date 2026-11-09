@@ -1,0 +1,475 @@
+openapi: 3.1.0
+x-stoplight:
+  id: a4hkgw8vplej4
+info:
+  title: CropPilot
+  version: '1.0'
+  description: 首個桌機切片涵蓋登入、新增田區、新增規劃中的栽培及田區總覽。
+servers:
+  - url: /
+    description: 與 Angular 同源
+tags:
+  - name: Auth
+  - name: Fields
+  - name: Plantings
+  - name: Overview
+security:
+  - SessionCookie: []
+paths:
+  /api/auth/csrf:
+    get:
+      tags: [Auth]
+      operationId: getCsrfToken
+      summary: 取得防偽權杖
+      description: 首次寫入前與登入或登出後呼叫。伺服器設定供 Angular 讀取的 XSRF-TOKEN Cookie。
+      security: []
+      responses:
+        '204':
+          description: 已發送防偽權杖
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: 以 CropPilot 帳號密碼登入
+      security:
+        - CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '204':
+          description: 已登入並設定工作階段 Cookie
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: 帳號或密碼錯誤
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApiProblem'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/google:
+    get:
+      tags: [Auth]
+      operationId: startGoogleSignIn
+      summary: 開始 Google 登入
+      description: 由瀏覽器整頁導覽至此，伺服器啟動 OpenID Connect 授權碼與 PKCE 流程。Google 回呼由 ASP.NET Core 中介軟體處理。
+      security: []
+      responses:
+        '302':
+          description: 跳轉到 Google；無法開始登入時返回 CropPilot 登入頁並顯示提示。
+          headers:
+            Location:
+              required: true
+              schema:
+                type: string
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: 登出
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      responses:
+        '204':
+          description: 已登出並清除工作階段 Cookie
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/fields:
+    get:
+      tags: [Fields]
+      operationId: listFields
+      summary: 列出自己的田區
+      responses:
+        '200':
+          description: 田區列表。尚無田區時回傳空陣列。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Field'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Fields]
+      operationId: createField
+      summary: 新增田區
+      description: 擁有者由伺服器依登入身分設定。緯度及經度都可留空，填寫時須成對提供。
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFieldRequest'
+            example:
+              name: 北側田
+              areaSquareMeters: 1200
+      responses:
+        '201':
+          description: 已建立田區
+          headers:
+            Location:
+              description: 新田區的查詢路徑
+              required: true
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+              example:
+                id: 'f22d8798-25ed-4d15-ae70-a8f9e894dc17'
+                name: 北側田
+                areaSquareMeters: 1200
+                latitude: null
+                longitude: null
+                notes: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/fields/{fieldId}:
+    parameters:
+      - $ref: '#/components/parameters/FieldId'
+    get:
+      tags: [Fields]
+      operationId: getField
+      summary: 查詢自己的田區
+      responses:
+        '200':
+          description: 田區資料
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Field'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/fields/{fieldId}/plantings:
+    parameters:
+      - $ref: '#/components/parameters/FieldId'
+    post:
+      tags: [Plantings]
+      operationId: createPlanting
+      summary: 新增規劃中的栽培紀錄
+      description: 伺服器將狀態設為 planned，實際栽種日設為 null。
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlantingRequest'
+            example:
+              cropName: 番茄
+      responses:
+        '201':
+          description: 已建立栽培紀錄
+          headers:
+            Location:
+              description: 新栽培紀錄的查詢路徑
+              required: true
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Planting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/fields/{fieldId}/plantings/{plantingId}:
+    parameters:
+      - $ref: '#/components/parameters/FieldId'
+      - $ref: '#/components/parameters/PlantingId'
+    get:
+      tags: [Plantings]
+      operationId: getPlanting
+      summary: 查詢自己的栽培紀錄
+      responses:
+        '200':
+          description: 栽培紀錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Planting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/overview:
+    get:
+      tags: [Overview]
+      operationId: getOverview
+      summary: 查詢田區與目前的栽培狀況
+      description: 回傳自己的所有田區及各田區的規劃中、栽培中與採收中紀錄。已結束紀錄會保留在資料庫。
+      responses:
+        '200':
+          description: 田區總覽。尚無田區時回傳空陣列。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FieldOverview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: CropPilot.Session
+      description: 由伺服器設定並由瀏覽器管理的 HttpOnly 工作階段 Cookie。
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: X-XSRF-TOKEN
+      description: Angular 從 XSRF-TOKEN Cookie 取得權杖，並在同源寫入請求帶上此標頭。
+  parameters:
+    FieldId:
+      name: fieldId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PlantingId:
+      name: plantingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: 請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApiValidationProblem'
+    Unauthorized:
+      description: 未登入或工作階段已失效
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApiProblem'
+    NotFound:
+      description: 資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApiProblem'
+    ServerError:
+      description: 伺服器處理失敗
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApiProblem'
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 256
+        password:
+          type: string
+          minLength: 1
+          format: password
+          writeOnly: true
+    CreateFieldRequest:
+      type: object
+      required: [name, areaSquareMeters]
+      properties:
+        name:
+          type: string
+          pattern: '^[\s\S]*\S[\s\S]*$'
+          maxLength: 120
+        areaSquareMeters:
+          type: number
+          description: 平方公尺，最多四位小數。
+          exclusiveMinimum: 0
+          maximum: 9999999999.9999
+          multipleOf: 0.0001
+        latitude:
+          type: [number, 'null']
+          minimum: -90
+          maximum: 90
+          multipleOf: 0.000001
+        longitude:
+          type: [number, 'null']
+          minimum: -180
+          maximum: 180
+          multipleOf: 0.000001
+        notes:
+          type: [string, 'null']
+          maxLength: 1000
+    Field:
+      type: object
+      required: [id, name, areaSquareMeters, latitude, longitude, notes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 120
+        areaSquareMeters:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 9999999999.9999
+          multipleOf: 0.0001
+        latitude:
+          type: [number, 'null']
+          minimum: -90
+          maximum: 90
+          multipleOf: 0.000001
+        longitude:
+          type: [number, 'null']
+          minimum: -180
+          maximum: 180
+          multipleOf: 0.000001
+        notes:
+          type: [string, 'null']
+          maxLength: 1000
+    CreatePlantingRequest:
+      type: object
+      required: [cropName]
+      properties:
+        cropName:
+          type: string
+          pattern: '^[\s\S]*\S[\s\S]*$'
+          maxLength: 120
+        variety:
+          type: [string, 'null']
+          maxLength: 120
+        plannedPlantingDate:
+          type: [string, 'null']
+          format: date
+        notes:
+          type: [string, 'null']
+          maxLength: 1000
+    Planting:
+      type: object
+      required: [id, fieldId, cropName, variety, plannedPlantingDate, actualPlantingDate, status, notes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fieldId:
+          type: string
+          format: uuid
+        cropName:
+          type: string
+          maxLength: 120
+        variety:
+          type: [string, 'null']
+          maxLength: 120
+        plannedPlantingDate:
+          type: [string, 'null']
+          format: date
+        actualPlantingDate:
+          type: [string, 'null']
+          format: date
+        status:
+          $ref: '#/components/schemas/PlantingStatus'
+        notes:
+          type: [string, 'null']
+          maxLength: 1000
+    PlantingStatus:
+      type: string
+      enum: [planned, growing, harvesting, completed]
+    FieldOverview:
+      allOf:
+        - $ref: '#/components/schemas/Field'
+        - type: object
+          required: [plantings]
+          properties:
+            plantings:
+              type: array
+              description: 目前栽培紀錄，沒有紀錄時為空陣列。
+              items:
+                $ref: '#/components/schemas/Planting'
+    ApiProblem:
+      type: object
+      required: [status, title]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+    ApiValidationProblem:
+      allOf:
+        - $ref: '#/components/schemas/ApiProblem'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: object
+              description: 以 JSON 欄位名對應錯誤訊息陣列。防偽驗證失敗時使用空物件。
+              additionalProperties:
+                type: array
+                items:
+                  type: string

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="540" viewBox="0 0 880 540" role="img"><title>05  新增栽培紀錄</title>
+<rect x="0" y="0" width="880" height="540" rx="0" fill="#f5f7f3"/>
+<rect x="0" y="0" width="172" height="540" rx="0" fill="#ffffff"/>
+<rect x="172" y="0" width="1" height="540" rx="0" fill="#d9e3db"/>
+<rect x="17" y="18" width="29" height="29" rx="7" fill="#255a41"/>
+<text x="31" y="38" fill="#ffffff" font-size="16" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">C</text>
+<text x="56" y="38" fill="#172b22" font-size="17" font-weight="700" font-family="Microsoft JhengHei, sans-serif">CropPilot</text>
+<text x="17" y="82" fill="#566960" font-size="12" font-weight="400" font-family="Microsoft JhengHei, sans-serif">農場管理</text>
+<text x="24" y="121" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">田區總覽</text>
+<text x="24" y="166" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">田區管理</text>
+<rect x="12" y="187" width="147" height="38" rx="7" fill="#e6f1e8"/>
+<text x="24" y="211" fill="#255a41" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif">作物栽培管理</text>
+<path d="M14 457H158" fill="none" stroke="#d9e3db"/>
+<text x="18" y="481" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">農民帳號</text>
+<text x="18" y="505" fill="#255a41" font-size="13" font-weight="400" font-family="Microsoft JhengHei, sans-serif">登出</text>
+<text x="202" y="50" fill="#172b22" font-size="26" font-weight="700" font-family="Microsoft JhengHei, sans-serif">新增栽培紀錄</text>
+<text x="203" y="75" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">作物栽培管理  /  新增栽培紀錄</text>
+<rect x="202" y="101" width="646" height="392" rx="12" fill="#ffffff" stroke="#d9e3db"/>
+<text x="223" y="136" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">田區（必填）</text>
+<rect x="223" y="146" width="602" height="36" rx="6" fill="#ffffff" stroke="#d9e3db"/>
+<text x="234" y="169" fill="#172b22" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">北側田</text>
+<path d="M801 161l5 5 5-5" fill="none" stroke="#566960" stroke-width="1.5"/>
+<text x="223" y="205" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">作物（必填）</text>
+<rect x="223" y="215" width="292" height="36" rx="6" fill="#ffffff" stroke="#d9e3db"/>
+<text x="234" y="238" fill="#172b22" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">番茄</text>
+<text x="533" y="205" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">品種（選填）</text>
+<rect x="533" y="215" width="292" height="36" rx="6" fill="#ffffff" stroke="#d9e3db"/>
+<text x="544" y="238" fill="#172b22" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">示意品種 A</text>
+<text x="223" y="273" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">預定栽種日（選填）</text>
+<rect x="223" y="283" width="292" height="36" rx="6" fill="#ffffff" stroke="#d9e3db"/>
+<text x="234" y="306" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">YYYY/MM/DD</text>
+<text x="533" y="273" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">狀態</text>
+<rect x="533" y="287" width="76" height="25" rx="12" fill="#f8eed7"/>
+<text x="571" y="304" fill="#684a16" font-size="12" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">規劃中</text>
+<text x="223" y="342" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">備註（選填）</text>
+<rect x="223" y="352" width="602" height="53" rx="6" fill="#ffffff" stroke="#d9e3db"/>
+<text x="234" y="375" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">可填入這次的栽培備註</text>
+<path d="M223 420H825" fill="none" stroke="#d9e3db"/>
+<rect x="223" y="438" width="148" height="37" rx="7" fill="#255a41"/>
+<text x="297" y="461" fill="#ffffff" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">儲存並回總覽</text>
+<rect x="382" y="438" width="65" height="37" rx="7" fill="#ffffff" stroke="#d9e3db"/>
+<text x="414" y="461" fill="#255a41" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">取消</text>
+</svg>

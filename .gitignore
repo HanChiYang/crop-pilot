@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+/dashboard/node_modules/
+/dashboard/.angular/
+/dashboard/dist/
+
+.env
+.env.*
+!.env.example

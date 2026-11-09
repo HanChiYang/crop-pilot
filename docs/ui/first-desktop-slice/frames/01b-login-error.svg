@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="540" viewBox="0 0 880 540" role="img"><title>01b  登入失敗</title>
+<rect x="0" y="0" width="880" height="540" rx="0" fill="#f5f7f3"/>
+<rect x="0" y="0" width="363" height="540" rx="0" fill="#255a41"/>
+<rect x="33" y="32" width="29" height="29" rx="7" fill="#e6f1e8"/>
+<text x="47" y="52" fill="#255a41" font-size="16" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">C</text>
+<text x="72" y="52" fill="#ffffff" font-size="17" font-weight="700" font-family="Microsoft JhengHei, sans-serif">CropPilot</text>
+<text x="33" y="241" fill="#ffffff" font-size="31" font-weight="700" font-family="Microsoft JhengHei, sans-serif">看清每一塊田</text>
+<text x="34" y="279" fill="#e6f1e8" font-size="16" font-weight="400" font-family="Microsoft JhengHei, sans-serif">在同一個地方整理田區和栽培計畫。</text>
+<rect x="409" y="76" width="421" height="424" rx="13" fill="#ffffff" stroke="#d9e3db"/>
+<text x="446" y="130" fill="#172b22" font-size="24" font-weight="700" font-family="Microsoft JhengHei, sans-serif">登入 CropPilot</text>
+<text x="446" y="158" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">使用農民帳號進入田區總覽</text>
+<text x="446" y="197" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">帳號</text>
+<rect x="446" y="207" width="347" height="36" rx="6" fill="#ffffff" stroke="#d9e3db"/>
+<text x="457" y="230" fill="#172b22" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">farmer@example.test</text>
+<text x="446" y="266" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">密碼</text>
+<rect x="446" y="276" width="347" height="36" rx="6" fill="#ffffff" stroke="#d9e3db"/>
+<text x="457" y="299" fill="#172b22" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">••••••••</text>
+<rect x="446" y="323" width="347" height="33" rx="6" fill="#fcecea"/>
+<text x="457" y="344" fill="#962b25" font-size="13" font-weight="400" font-family="Microsoft JhengHei, sans-serif">帳號或密碼不正確，請再試一次。</text>
+<rect x="446" y="370" width="347" height="41" rx="7" fill="#255a41"/>
+<text x="619" y="395" fill="#ffffff" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">登入</text>
+<g aria-label="以 Google 帳號登入">
+  <path d="M446 425.5H793" stroke="#d9e3db"/>
+  <rect x="446.5" y="442.5" width="346" height="40" rx="6" fill="#ffffff" stroke="#747775"/>
+  <svg x="458" y="453.5" width="18" height="18" viewBox="0 0 48 48">
+    <path fill="#4285F4" d="M43.61 24.46c0-1.36-.12-2.66-.35-3.92H24v7.42h11a9.4 9.4 0 0 1-4.08 6.17v5.13h6.61c3.86-3.56 6.08-8.79 6.08-14.8z"/>
+    <path fill="#34A853" d="M24 44c5.51 0 10.13-1.83 13.51-4.97l-6.61-5.13c-1.83 1.23-4.18 1.96-6.9 1.96-5.33 0-9.85-3.6-11.47-8.44H5.71v5.28A20 20 0 0 0 24 44z"/>
+    <path fill="#FBBC05" d="M12.53 27.42a12 12 0 0 1 0-6.84V15.3H5.71a20 20 0 0 0 0 17.4z"/>
+    <path fill="#EA4335" d="M24 12.14c3 0 5.69 1.03 7.81 3.06l5.86-5.86C34.13 6.03 29.51 4 24 4A20 20 0 0 0 5.71 15.3l6.82 5.28c1.62-4.84 6.14-8.44 11.47-8.44z"/>
+  </svg>
+  <text x="619.5" y="468" fill="#1f1f1f" font-family="Noto Sans TC, Microsoft JhengHei, sans-serif" font-size="14" font-weight="500" text-anchor="middle">以 Google 帳號登入</text>
+</g>
+</svg>

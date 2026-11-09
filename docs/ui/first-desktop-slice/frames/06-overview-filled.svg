@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="540" viewBox="0 0 880 540" role="img"><title>06  回到田區總覽</title>
+<rect x="0" y="0" width="880" height="540" rx="0" fill="#f5f7f3"/>
+<rect x="0" y="0" width="172" height="540" rx="0" fill="#ffffff"/>
+<rect x="172" y="0" width="1" height="540" rx="0" fill="#d9e3db"/>
+<rect x="17" y="18" width="29" height="29" rx="7" fill="#255a41"/>
+<text x="31" y="38" fill="#ffffff" font-size="16" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">C</text>
+<text x="56" y="38" fill="#172b22" font-size="17" font-weight="700" font-family="Microsoft JhengHei, sans-serif">CropPilot</text>
+<text x="17" y="82" fill="#566960" font-size="12" font-weight="400" font-family="Microsoft JhengHei, sans-serif">農場管理</text>
+<rect x="12" y="97" width="147" height="38" rx="7" fill="#e6f1e8"/>
+<text x="24" y="121" fill="#255a41" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif">田區總覽</text>
+<text x="24" y="166" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">田區管理</text>
+<text x="24" y="211" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">作物栽培管理</text>
+<path d="M14 457H158" fill="none" stroke="#d9e3db"/>
+<text x="18" y="481" fill="#172b22" font-size="13" font-weight="700" font-family="Microsoft JhengHei, sans-serif">農民帳號</text>
+<text x="18" y="505" fill="#255a41" font-size="13" font-weight="400" font-family="Microsoft JhengHei, sans-serif">登出</text>
+<text x="202" y="50" fill="#172b22" font-size="26" font-weight="700" font-family="Microsoft JhengHei, sans-serif">田區總覽</text>
+<text x="203" y="75" fill="#566960" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">查看各田區的規劃、栽培與採收狀況</text>
+<rect x="202" y="101" width="646" height="43" rx="7" fill="#e6f1e8"/>
+<text x="219" y="128" fill="#22543b" font-size="14" font-weight="700" font-family="Microsoft JhengHei, sans-serif">已新增「番茄」栽培紀錄</text>
+<rect x="202" y="160" width="646" height="180" rx="11" fill="#ffffff" stroke="#d9e3db"/>
+<text x="221" y="198" fill="#172b22" font-size="20" font-weight="700" font-family="Microsoft JhengHei, sans-serif">北側田</text>
+<text x="221" y="222" fill="#566960" font-size="13" font-weight="400" font-family="Microsoft JhengHei, sans-serif">面積 1,200 m²</text>
+<path d="M221 239H828" fill="none" stroke="#d9e3db"/>
+<text x="221" y="273" fill="#172b22" font-size="16" font-weight="700" font-family="Microsoft JhengHei, sans-serif">番茄</text>
+<text x="221" y="297" fill="#566960" font-size="13" font-weight="400" font-family="Microsoft JhengHei, sans-serif">示意品種 A</text>
+<rect x="414" y="253" width="76" height="25" rx="12" fill="#f8eed7"/>
+<text x="452" y="270" fill="#684a16" font-size="12" font-weight="700" font-family="Microsoft JhengHei, sans-serif" text-anchor="middle">規劃中</text>
+<text x="571" y="265" fill="#566960" font-size="13" font-weight="400" font-family="Microsoft JhengHei, sans-serif">預定栽種日</text>
+<text x="571" y="292" fill="#172b22" font-size="14" font-weight="400" font-family="Microsoft JhengHei, sans-serif">尚未設定</text>
+</svg>

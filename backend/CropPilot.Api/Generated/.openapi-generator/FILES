@@ -1,0 +1,6 @@
+CropPilot.Contract/Attributes/ValidateModelStateAttribute.cs
+CropPilot.Contract/Controllers/AuthApi.cs
+CropPilot.Contract/Converters/CustomEnumConverter.cs
+CropPilot.Contract/Models/ApiProblem.cs
+CropPilot.Contract/Models/ApiValidationProblem.cs
+CropPilot.Contract/Models/LoginRequest.cs

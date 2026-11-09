@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="540" viewBox="0 0 880 540" role="img">
+<title>00 首頁</title>
+<rect width="880" height="540" fill="#f5f7f3"/>
+<rect width="880" height="73" fill="#ffffff"/>
+<path d="M0 73H880" stroke="#d9e3db"/>
+<rect x="42" y="20" width="32" height="32" rx="8" fill="#255a41"/>
+<text x="58" y="42" fill="#ffffff" font-size="17" font-weight="700" font-family="Noto Sans TC" text-anchor="middle">C</text>
+<text x="84" y="42" fill="#172b22" font-size="18" font-weight="700" font-family="Noto Sans TC">CropPilot</text>
+<rect x="746" y="17" width="92" height="38" rx="7" fill="#ffffff" stroke="#255a41"/>
+<text x="792" y="42" fill="#255a41" font-size="14" font-weight="700" font-family="Noto Sans TC" text-anchor="middle">登入</text>
+
+<rect x="42" y="113" width="84" height="25" rx="12" fill="#e6f1e8"/>
+<text x="84" y="131" fill="#22543b" font-size="12" font-weight="700" font-family="Noto Sans TC" text-anchor="middle">農場管理</text>
+<text x="42" y="185" fill="#172b22" font-size="38" font-weight="700" font-family="Noto Sans TC">掌握每塊田的</text>
+<text x="42" y="236" fill="#255a41" font-size="38" font-weight="700" font-family="Noto Sans TC">栽培進度</text>
+<text x="42" y="273" fill="#566960" font-size="16" font-weight="400" font-family="Noto Sans TC">整理田區、記下栽培計畫，</text>
+<text x="42" y="298" fill="#566960" font-size="16" font-weight="400" font-family="Noto Sans TC">在總覽查看各塊田目前種了什麼。</text>
+<rect x="42" y="320" width="174" height="44" rx="8" fill="#255a41"/>
+<text x="129" y="348" fill="#ffffff" font-size="15" font-weight="700" font-family="Noto Sans TC" text-anchor="middle">登入 CropPilot</text>
+
+<rect x="443" y="111" width="395" height="257" rx="16" fill="#e6f1e8"/>
+<rect x="463" y="130" width="355" height="219" rx="11" fill="#ffffff" stroke="#d9e3db"/>
+<text x="480" y="157" fill="#172b22" font-size="17" font-weight="700" font-family="Noto Sans TC">田區總覽</text>
+<text x="802" y="157" fill="#566960" font-size="11" font-weight="400" font-family="Noto Sans TC" text-anchor="end">示意資料</text>
+<path d="M480 170H801" stroke="#d9e3db"/>
+<rect x="480" y="184" width="321" height="63" rx="8" fill="#f5f7f3"/>
+<text x="493" y="206" fill="#172b22" font-size="14" font-weight="700" font-family="Noto Sans TC">北側田</text>
+<text x="493" y="229" fill="#566960" font-size="13" font-weight="400" font-family="Noto Sans TC">番茄 · 1,200 m²</text>
+<rect x="718" y="202" width="69" height="24" rx="12" fill="#f8eed7"/>
+<text x="752" y="219" fill="#684a16" font-size="12" font-weight="700" font-family="Noto Sans TC" text-anchor="middle">規劃中</text>
+<rect x="480" y="259" width="321" height="63" rx="8" fill="#f5f7f3"/>
+<text x="493" y="281" fill="#172b22" font-size="14" font-weight="700" font-family="Noto Sans TC">南側田</text>
+<text x="493" y="304" fill="#566960" font-size="13" font-weight="400" font-family="Noto Sans TC">小白菜 · 850 m²</text>
+<rect x="718" y="277" width="69" height="24" rx="12" fill="#e6f1e8"/>
+<text x="752" y="294" fill="#22543b" font-size="12" font-weight="700" font-family="Noto Sans TC" text-anchor="middle">栽培中</text>
+
+<path d="M42 403H838" stroke="#d9e3db"/>
+<text x="42" y="440" fill="#172b22" font-size="16" font-weight="700" font-family="Noto Sans TC">田區管理</text>
+<text x="42" y="466" fill="#566960" font-size="13" font-weight="400" font-family="Noto Sans TC">記錄田區名稱、面積與座標。</text>
+<text x="312" y="440" fill="#172b22" font-size="16" font-weight="700" font-family="Noto Sans TC">栽培規劃</text>
+<text x="312" y="466" fill="#566960" font-size="13" font-weight="400" font-family="Noto Sans TC">為田區新增作物與預定栽種日。</text>
+<text x="582" y="440" fill="#172b22" font-size="16" font-weight="700" font-family="Noto Sans TC">田區總覽</text>
+<text x="582" y="466" fill="#566960" font-size="13" font-weight="400" font-family="Noto Sans TC">一眼查看規劃中和栽培中的作物。</text>
+</svg>
