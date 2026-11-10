@@ -1,0 +1,48 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Build and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OPENAPI_GENERATOR_VERSION: "7.27.0"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+      - name: Build ASP.NET Core API
+        run: dotnet build backend/CropPilot.Api/CropPilot.Api.csproj --configuration Release
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24.x"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Build Angular dashboard
+        working-directory: dashboard
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Validate OpenAPI contract
+        run: |
+          jar="$RUNNER_TEMP/openapi-generator-cli.jar"
+          curl --fail --silent --show-error --location --retry 3 --output "$jar" \
+            "https://repo.maven.apache.org/maven2/org/openapitools/openapi-generator-cli/$OPENAPI_GENERATOR_VERSION/openapi-generator-cli-$OPENAPI_GENERATOR_VERSION.jar"
+          java -jar "$jar" validate -i docs/openapi/openapi.yaml
