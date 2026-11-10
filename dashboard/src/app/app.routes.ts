@@ -1,11 +1,22 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { CanActivateFn, Router, Routes } from '@angular/router';
-import { catchError, map, of } from 'rxjs';
+import { CanActivateFn, RedirectCommand, Router, Routes } from '@angular/router';
+import { catchError, map, of, timeout } from 'rxjs';
 import { AuthService } from './generated/api/auth.service';
 import { LandingPage } from './landing-page';
 import { LoginPage } from './login-page';
 import { OverviewPage } from './overview-page';
+
+const redirectSignedIn: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  return auth.getSession().pipe(
+    timeout(5_000),
+    map(() => new RedirectCommand(router.createUrlTree(['/dashboard']), { replaceUrl: true })),
+    catchError(() => of(true)),
+  );
+};
 
 const requireSession: CanActivateFn = () => {
   const auth = inject(AuthService);
@@ -23,7 +34,7 @@ const requireSession: CanActivateFn = () => {
 };
 
 export const routes: Routes = [
-  { path: '', component: LandingPage, title: 'CropPilot' },
+  { path: '', component: LandingPage, canActivate: [redirectSignedIn], title: 'CropPilot' },
   { path: 'login', component: LoginPage, title: '登入 CropPilot' },
   { path: 'dashboard', component: OverviewPage, canActivate: [requireSession], title: '田區總覽｜CropPilot' },
   { path: '**', redirectTo: '' },
