@@ -2,11 +2,17 @@ api.base.service.ts
 api.module.ts
 api/api.ts
 api/auth.service.ts
+api/fields.service.ts
 configuration.ts
 encoder.ts
 index.ts
 model/apiProblem.ts
 model/apiValidationProblem.ts
+model/createFieldRqDto.ts
+model/deleteFieldRqDto.ts
+model/editFieldRqDto.ts
+model/fieldDto.ts
+model/fieldRsDto.ts
 model/loginRequest.ts
 model/models.ts
 param.ts

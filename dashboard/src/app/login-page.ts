@@ -37,7 +37,7 @@ const redirectErrors: Readonly<Record<string, string>> = {
             <button class="button" type="submit" [disabled]="busy()">{{ busy() ? '登入中…' : '登入' }}</button>
           </form>
           <div class="divider"><span>或</span></div>
-          <a class="button button-outline google" href="/api/auth/google">以 Google 帳號登入</a>
+          <a class="button button-outline google" href="/api/v1/auth/google">以 Google 帳號登入</a>
         </div>
       </section>
     </main>

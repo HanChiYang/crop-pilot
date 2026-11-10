@@ -1,0 +1,11 @@
+extends: ["spectral:oas"]
+rules:
+  info-license: warn
+  openapi-tags-alphabetical: warn
+  tag-description: warn
+  oas3-parameter-description: warn
+  oas3-server-trailing-slash: warn
+  # CropPilot 以 GitHub 專案連結作為聯絡管道，尚未提供專案信箱。
+  contact-properties: off
+  # OpenAPI 3.1 的 license.identifier 和 license.url 只能擇一。
+  license-url: off

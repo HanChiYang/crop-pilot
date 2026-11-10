@@ -20,7 +20,7 @@ dotnet ef database update --project $project
 dotnet run --project $project -- --urls http://localhost:7081
 ```
 
-在 `http://localhost:4200/login` 操作前端。登入成功後，Angular 以 `GET /api/auth/session` 確認 `CropPilot.Session` Cookie 有效才顯示總覽。使用帳密登入和登出前，Angular 會先向 `GET /api/auth/csrf` 取得防偽權杖。Google 登入失敗會返回登入頁顯示提示。[前端操作說明](../../dashboard/README.md)
+在 `http://localhost:4200/login` 操作前端。登入成功後，Angular 以 `GET /api/v1/auth/session` 確認 `CropPilot.Session` Cookie 有效才顯示總覽。使用帳密登入和登出前，Angular 會先向 `GET /api/v1/auth/csrf` 取得防偽權杖。Google 登入失敗會返回登入頁顯示提示。[前端操作說明](../../dashboard/README.md)
 
 本機以 `Development` 環境使用 HTTP。部署時使用 HTTPS，並設定部署網域的 Google OAuth HTTPS 回呼網址。非開發環境會啟用 HTTPS 轉址，且登入及防偽 Cookie 會加上 `Secure`。
 
@@ -32,12 +32,12 @@ dotnet user-secrets set 'DevelopmentAccount:Password' '<本機測試密碼>' --p
 dotnet run --project $project -- --SeedDevelopmentAccount=true
 ```
 
-## 重新生成登入契約
+## 重新生成 API 契約
 
 在 `backend/` 目錄執行：
 
 ```powershell
-./tools/Generate-AuthContract.ps1 -GeneratorJar '<OpenAPI Generator 7.27.0 JAR 路徑>'
+./tools/Generate-ApiContract.ps1 -GeneratorJar '<OpenAPI Generator 7.27.0 JAR 路徑>'
 ```
 
 生成的 Controller 和 DTO 位於 `Generated`，Angular client 位於 `dashboard/src/app/generated`。登入行為在 `Authentication`，Google 回呼 `/signin-google` 由中介軟體接收。
