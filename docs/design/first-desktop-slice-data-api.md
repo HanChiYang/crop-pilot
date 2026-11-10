@@ -10,7 +10,7 @@
 
 OpenAPI 全域預設為 `BearerAuth`。田區、栽培、總覽與工作階段查詢使用 `Authorization: Bearer <access_token>`。續期與登出要求 `RenewalCookie` 和 `CsrfToken`。帳密登入也要求 `CsrfToken`。Angular 在這三項操作前先取得防偽權杖，再於 `X-XSRF-TOKEN` 標頭帶上權杖。取得防偽權杖及開始 Google 登入皆可匿名呼叫。
 
-帳密由 ASP.NET Core Identity 驗證，成功後 CropPilot 回傳已簽章的 JWT Access Token 並設定 `CropPilot.Renewal` Cookie。JWT 的 `sub` 是 `main_account.id`，`role` 是簽發當下的角色陣列，`iat` 與 `exp` 分別是簽發及到期時間。受保護 API 驗證簽章、`iss`、`aud` 與效期後直接使用 JWT claims。權杖效期最多五分鐘，並受工作階段到期時間限制。
+帳密由 ASP.NET Core Identity 驗證，成功後 CropPilot 回傳已簽章的 JWT Access Token 並設定 `CropPilot.Renewal` Cookie。JWT 的 `sub` 是 `main_account.id`，`role` 是簽發當下的角色陣列，`iat` 與 `exp` 分別是簽發及到期時間。Bearer 驗證在簽章、`iss`、`aud` 與效期通過後，要求 `sub` 為帶連字號的非零 UUID，並將解析出的主帳號 ID 提供給端點。`sub` 缺漏或不符格式時，受保護的端點回傳 `401`。權杖效期最多五分鐘，並受工作階段到期時間限制。
 
 Angular 只在記憶體保存權杖，重新整理後用續期 Cookie 取得新權杖。當資料 API 回傳 Bearer 驗證失敗的 `401`，Angular 可續期並重試一次，續期回應中的 `sessionId` 須符合原工作階段才會重試原請求。
 
@@ -78,6 +78,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 | 防偽權杖缺漏或驗證失敗 | `400`，回傳問題說明與空的 `errors`。 | 顯示請求失敗，保留輸入。 |
 | 登入資料錯誤 | `401`，通用登入失敗訊息。 | 顯示帳號或密碼錯誤，可重試。 |
 | 未登入或工作階段已失效 | `401`。 | 導回登入。 |
+| 登入帳號缺少田區功能所需的 `USER` 角色 | `403`。 | 提示沒有使用權限。 |
 | 田區或栽培紀錄不存在，或屬於其他帳號 | `404`。 | 提示找不到資料，提供返回列表的入口。 |
 | 同帳號已有同名田區 | `409`，以 `errors.name` 回傳欄位錯誤。 | 在名稱欄位旁顯示「此名稱已使用」，保留輸入。 |
 | 待刪除田區已有栽培紀錄 | `409`，回傳問題說明。 | 顯示無法刪除的原因。 |

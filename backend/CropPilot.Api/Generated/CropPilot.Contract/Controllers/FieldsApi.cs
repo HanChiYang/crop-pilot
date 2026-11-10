@@ -30,11 +30,12 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 新增單筆田區
         /// </summary>
-        /// <remarks>擁有者由伺服器依登入身分設定。同帳號的田區名稱去除頭尾空白後不得重複，並區分大小寫。緯度及經度都可留空，填寫時須成對提供。</remarks>
+        /// <remarks>需要 USER 角色。擁有者由伺服器依登入身分設定。同帳號的田區名稱去除頭尾空白後不得重複，並區分大小寫。緯度及經度都可留空，填寫時須成對提供。</remarks>
         /// <param name="createFieldRqDto"></param>
         /// <response code="201">已建立田區。fields 僅含本次建立的一筆田區。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="409">同帳號已有同名田區。errors.name 提供欄位提示。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPost]
@@ -45,6 +46,7 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 201, type: typeof(FieldRsDto))]
         [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 409, type: typeof(ApiValidationProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> CreateField([FromBody]CreateFieldRqDto createFieldRqDto);
@@ -122,11 +124,12 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 列出自己的田區詳細資料
         /// </summary>
-        /// <remarks>依田區識別碼查詢登入帳號的田區。田區不存在或屬於其他帳號時回傳 404。</remarks>
+        /// <remarks>需要 USER 角色。依田區識別碼查詢登入帳號的田區。田區不存在或屬於其他帳號時回傳 404。</remarks>
         /// <param name="fieldId">田區的 UUID。</param>
         /// <response code="200">田區資料</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpGet]
@@ -136,6 +139,7 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 200, type: typeof(FieldDto))]
         [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetField([FromRoute (Name = "fieldId")][Required]Guid fieldId);
@@ -143,9 +147,10 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 列出自己的田區清單
         /// </summary>
-        /// <remarks>回傳登入帳號所擁有的田區。尚未建立田區時回傳空陣列。</remarks>
+        /// <remarks>需要 USER 角色。回傳登入帳號所擁有的田區。尚未建立田區時回傳空陣列。</remarks>
         /// <response code="200">田區列表。尚無田區時 fields 為空陣列。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpGet]
         [Route("/api/v1/fields")]
@@ -153,6 +158,7 @@ namespace CropPilot.Contract.Controllers
         [ValidateModelState]
         [ProducesResponseType(statusCode: 200, type: typeof(FieldRsDto))]
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetFields();
     }

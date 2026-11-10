@@ -1,6 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using CropPilot.Api.Authentication;
 using CropPilot.Api.Data;
+using CropPilot.Api.Fields;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,6 +19,8 @@ builder.Services.AddDbContext<CropPilotDbContext>(options => options
     .UseNpgsql(builder.Configuration.GetConnectionString("CropPilot"),
         postgres => postgres.MigrationsHistoryTable("ef_migrations_history"))
     .UseSnakeCaseNamingConvention());
+builder.Services.AddScoped<FieldRepository>();
+builder.Services.AddScoped<FieldService>();
 builder.Services.AddIdentityCore<MainAccount>()
     .AddUserStore<CropPilotUserStore>()
     .AddClaimsPrincipalFactory<AccountPrincipalFactory>()
@@ -78,6 +82,12 @@ builder.Services.AddProblemDetails();
 builder.Services.AddControllers(options =>
 {
     options.ModelMetadataDetailsProviders.Add(new SystemTextJsonValidationMetadataProvider());
+    options.ModelMetadataDetailsProviders.Add(new CreateFieldValidationMetadata());
+}).AddJsonOptions(options =>
+{
+    var serializer = options.JsonSerializerOptions;
+    serializer.TypeInfoResolver = serializer.TypeInfoResolver!
+        .WithAddedModifier(FieldDecimalJsonConverter.ConfigureCreateField);
 }).ConfigureApiBehaviorOptions(options =>
 {
     options.InvalidModelStateResponseFactory = context =>
@@ -128,3 +138,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+/// <summary>提供 API 入口，供整合測試啟動應用程式。</summary>
+public partial class Program;

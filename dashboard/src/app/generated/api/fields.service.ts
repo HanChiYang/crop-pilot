@@ -73,7 +73,7 @@ export class FieldsService extends BaseService {
 
     /**
      * 新增單筆田區
-     * 擁有者由伺服器依登入身分設定。同帳號的田區名稱去除頭尾空白後不得重複，並區分大小寫。緯度及經度都可留空，填寫時須成對提供。
+     * 需要 USER 角色。擁有者由伺服器依登入身分設定。同帳號的田區名稱去除頭尾空白後不得重複，並區分大小寫。緯度及經度都可留空，填寫時須成對提供。
      * @endpoint post /api/v1/fields
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -353,7 +353,7 @@ export class FieldsService extends BaseService {
 
     /**
      * 列出自己的田區詳細資料
-     * 依田區識別碼查詢登入帳號的田區。田區不存在或屬於其他帳號時回傳 404。
+     * 需要 USER 角色。依田區識別碼查詢登入帳號的田區。田區不存在或屬於其他帳號時回傳 404。
      * @endpoint get /api/v1/fields/{fieldId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -415,7 +415,7 @@ export class FieldsService extends BaseService {
 
     /**
      * 列出自己的田區清單
-     * 回傳登入帳號所擁有的田區。尚未建立田區時回傳空陣列。
+     * 需要 USER 角色。回傳登入帳號所擁有的田區。尚未建立田區時回傳空陣列。
      * @endpoint get /api/v1/fields
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
