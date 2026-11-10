@@ -17,7 +17,7 @@ internal sealed class GoogleSignIn(
     internal const string Scheme = "Google";
     internal const string FailedPath = "/login?error=google_sign_in_failed";
 
-    internal static void Configure(AuthenticationBuilder authentication, IConfiguration configuration)
+    internal static void Configure(AuthenticationBuilder authentication, IConfiguration configuration, bool isDevelopment)
     {
         var clientId = configuration["Authentication:Google:ClientId"];
         var clientSecret = configuration["Authentication:Google:ClientSecret"];
@@ -36,6 +36,15 @@ internal sealed class GoogleSignIn(
             options.SignInScheme = IdentityConstants.ExternalScheme;
             options.ResponseType = OpenIdConnectResponseType.Code;
             options.ResponseMode = OpenIdConnectResponseMode.Query;
+            if (isDevelopment)
+            {
+                // Google returns through a top-level GET, which permits Lax cookies.
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.NonceCookie.SameSite = SameSiteMode.Lax;
+                options.NonceCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            }
+
             options.UsePkce = true;
             options.MapInboundClaims = false;
             options.SaveTokens = false;

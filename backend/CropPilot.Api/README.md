@@ -4,7 +4,7 @@
 
 ## 在本機執行
 
-在本機 PostgreSQL 準備開發資料庫，並建立可操作其結構的資料庫帳號。若要搭配 Angular 開發伺服器使用 Google 登入，在 Google Cloud 的 Web application OAuth 用戶端註冊 `https://localhost:4200/signin-google`。從後端直接啟動 Google 登入時，回呼網址使用 `https://localhost:7081/signin-google`。以下指令在 `backend/` 目錄執行，將角括號中的文字替換成本機設定值。
+在本機 PostgreSQL 準備開發資料庫，並建立可操作其結構的資料庫帳號。若要搭配 Angular 開發伺服器使用 Google 登入，在 Google Cloud 的 Web application OAuth 用戶端註冊 `http://localhost:4200/signin-google`。從後端直接啟動 Google 登入時，回呼網址使用 `http://localhost:7081/signin-google`。以下指令在 `backend/` 目錄執行，將角括號中的文字替換成本機設定值。
 
 ```powershell
 $project = 'CropPilot.Api/CropPilot.Api.csproj'
@@ -17,11 +17,12 @@ dotnet tool restore
 dotnet ef migrations script --project $project --output CropPilot.Api/obj/identity.sql
 # 先審查 SQL 的資料表、欄位、外鍵及唯一索引，再套用至開發資料庫。
 dotnet ef database update --project $project
-dotnet dev-certs https --trust
-dotnet run --project $project -- --urls https://localhost:7081
+dotnet run --project $project -- --urls http://localhost:7081
 ```
 
-在 `https://localhost:4200/login` 操作前端。登入成功後，Angular 以 `GET /api/auth/session` 確認 `CropPilot.Session` Cookie 有效才顯示總覽。使用帳密登入和登出前，Angular 會先向 `GET /api/auth/csrf` 取得防偽權杖。Google 登入失敗會返回登入頁顯示提示。[前端操作說明](../../dashboard/README.md)
+在 `http://localhost:4200/login` 操作前端。登入成功後，Angular 以 `GET /api/auth/session` 確認 `CropPilot.Session` Cookie 有效才顯示總覽。使用帳密登入和登出前，Angular 會先向 `GET /api/auth/csrf` 取得防偽權杖。Google 登入失敗會返回登入頁顯示提示。[前端操作說明](../../dashboard/README.md)
+
+本機以 `Development` 環境使用 HTTP。部署時使用 HTTPS，並設定部署網域的 Google OAuth HTTPS 回呼網址。非開發環境會啟用 HTTPS 轉址，且登入及防偽 Cookie 會加上 `Secure`。
 
 若開發庫沒有帳密測試帳號，可用以下指令建立一個已啟用的 `USER`。種子指令僅能在 `Development` 執行，帳號已存在時會保留原本的密碼。
 

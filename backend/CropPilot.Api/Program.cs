@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var isDevelopment = builder.Environment.IsDevelopment();
+var cookieSecurePolicy = isDevelopment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 
 builder.Services.AddDbContext<CropPilotDbContext>(options => options
     .UseNpgsql(builder.Configuration.GetConnectionString("CropPilot"),
@@ -22,13 +24,13 @@ builder.Services.AddSingleton<ILookupNormalizer, AccountLookupNormalizer>();
 
 var authentication = builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme);
 authentication.AddIdentityCookies();
-GoogleSignIn.Configure(authentication, builder.Configuration);
+GoogleSignIn.Configure(authentication, builder.Configuration, isDevelopment);
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "CropPilot.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
     options.Events.OnValidatePrincipal = async context =>
     {
         var signIn = context.HttpContext.RequestServices.GetRequiredService<SignInManager<MainAccount>>();
@@ -57,7 +59,7 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "X-XSRF-TOKEN";
     options.SuppressReadingTokenFromFormBody = true;
     options.Cookie.Name = "CropPilot.Antiforgery";
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
 });
 builder.Services.AddProblemDetails();
 builder.Services.AddControllers(options =>
@@ -103,7 +105,11 @@ if (app.Configuration.GetValue<bool>("SeedDevelopmentAccount"))
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
-app.UseHttpsRedirection();
+if (!isDevelopment)
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

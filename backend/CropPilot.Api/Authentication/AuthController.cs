@@ -6,11 +6,13 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace CropPilot.Api.Authentication;
 
 public sealed class AuthController(
     IAntiforgery antiforgery,
+    IOptions<AntiforgeryOptions> antiforgeryOptions,
     SignInManager<MainAccount> signInManager,
     UserManager<MainAccount> users,
     IAuthenticationSchemeProvider schemes,
@@ -23,7 +25,7 @@ public sealed class AuthController(
         Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!, new CookieOptions
         {
             HttpOnly = false,
-            Secure = true,
+            Secure = antiforgeryOptions.Value.Cookie.SecurePolicy == CookieSecurePolicy.Always || Request.IsHttps,
             SameSite = SameSiteMode.Lax,
             Path = "/"
         });
