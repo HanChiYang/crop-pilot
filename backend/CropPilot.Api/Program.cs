@@ -2,30 +2,44 @@ using System.Text.Json;
 using CropPilot.Api.Authentication;
 using CropPilot.Api.Data;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var isDevelopment = builder.Environment.IsDevelopment();
+var cookieSecurePolicy = isDevelopment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 
 builder.Services.AddDbContext<CropPilotDbContext>(options => options
     .UseNpgsql(builder.Configuration.GetConnectionString("CropPilot"),
         postgres => postgres.MigrationsHistoryTable("ef_migrations_history"))
     .UseSnakeCaseNamingConvention());
-builder.Services.AddIdentityCore<IdentityUser<Guid>>(options => options.User.RequireUniqueEmail = true)
+builder.Services.AddIdentityCore<MainAccount>()
     .AddUserStore<CropPilotUserStore>()
+    .AddClaimsPrincipalFactory<AccountPrincipalFactory>()
     .AddSignInManager();
+builder.Services.AddSingleton<ILookupNormalizer, AccountLookupNormalizer>();
 
 var authentication = builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme);
 authentication.AddIdentityCookies();
-GoogleSignIn.Configure(authentication, builder.Configuration);
+GoogleSignIn.Configure(authentication, builder.Configuration, isDevelopment);
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "CropPilot.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
+    options.Events.OnValidatePrincipal = async context =>
+    {
+        var signIn = context.HttpContext.RequestServices.GetRequiredService<SignInManager<MainAccount>>();
+        if (await signIn.ValidateSecurityStampAsync(context.Principal) is not { Status: MainAccount.Active })
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+        }
+    };
     options.Events.OnRedirectToLogin = context =>
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -45,7 +59,7 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "X-XSRF-TOKEN";
     options.SuppressReadingTokenFromFormBody = true;
     options.Cookie.Name = "CropPilot.Antiforgery";
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
 });
 builder.Services.AddProblemDetails();
 builder.Services.AddControllers(options =>
@@ -78,9 +92,24 @@ builder.Services.AddControllers(options =>
 
 var app = builder.Build();
 
+if (app.Configuration.GetValue<bool>("SeedDevelopmentAccount"))
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException("Test accounts can only be seeded in Development.");
+    }
+
+    await DevelopmentAccount.SeedAsync(app.Services, app.Configuration);
+    return;
+}
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
-app.UseHttpsRedirection();
+if (!isDevelopment)
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

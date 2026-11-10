@@ -2,7 +2,7 @@
 
 | 目錄 | 用途 |
 | --- | --- |
-| [dashboard/](dashboard/) | Angular 前端，目前只有開發入口說明。 |
+| [dashboard/](dashboard/) | Angular 桌機前端，包含首頁、登入與田區總覽空畫面。 |
 | [backend/](backend/) | ASP.NET Core API、EF Core migrations 和後端工具。 |
 | [docs/](docs/) | 前後端共用的需求、設計、原型和 [OpenAPI 契約](docs/openapi/openapi.yaml)。 |
 
@@ -12,4 +12,4 @@
 dotnet build backend/CropPilot.Api/CropPilot.Api.csproj
 ```
 
-本機登入、資料庫與契約生成指令見[後端操作說明](backend/CropPilot.Api/README.md)。目前開發進度見[功能開發週期](docs/development-cycle.md#目前進度)。
+本機登入切片的啟動方式見[前端操作說明](dashboard/README.md)和[後端操作說明](backend/CropPilot.Api/README.md)。目前開發進度見[功能開發週期](docs/development-cycle.md#目前進度)。

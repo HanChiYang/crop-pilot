@@ -40,6 +40,18 @@ namespace CropPilot.Contract.Controllers
         public abstract Task<IActionResult> GetCsrfToken();
 
         /// <summary>
+        /// 確認登入工作階段
+        /// </summary>
+        /// <response code="204">目前工作階段有效</response>
+        /// <response code="401">未登入或工作階段已失效</response>
+        [HttpGet]
+        [Route("/api/auth/session")]
+        [Authorize(Policy = "SessionCookie")]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
+        public abstract Task<IActionResult> GetSession();
+
+        /// <summary>
         /// 以 CropPilot 帳號密碼登入
         /// </summary>
         /// <param name="loginRequest"></param>

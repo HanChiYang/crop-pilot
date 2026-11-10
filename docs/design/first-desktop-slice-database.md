@@ -22,7 +22,7 @@
 
 ### PostgreSQL 資料表
 
-PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式的資料表一律以單欄 `id` 為主鍵，型別為 `uuid`。新 ID 由伺服器產生。指向這些主鍵的外鍵也使用 `uuid`。以下登入表結構是設計稿，待資料庫設計審查後再接續實作。API JSON 欄位採 OpenAPI 契約中的名稱，例如 `crop_name` 對應 `cropName`。
+PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式的資料表一律以單欄 `id` 為主鍵，型別為 `uuid`。新 ID 由伺服器產生。指向這些主鍵的外鍵也使用 `uuid`。帳號相關資料表由 `DesktopAccountModel` migration 建立，田區與栽培資料表仍在設計審查。API JSON 欄位採 OpenAPI 契約中的名稱，例如 `crop_name` 對應 `cropName`。
 
 #### main_account
 
@@ -30,6 +30,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | --- | --- | --- | --- |
 | `id` | `uuid` | PK | 由 Identity 管理的主帳號識別碼。 |
 | `status` | `varchar(32)` | NOT NULL，預設 `PENDING`，以 `CHECK` 限定 `PENDING`、`ACTIVE` 或 `DISABLED` | 決定主帳號能否登入。 |
+| `security_stamp` | `varchar(256)` | 可為 NULL | 由 Identity 用來驗證登入 Cookie。遷移保留既有值，空值由伺服器補上。 |
 
 | 狀態 | 規則 |
 | --- | --- |
@@ -68,6 +69,10 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `main_account_id` | `uuid` | NOT NULL，FK → `main_account.id`，唯一 | 使用此組帳密的主帳號。 |
 | `username` | `varchar(256)` | NOT NULL，`lower(username)` 有唯一索引 | 本地登入帳號。儲存前由後端去除頭尾空白，驗證剩餘內容非空，並保留大小寫。 |
 | `password_hash` | `varchar(512)` | NOT NULL | 由 Identity 產生並驗證的密碼雜湊。欄位長度適用於雜湊字串。 |
+| `access_failed_count` | `integer` | NOT NULL | Identity 記錄的帳密驗證失敗次數。 |
+| `lockout_enabled` | `boolean` | NOT NULL | Identity 是否可暫時鎖定這組帳密。 |
+| `lockout_end` | `timestamp with time zone` | 可為 NULL | 暫時鎖定的截止時間。 |
+| `concurrency_stamp` | `uuid` | NOT NULL | EF Core 用來偵測同時更新帳密資料的衝突。 |
 
 建立帳號時，後端以和資料庫索引相同的小寫轉換查重，資料庫的唯一索引也會阻擋同時送出的重複建帳。登入時以去除頭尾空白後的 `username` 區分大小寫查找。[本地登入流程](first-desktop-slice-data-api.md#本地登入)
 
@@ -174,7 +179,7 @@ erDiagram
 | `user_roles.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的角色指派。 | 資料庫拒絕不存在的帳號、重複的角色指派，以及 `USER` 和 `ADMIN` 以外的角色值。 |
 | `federated_identities.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的外部身分。 | 資料庫拒絕不存在的帳號與重複的 `(identity_provider, provider_user_id)`。 |
 | `local_credentials.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的本地帳密。 | 資料庫拒絕不存在的帳號、同一帳號的第二筆本地帳密，以及忽略大小寫後重複的 `username`，例如 `Farmer01` 與 `farmer01`。 |
-| `user_profiles.main_account_id` → `main_account.id` | 待確認主帳號的刪除規則。 | 資料庫拒絕不存在的帳號、同一帳號的第二筆個人資料，以及重複的小寫 Email。 |
+| `user_profiles.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的個人資料。 | 資料庫拒絕不存在的帳號、同一帳號的第二筆個人資料，以及重複的小寫 Email。 |
 | `fields.main_account_id` → `main_account.id` | 提案採 `ON DELETE RESTRICT`。帳號有田區時阻擋刪除，保留田區資料。 | 使用不存在的帳號建立田區，資料庫應拒絕。帳號仍有田區時，資料庫也應拒絕刪除該帳號。 |
 | `plantings.field_id` → `fields.id` | 採 `ON DELETE RESTRICT`，符合有栽培紀錄的田區禁止刪除的需求。 | 使用不存在的田區建立栽培，資料庫應拒絕。即使田區只有已結束的栽培，也應阻擋刪除。 |
 
@@ -182,6 +187,6 @@ erDiagram
 
 ### 遷移工具與 SQL 審查
 
-實作角色授權時，先替既有一般使用者補上 `USER`。現行 Identity 儲存層仍對應 `asp_net_user_claims` 和 `asp_net_user_tokens`，移除這兩張表時須同步調整 Identity 儲存層、登入身分建立流程與 EF 對應。
+`DesktopAccountModel` 保留既有主帳號 UUID、密碼雜湊、安全戳記、帳密鎖定紀錄及 Google 綁定，將 Email 轉成小寫移入個人資料。舊版帳號沿用原先的啟用行為，遷移為 `ACTIVE` 並取得 `USER`。遷移在同一筆交易完成資料搬移及舊表清理。若資料庫已有額外 Claim、權杖、雙因素資料、手機資料或無法對應的登入提供者，遷移會中止。需要回復時使用遷移前備份。
 
 首版已確認由 EF Core Migrations 管理 PostgreSQL 的結構版本，搭配 Npgsql provider。它從 EF Core 模型與快照產生遷移。實作階段先用 `dotnet ef migrations script` 匯出 PostgreSQL SQL，審查資料表與欄位是否符合 `snake_case`，並核對 `FOREIGN KEY`、`ON DELETE`、`NOT NULL`、`CHECK` 與索引。審查後套用到測試資料庫，比對實際約束並執行上表的審查案例。[EF Core Migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations) · [SQL 腳本審查](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying#sql-scripts) · [Npgsql EF Core provider](https://www.npgsql.org/efcore/)

@@ -19,5 +19,13 @@ $output = Join-Path $backend 'CropPilot.Api/Generated'
     --additional-properties 'packageName=CropPilot.Contract,sourceFolder=.,buildTarget=library,classModifier=abstract,operationModifier=abstract,operationResultTask=true,aspnetCoreVersion=10.0' `
     --global-property 'apis=Auth,models=LoginRequest:ApiProblem:ApiValidationProblem,supportingFiles=ValidateModelStateAttribute.cs:CustomEnumConverter.cs,apiTests=false,modelTests=false,apiDocs=false,modelDocs=false'
 if ($LASTEXITCODE -ne 0) {
-    throw 'OpenAPI generation failed.'
+    throw 'C# OpenAPI generation failed.'
+}
+
+$dashboardOutput = Join-Path $root 'dashboard/src/app/generated'
+& java -jar $generator generate -g typescript-angular -i $contract -o $dashboardOutput `
+    --additional-properties 'ngVersion=22.1.0,providedIn=root,useSingleRequestParameter=true' `
+    --global-property 'apis=Auth,models=LoginRequest:ApiProblem:ApiValidationProblem,supportingFiles=api.ts:configuration.ts:index.ts:variables.ts:encoder.ts:api.base.service.ts:query.params.ts:models.ts:api.module.ts:provide-api.ts:param.ts,apiTests=false,modelTests=false,apiDocs=false,modelDocs=false'
+if ($LASTEXITCODE -ne 0) {
+    throw 'Angular OpenAPI generation failed.'
 }

@@ -77,6 +77,16 @@ paths:
               required: true
               schema:
                 type: string
+  /api/auth/session:
+    get:
+      tags: [Auth]
+      operationId: getSession
+      summary: 確認登入工作階段
+      responses:
+        '204':
+          description: 目前工作階段有效
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/auth/logout:
     post:
       tags: [Auth]
