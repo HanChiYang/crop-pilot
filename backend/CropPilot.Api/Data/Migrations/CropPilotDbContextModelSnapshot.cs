@@ -90,6 +90,61 @@ namespace CropPilot.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CropPilot.Api.Data.Field", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("AreaSquareMeters")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)")
+                        .HasColumnName("area_square_meters");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<decimal?>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)")
+                        .HasColumnName("latitude");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)")
+                        .HasColumnName("longitude");
+
+                    b.Property<Guid>("MainAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("main_account_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name")
+                        .UseCollation("C");
+
+                    b.HasKey("Id")
+                        .HasName("pk_fields");
+
+                    b.HasIndex("MainAccountId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_fields_main_account_id_name");
+
+                    b.ToTable("fields", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_fields_area_square_meters", "area_square_meters > 0 AND area_square_meters <= 9999999999.9999");
+
+                            t.HasCheckConstraint("ck_fields_coordinates", "(latitude IS NULL AND longitude IS NULL) OR\n(latitude IS NOT NULL AND longitude IS NOT NULL AND\n latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180)");
+
+                            t.HasCheckConstraint("ck_fields_name", "btrim(name, U&'\\0009\\000A\\000B\\000C\\000D\\0020\\0085\\00A0\\1680\\2000\\2001\\2002\\2003\\2004\\2005\\2006\\2007\\2008\\2009\\200A\\2028\\2029\\202F\\205F\\3000') <> ''");
+                        });
+                });
+
             modelBuilder.Entity("CropPilot.Api.Data.LocalCredential", b =>
                 {
                     b.Property<Guid>("Id")
@@ -269,6 +324,16 @@ namespace CropPilot.Api.Data.Migrations
                         .HasConstraintName("fk_federated_identities_main_accounts_main_account_id");
 
                     b.Navigation("MainAccount");
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.Field", b =>
+                {
+                    b.HasOne("CropPilot.Api.Data.MainAccount", null)
+                        .WithMany()
+                        .HasForeignKey("MainAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_fields_main_accounts_main_account_id");
                 });
 
             modelBuilder.Entity("CropPilot.Api.Data.LocalCredential", b =>

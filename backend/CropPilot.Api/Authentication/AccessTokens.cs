@@ -1,10 +1,12 @@
 using System.Security.Cryptography;
+using CropPilot.Api.Constants;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CropPilot.Api.Authentication;
 
+/// <summary>簽發 CropPilot 存取權杖，並設定 Bearer 驗證規則。</summary>
 public sealed class AccessTokens(IConfiguration configuration, IWebHostEnvironment environment)
 {
     private const string Issuer = "CropPilot";
@@ -13,6 +15,8 @@ public sealed class AccessTokens(IConfiguration configuration, IWebHostEnvironme
     private readonly SymmetricSecurityKey key = LoadKey(configuration, environment);
     private readonly JsonWebTokenHandler handler = new();
 
+    /// <summary>簽發最長有效五分鐘的權杖，效期不超過工作階段的到期時間。</summary>
+    /// <returns>已簽章的權杖。工作階段已到期時回傳 <see langword="null"/>。</returns>
     public string? Issue(Guid accountId, IEnumerable<string> roles, DateTimeOffset sessionExpiresAt)
     {
         var now = DateTimeOffset.UtcNow;
@@ -36,6 +40,7 @@ public sealed class AccessTokens(IConfiguration configuration, IWebHostEnvironme
         });
     }
 
+    /// <summary>設定 Bearer 權杖的簽章、發行者、受眾、效期及帳號識別驗證。</summary>
     public void ConfigureValidation(JwtBearerOptions options)
     {
         options.MapInboundClaims = true;
@@ -50,8 +55,28 @@ public sealed class AccessTokens(IConfiguration configuration, IWebHostEnvironme
             ValidateIssuerSigningKey = true,
             ClockSkew = TimeSpan.Zero
         };
+        options.Events = new JwtBearerEvents { OnTokenValidated = ValidateAccountSubject };
     }
 
+    /// <summary>從已簽章的 <c>sub</c> 取得主帳號 UUID 並存入目前請求。格式不符時拒絕驗證。</summary>
+    private static Task ValidateAccountSubject(TokenValidatedContext context)
+    {
+        if (context.SecurityToken is JsonWebToken token &&
+            token.TryGetPayloadValue<string>("sub", out var subject) &&
+            subject is { Length: 36 } &&
+            Guid.TryParseExact(subject, "D", out var accountId) && accountId != Guid.Empty)
+        {
+            context.HttpContext.Features.Set(new AuthenticatedAccount(accountId));
+        }
+        else
+        {
+            context.Fail(ErrorMessages.InvalidAccessTokenSubject);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>載入設定的簽章金鑰。本機開發未設定金鑰時產生暫用金鑰。</summary>
     private static SymmetricSecurityKey LoadKey(IConfiguration configuration, IWebHostEnvironment environment)
     {
         var configured = configuration["Authentication:Jwt:SigningKey"];

@@ -173,7 +173,7 @@ paths:
       tags: [Fields]
       operationId: getFields
       summary: 列出自己的田區清單
-      description: 回傳登入帳號所擁有的田區。尚未建立田區時回傳空陣列。
+      description: 需要 USER 角色。回傳登入帳號所擁有的田區。尚未建立田區時回傳空陣列。
       security:
         - BearerAuth: []
       responses:
@@ -185,13 +185,15 @@ paths:
                 $ref: '#/components/schemas/FieldRsDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '500':
           $ref: '#/components/responses/ServerError'
     post:
       tags: [Fields]
       operationId: createField
       summary: 新增單筆田區
-      description: 擁有者由伺服器依登入身分設定。同帳號的田區名稱去除頭尾空白後不得重複，並區分大小寫。緯度及經度都可留空，填寫時須成對提供。
+      description: 需要 USER 角色。擁有者由伺服器依登入身分設定。同帳號的田區名稱去除頭尾空白後不得重複，並區分大小寫。緯度及經度都可留空，填寫時須成對提供。
       security:
         - BearerAuth: []
       requestBody:
@@ -229,6 +231,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '409':
           $ref: '#/components/responses/FieldNameConflict'
         '500':
@@ -240,7 +244,7 @@ paths:
       tags: [Fields]
       operationId: getField
       summary: 列出自己的田區詳細資料
-      description: 依田區識別碼查詢登入帳號的田區。田區不存在或屬於其他帳號時回傳 404。
+      description: 需要 USER 角色。依田區識別碼查詢登入帳號的田區。田區不存在或屬於其他帳號時回傳 404。
       security:
         - BearerAuth: []
       responses:
@@ -254,6 +258,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -457,6 +463,12 @@ components:
         type: string
         format: uuid
   responses:
+    FieldAccessForbidden:
+      description: 登入帳號沒有使用田區功能所需的 USER 角色。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApiProblemRsDto'
     FieldNameConflict:
       description: 同帳號已有同名田區。errors.name 提供欄位提示。
       content:
