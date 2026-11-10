@@ -18,7 +18,7 @@
 
 使用者指定前端採 Angular，後端採 C#。專案的學習目標是[走完整個功能開發週期](development-cycle.md)，包含需求、UI／UX、資料庫與 API 設計、實作串接和驗收。Figma 設計確認後，前端進入 Angular 與 TypeScript 實作。介面元件建議用 Angular Material，版本在建立專案時鎖定。後端框架建議採 ASP.NET Core Web API，使用本機已安裝的 .NET 10 SDK（10.0.402）。本機 Node.js 為 24.19.0，Angular CLI 為 22.1.4。[Angular 版本相容表](https://angular.dev/reference/versions) · [.NET 支援政策](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core)
 
-首個桌機切片採 contract-first，以 Stoplight 匯出的 `openapi.yaml` 生成 ASP.NET Core 抽象 Controller、DTO 和 Angular client。先用 `POST /api/fields` 驗證實作與串接。PostgreSQL 結構版本由 EF Core Migrations 管理。[OpenAPI 契約](openapi/openapi.yaml) · [API 設計](design/first-desktop-slice-data-api.md) · [資料庫設計](design/first-desktop-slice-database.md)
+首個桌機切片採 contract-first，以 Stoplight 匯出的 `openapi.yaml` 生成 ASP.NET Core 抽象 Controller、DTO 和 Angular client。先用 `POST /api/v1/fields` 驗證實作與串接。PostgreSQL 結構版本由 EF Core Migrations 管理。[OpenAPI 契約](openapi/openapi.yaml) · [API 設計](design/first-desktop-slice-data-api.md) · [資料庫設計](design/first-desktop-slice-database.md)
 
 ## 導覽與畫面草案
 

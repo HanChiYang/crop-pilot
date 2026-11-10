@@ -96,8 +96,8 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | 欄位 | PostgreSQL 型別 | 約束 | 描述 |
 | --- | --- | --- | --- |
 | `id` | `uuid` | PK | 田區識別碼。 |
-| `main_account_id` | `uuid` | NOT NULL，FK → `main_account.id`，有索引 | 擁有此田區的主帳號。 |
-| `name` | `varchar(120)` | NOT NULL，去除頭尾空白後至少一個非空白字元 | 田區名稱。 |
+| `main_account_id` | `uuid` | NOT NULL，FK → `main_account.id`，為 `(main_account_id, name)` 唯一索引的第一欄 | 擁有此田區的主帳號。 |
+| `name` | `varchar(120)` | NOT NULL，去除頭尾空白後儲存，至少一個非空白字元，與 `main_account_id` 組合唯一 | 田區名稱，區分大小寫。 |
 | `area_square_meters` | `numeric(14,4)` | NOT NULL，大於 0 且最多四位小數 | 田區面積，單位為平方公尺。 |
 | `latitude` | `numeric(9,6)` | 可為 NULL，範圍 −90 至 90，與 `longitude` 成對填寫 | 田區定位點的緯度，以十進位度數表示。 |
 | `longitude` | `numeric(9,6)` | 可為 NULL，範圍 −180 至 180，與 `latitude` 成對填寫 | 田區定位點的經度，以十進位度數表示。 |
@@ -180,7 +180,7 @@ erDiagram
 | `federated_identities.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的外部身分。 | 資料庫拒絕不存在的帳號與重複的 `(identity_provider, provider_user_id)`。 |
 | `local_credentials.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的本地帳密。 | 資料庫拒絕不存在的帳號、同一帳號的第二筆本地帳密，以及忽略大小寫後重複的 `username`，例如 `Farmer01` 與 `farmer01`。 |
 | `user_profiles.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的個人資料。 | 資料庫拒絕不存在的帳號、同一帳號的第二筆個人資料，以及重複的小寫 Email。 |
-| `fields.main_account_id` → `main_account.id` | 提案採 `ON DELETE RESTRICT`。帳號有田區時阻擋刪除，保留田區資料。 | 使用不存在的帳號建立田區，資料庫應拒絕。帳號仍有田區時，資料庫也應拒絕刪除該帳號。 |
+| `fields.main_account_id` → `main_account.id` | 提案採 `ON DELETE RESTRICT`。帳號有田區時阻擋刪除，保留田區資料。 | 資料庫拒絕不存在的帳號、刪除仍有田區的帳號，以及同帳號的相同名稱。不同帳號可使用相同名稱，同帳號也可使用僅大小寫不同的名稱。 |
 | `plantings.field_id` → `fields.id` | 採 `ON DELETE RESTRICT`，符合有栽培紀錄的田區禁止刪除的需求。 | 使用不存在的田區建立栽培，資料庫應拒絕。即使田區只有已結束的栽培，也應阻擋刪除。 |
 
 外鍵確保參照的資料存在。登入者是否擁有該田區，仍由 API 依帳號驗證。欄位層級另審查名稱與面積的 `NOT NULL`、面積大於零的 `CHECK`，以及座標同時留空或成對落在合法範圍的 `CHECK`。[PostgreSQL 約束](https://www.postgresql.org/docs/current/ddl-constraints.html)

@@ -1,30 +1,62 @@
 # CropPilot｜首個桌機切片的 API 設計
 
-範圍為「首頁 → 登入 → 新增田區 → 新增規劃中的栽培 → 回總覽」。欄位和操作流程依照已審查的 Figma 與驗收條件。資料表、欄位、ER 圖與外鍵另見資料庫設計。[資料庫設計](first-desktop-slice-database.md) · [Figma 審查記錄](../ui/first-desktop-slice/README.md) · [驗收條件](../requirements/desktop-field-and-planting.md#驗收切片) · [OpenAPI 契約](../openapi/openapi.yaml)
+範圍為「首頁 → 登入 → 新增田區 → 田區管理 → 新增規劃中的栽培 → 回總覽」。欄位和操作流程依照已審查的 Figma 與驗收條件。資料表、欄位、ER 圖與外鍵另見資料庫設計。[資料庫設計](first-desktop-slice-database.md) · [Figma 審查記錄](../ui/first-desktop-slice/README.md) · [驗收條件](../requirements/desktop-field-and-planting.md#驗收切片) · [OpenAPI 契約](../openapi/openapi.yaml)
 
 ## API 約定
 
 提案採同源部署及登入 Cookie。Angular 在首次寫入前及登入或登出後取得新的防偽權杖，寫入時在 `X-XSRF-TOKEN` 標頭帶上該權杖。資料 API 依登入身分限制讀寫範圍，建立田區時由伺服器將登入者的主帳號 ID 寫入 `fields.main_account_id`。其他帳號的田區或栽培紀錄視為找不到。
 
+OpenAPI 全域預設要求 `SessionCookie`，各端點也明列所需憑證。田區、栽培與總覽的查詢，以及工作階段確認，要求有效的登入 Cookie。資料寫入和登出同時要求 `SessionCookie` 與 `CsrfToken`。登入前可取得防偽權杖、開始 Google 登入，或帶上防偽權杖送出帳密登入。
+
+### 下版驗證方式
+
+本版沿用上述 Cookie 登入與防偽權杖。下版將受保護的 API 改用 Bearer access token。Angular 透過 `Authorization: Bearer <access_token>` 傳送權杖，由 ASP.NET Core 驗證，並同步更新 OpenAPI 的安全要求。
+
+下版設計時確認權杖的簽發、有效期限、前端保存、更新與登出方式。若更新權杖或登出依賴瀏覽器自動附帶的 Cookie，須另行定義這些端點的 CSRF 防護。
+
+### 端點與回應
+
 | 操作 | 請求 | 成功結果 |
 | --- | --- | --- |
-| 取得防偽權杖 | `GET /api/auth/csrf`，可在登入前呼叫 | `204`，設定供 Angular 讀取的 `XSRF-TOKEN` Cookie。 |
-| 登入 | `POST /api/auth/login`，傳 `username`、`password` | `204`，設定登入 Cookie。 |
-| 確認登入狀態 | `GET /api/auth/session`，由 Angular 進入總覽前呼叫 | 有效工作階段回 `204`，失效時回 `401`。 |
-| 開始 Google 登入 | `GET /api/auth/google`，由瀏覽器整頁導覽 | `302`，透過 `Location` 跳轉到 Google。 |
-| 登出 | `POST /api/auth/logout` | `204`，清除登入 Cookie。 |
-| 田區管理與田區選單 | `GET /api/fields` | `200`，回傳自己的田區陣列。 |
-| 新增田區 | `POST /api/fields`，傳名稱、面積及選填欄位 | `201`，回傳已建立的田區，並以 `Location` 指向 `GET /api/fields/{fieldId}`。 |
-| 查詢田區 | `GET /api/fields/{fieldId}` | `200`，回傳田區。 |
-| 新增規劃中的栽培 | `POST /api/fields/{fieldId}/plantings`，傳 `cropName` 及選填的 `variety`、`plannedPlantingDate`、`notes` | `201`，回傳已建立的栽培紀錄，並以 `Location` 指向該紀錄的查詢端點。 |
-| 查詢栽培紀錄 | `GET /api/fields/{fieldId}/plantings/{plantingId}` | `200`，回傳指定田區的栽培紀錄。 |
-| 田區總覽 | `GET /api/overview` | `200`，回傳自己的田區陣列，每筆加上 `plantings`。田區沒有目前的栽培紀錄時，`plantings` 為空陣列。 |
+| 取得防偽權杖 | `GET /api/v1/auth/csrf`，可在登入前呼叫 | `204`，設定供 Angular 讀取的 `XSRF-TOKEN` Cookie。 |
+| 登入 | `POST /api/v1/auth/login`，傳 `username`、`password` | `204`，設定登入 Cookie。 |
+| 確認登入狀態 | `GET /api/v1/auth/session`，由 Angular 進入總覽前呼叫 | 有效工作階段回 `204`，失效時回 `401`。 |
+| 開始 Google 登入 | `GET /api/v1/auth/google`，由瀏覽器整頁導覽 | `302`，透過 `Location` 跳轉到 Google。 |
+| 登出 | `POST /api/v1/auth/logout` | `204`，清除登入 Cookie。 |
+| 田區管理與田區選單 | `GET /api/v1/fields` | `200`，回傳 `FieldRsDto`，其中 `fields` 是自己的田區陣列。 |
+| 新增田區 | `POST /api/v1/fields`，傳 `CreateFieldRqDto` | `201`，回傳 `FieldRsDto`，其中 `fields` 只含新田區。`Location` 指向 `GET /api/v1/fields/{fieldId}`。 |
+| 查詢田區 | `GET /api/v1/fields/{fieldId}` | `200`，回傳單筆 `FieldDto`。 |
+| 編輯田區 | `PUT /api/v1/fields/{fieldId}`，傳 `EditFieldRqDto` | `200`，回傳 `FieldRsDto`，其中 `fields` 只含更新後的田區。 |
+| 刪除單筆田區 | `DELETE /api/v1/fields/{fieldId}`，由路徑指定田區 | `204`，請求與成功回應皆無 body。 |
+| 批次刪除田區 | `DELETE /api/v1/fields/bulk-delete`，傳 `DeleteFieldRqDto` 的 `fieldIds` | `204`，成功回應無 body。 |
+| 新增規劃中的栽培 | `POST /api/v1/fields/{fieldId}/plantings`，傳 `cropName` 及選填的 `variety`、`plannedPlantingDate`、`notes` | `201`，回傳已建立的栽培紀錄，並以 `Location` 指向該紀錄的查詢端點。 |
+| 查詢栽培紀錄 | `GET /api/v1/fields/{fieldId}/plantings/{plantingId}` | `200`，回傳指定田區的栽培紀錄。 |
+| 田區總覽 | `GET /api/v1/overview` | `200`，回傳自己的田區陣列，每筆加上 `plantings`。田區沒有目前的栽培紀錄時，`plantings` 為空陣列。 |
+
+### 端點標題與田區 Operation ID
+
+端點標題使用「清單」表示多筆查詢，使用「詳細資料」表示單筆查詢。資料寫入的標題以「單筆」或「批次」標示操作範圍。
+
+OpenAPI 的 `operationId` 使用 lower camel case，由動詞加上資源名稱組成。單筆使用 `Field`，多筆使用 `Fields`。
+
+| 操作 | 單筆 | 多筆 |
+| --- | --- | --- |
+| 查詢 | `getField` | `getFields` |
+| 新增 | `createField` | `createFields` |
+| 編輯 | `editField` | `editFields` |
+| 刪除 | `deleteField` | `deleteFields` |
+
+`createFields` 和 `editFields` 保留給未來的批次新增與編輯端點。
+
+### 田區與栽培資料
 
 田區回應含 `id`、`name`、`areaSquareMeters`、`latitude`、`longitude`、`notes`。栽培紀錄回應含 `id`、`fieldId`、`cropName`、`variety`、`plannedPlantingDate`、`actualPlantingDate`、`status`、`notes`。田區和栽培紀錄請求與回應的 `notes` 分別對應資料庫的 `fields.description` 和 `plantings.description`。選填欄位缺省或為 `null` 時存為 `null`，回應也使用 `null`。總覽可顯示 `planned`、`growing`、`harvesting`，首切片只會新增 `planned`。後續切片處理編輯、刪除與狀態變更。
 
+編輯以完整表單更新，省略座標或備註會清除原值。同名檢查排除正在編輯的田區。批次刪除須提供至少一個且互不重複的田區 ID。若任一田區不存在或屬於其他帳號，整批回傳 `404`。有田區含栽培紀錄時回傳 `409`，整批保留。單筆刪除也適用相同的擁有權與栽培紀錄限制。
+
 API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例如 `planned` 對應 `PLANNED`。
 
-只填必填欄位即可建立田區。以下請求送往 `POST /api/fields`，兩個座標欄位會存為 `null`。
+只填必填欄位即可建立田區。以下請求送往 `POST /api/v1/fields`，兩個座標欄位會存為 `null`。
 
 ```json
 {
@@ -40,13 +72,17 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 | 登入資料錯誤 | `401`，通用登入失敗訊息。 | 顯示帳號或密碼錯誤，可重試。 |
 | 未登入或工作階段已失效 | `401`。 | 導回登入。 |
 | 田區或栽培紀錄不存在，或屬於其他帳號 | `404`。 | 提示找不到資料，提供返回列表的入口。 |
+| 同帳號已有同名田區 | `409`，以 `errors.name` 回傳欄位錯誤。 | 在名稱欄位旁顯示「此名稱已使用」，保留輸入。 |
+| 待刪除田區已有栽培紀錄 | `409`，回傳問題說明。 | 顯示無法刪除的原因。 |
 | 伺服器儲存失敗 | `500`，通用錯誤訊息。 | 留在表單並保留輸入，讓使用者重試。 |
+
+建立田區前，API 去除名稱頭尾空白，並保留大小寫。若寫入違反 `(main_account_id, name)` 唯一索引，即使兩筆請求同時送出，也應回傳 `409` 和 `errors.name`。
 
 ### 本地登入
 
 本地建帳和登入時，後端都先去除 `username` 的頭尾空白，並拒絕去除後的空字串。建帳時保留輸入的大小寫，並忽略大小寫檢查帳號是否已使用。若已有 `Farmer01`，便會拒絕建立 `farmer01`。
 
-`POST /api/auth/login` 以區分大小寫的方式查找 `local_credentials.username`。若儲存的是 `Farmer01`，輸入 ` Farmer01 ` 也能找到帳號，輸入 `farmer01` 則會收到通用的登入失敗回應。找到帳密後由 Identity 驗證密碼，再透過 `main_account_id` 取得主帳號。
+`POST /api/v1/auth/login` 以區分大小寫的方式查找 `local_credentials.username`。若儲存的是 `Farmer01`，輸入 ` Farmer01 ` 也能找到帳號，輸入 `farmer01` 則會收到通用的登入失敗回應。找到帳密後由 Identity 驗證密碼，再透過 `main_account_id` 取得主帳號。
 
 新建本地帳號時先設為 `PENDING`，通過 OTP 後轉為 `ACTIVE`。OTP 暫定以 Email 寄送，發送與驗證端點待建帳流程設計時定義。本地與 Google 登入都要求 `main_account.status` 為 `ACTIVE`，才能以主帳號 ID 建立 CropPilot 工作階段。
 
@@ -62,7 +98,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 Google 提供 OpenID Connect（OIDC）身分驗證，建立在 OAuth 2.0 上。OAuth 2.1 仍是 IETF 草案。CropPilot 使用 ASP.NET Core 的官方 `AddOpenIdConnect` 接 Google，以授權碼流程搭配 PKCE。CropPilot 是 OIDC 用戶端，Google 提供授權端點與換發權杖的端點。[Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect) · [ASP.NET Core OIDC 設定](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-oidc-web-authentication?view=aspnetcore-10.0) · [OAuth 2.1 草案](https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/)
 
-1. Angular 的「以 Google 帳號登入」以連結整頁導覽到 `GET /api/auth/google`。CropPilot 的入口呼叫 `Challenge`，中介軟體回傳 Google 授權網址。帳密登入由 `POST /api/auth/login` 呼叫 Identity 的帳密驗證。
+1. Angular 的「以 Google 帳號登入」以連結整頁導覽到 `GET /api/v1/auth/google`。CropPilot 的入口呼叫 `Challenge`，中介軟體回傳 Google 授權網址。帳密登入由 `POST /api/v1/auth/login` 呼叫 Identity 的帳密驗證。
 2. Google 導回註冊的 `/signin-google`，此路徑由 OIDC 中介軟體接收。中介軟體驗證 `state`、換取並驗證 ID token（含 `nonce`），再交由 CropPilot 完成帳號查找與工作階段建立。設定採 `response_type=code`、`response_mode=query` 及 `openid email` 範圍。`/signin-google` 的回呼路徑需轉送到 ASP.NET Core，並以各環境完整 HTTPS 網址註冊於 Google。用戶端密鑰放在伺服器端設定。[Google 回呼與 ID token 驗證](https://developers.google.com/identity/openid-connect/openid-connect)
 3. 身分對應成功後，後端設定 `CropPilot.Session` Cookie，將瀏覽器導向 `/dashboard`。Angular 照常用 Cookie 呼叫 API，首次寫入前取得新的防偽權杖。Google 權杖留在伺服器端處理。取消時導回 `/login?error=google_cancelled`，其他失敗導回 `/login?error=google_sign_in_failed`，由 Angular 顯示提示並讓使用者重試。
 
@@ -75,19 +111,20 @@ OIDC 中介軟體驗證 ID token 時會檢查發行者 `iss`。驗證通過後�
 
 Email 相符時，後端導回登入頁顯示提示。既有本地帳號若為 `PENDING`，則提示先完成原帳號的 OTP 驗證。帳號綁定需要另行驗證既有帳號，列入後續帳號連結流程。
 
-`MapIdentityApi` 可提供內建的帳密 `/login` 及其他帳號管理路由。CropPilot 的 `POST /api/auth/login` 採本專案契約的欄位與回應，由 Identity 驗證帳密。Google 的瀏覽器入口寫入 OpenAPI，供雙方對照，Angular 用整頁導覽啟動。Google 回呼由中介軟體接收，因此實作文件另列 `/signin-google`。[ASP.NET Core Identity 內建 API](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-api-authorization?view=aspnetcore-10.0)
+`MapIdentityApi` 可提供內建的帳密 `/login` 及其他帳號管理路由。CropPilot 的 `POST /api/v1/auth/login` 採本專案契約的欄位與回應，由 Identity 驗證帳密。Google 的瀏覽器入口寫入 OpenAPI，供雙方對照，Angular 用整頁導覽啟動。Google 回呼由中介軟體接收，因此實作文件另列 `/signin-google`。[ASP.NET Core Identity 內建 API](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-api-authorization?view=aspnetcore-10.0)
 
 ## OpenAPI 契約與程式碼生成
 
 已確認採 contract-first。Stoplight 匯出的原檔沿用 OpenAPI 3.1.0，已填入首個切片的操作、請求及回應模型、Cookie 認證、防偽權杖與錯誤格式。每個操作有獨立的 `operationId`。JSON API 的錯誤回應使用 `application/problem+json`，Google 登入入口則使用瀏覽器跳轉。[openapi.yaml](../openapi/openapi.yaml)
 
-使用 OpenAPI Generator 7.27.0 驗證規格並試產兩端程式碼。C# 使用 `aspnetcore` 生成抽象 Controller 與 DTO，Angular 使用 `typescript-angular` 生成服務與型別。已檢查新增田區的名稱、面積及可為 `null` 的座標型別。實作時再以 `POST /api/fields` 驗證兩端編譯、HTTP 回應及重複生成。OpenAPI Generator 將 3.1 列為 beta。[C# generator](https://openapi-generator.tech/docs/generators/aspnetcore/) · [Angular generator](https://openapi-generator.tech/docs/generators/typescript-angular/) · [OpenAPI 版本相容性](https://github.com/OpenAPITools/openapi-generator#1---installation)
+使用 OpenAPI Generator 7.27.0 驗證規格並試產兩端程式碼。C# 使用 `aspnetcore` 生成抽象 Controller 與 DTO，Angular 使用 `typescript-angular` 生成服務與型別。已檢查新增田區的名稱、面積及可為 `null` 的座標型別。實作時再以 `POST /api/v1/fields` 驗證兩端編譯、HTTP 回應及重複生成。OpenAPI Generator 將 3.1 列為 beta。[C# generator](https://openapi-generator.tech/docs/generators/aspnetcore/) · [Angular generator](https://openapi-generator.tech/docs/generators/typescript-angular/) · [OpenAPI 版本相容性](https://github.com/OpenAPITools/openapi-generator#1---installation)
 
-串接時將 Angular client 的 base path 設為空字串，讓請求走同源的 `/api/...`，並由 Angular 傳送防偽標頭。C# 端接上登入與防偽驗證，將錯誤轉為契約中的狀態碼與格式。新增田區另外驗證面積嚴格大於零、小數位數及座標是否成對。
+串接時將 Angular client 的 base path 設為空字串，讓請求走同源的 `/api/v1/...`，並由 Angular 傳送防偽標頭。C# 端接上登入與防偽驗證，將錯誤轉為契約中的狀態碼與格式。新增田區另外驗證面積嚴格大於零、小數位數及座標是否成對。
 
 ## 第一輪驗收重點
 
-1. 只傳名稱和正數面積可新增田區，重新查詢仍取得相同資料，座標為 `null`。缺名稱、缺面積或面積小於等於零時，應拒絕請求且沒有新增資料。
+1. 只傳名稱和正數面積可新增田區。收到 `201` 後進入田區管理，列表透過 `GET /api/v1/fields` 讀出新田區，重新整理仍取得相同資料，座標為 `null`。缺名稱、缺面積或面積小於等於零時，應拒絕請求且沒有新增資料。
+   同帳號重送相同名稱或在名稱頭尾加空白，應回傳 `409` 和 `errors.name`。同帳號同時送出兩筆同名請求時，只建立一筆。不同帳號可使用相同名稱，同帳號也可使用僅大小寫不同的名稱。
 2. 緯度與經度都留空可儲存，填齊合法值也可儲存。只填其一或超出範圍時，應回傳欄位錯誤。
 3. 使用自己新增的田區建立一筆栽培紀錄，預定栽種日留空。回到總覽可查到該紀錄，狀態顯示「規劃中」，日期顯示「尚未設定」。
 4. 使用另一個測試帳號，確認無法查詢他人的田區，也無法在他人田區新增栽培紀錄。登出後查詢總覽應回傳 `401`。

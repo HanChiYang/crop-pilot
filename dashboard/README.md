@@ -11,4 +11,4 @@ npm start
 
 本機開發伺服器使用 HTTP，並將 `/api` 和 `/signin-google` 轉送到後端。本機 Google OAuth 用戶端需註冊 `http://localhost:4200/signin-google`。部署時使用 HTTPS，並註冊部署網域的 HTTPS 回呼網址。
 
-用 `npm run build` 建置前端。登入 client 由 OpenAPI 契約生成，重新生成時使用後端工具目錄的 `Generate-AuthContract.ps1`。[共用 OpenAPI 契約](../docs/openapi/openapi.yaml) · [桌機設計與 Figma 原型](../docs/ui/first-desktop-slice/README.md)
+用 `npm run build` 建置前端。登入與田區 client 由 OpenAPI 契約生成，重新生成時使用後端工具目錄的 `Generate-ApiContract.ps1`。[共用 OpenAPI 契約](../docs/openapi/openapi.yaml) · [桌機設計與 Figma 原型](../docs/ui/first-desktop-slice/README.md)

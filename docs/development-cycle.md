@@ -26,12 +26,14 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 ## 目前進度
 
-「首頁 → 登入 → 田區總覽空畫面」已完成前後端串接。本機 Docker PostgreSQL 已套用帳號 migration，Angular 以登入 API 建立工作階段，再用 `GET /api/auth/session` 保護總覽。用 Edge 實際驗證兩個首頁登入入口、帳密錯誤提示、登入、重新整理及登出。Google 首次與重複登入、取消與 Email 衝突已用模擬 OIDC 測試，真實 Google 帳號仍待設定 OAuth 用戶端後驗收。[前端操作說明](../dashboard/README.md) · [API 設計](design/first-desktop-slice-data-api.md)
+「首頁 → 登入 → 田區總覽空畫面」已完成前後端串接。本機 Docker PostgreSQL 已套用帳號 migration，Angular 以登入 API 建立工作階段，再用 `GET /api/v1/auth/session` 保護總覽。用 Edge 實際驗證兩個首頁登入入口、帳密錯誤提示、登入、重新整理及登出。Google 首次與重複登入、取消與 Email 衝突已用模擬 OIDC 測試，真實 Google 帳號仍待設定 OAuth 用戶端後驗收。[前端操作說明](../dashboard/README.md) · [API 設計](design/first-desktop-slice-data-api.md)
 
 帳號 migration 已用舊版測試資料驗證升級，保留主帳號 UUID、密碼雜湊及 Google 綁定。帳號、登入方式、個人資料及角色分表，舊帳號遷移為 `ACTIVE` 並取得 `USER`。後臺授權的角色指派流程，以及本地帳號註冊與 Email OTP，待各自功能審查後實作。[資料表與 ER 圖](design/first-desktop-slice-database.md)
 
-下一個切片先完成「新增田區 → 回總覽看見新田區」。田區名稱和面積必填，座標選填。確認欄位、外鍵和 API 後，先實作 `POST /api/fields` 及總覽查詢，再串接 Angular 新增表單。[桌機畫面及 Figma 原型](ui/first-desktop-slice/README.md) · [桌機版需求](requirements/desktop-field-and-planting.md)
+下一個切片沿用 Figma 動線，先完成「空的田區總覽 → 新增田區 → 儲存後進入田區管理並看見新田區」。田區名稱和面積必填，座標和備註選填。確認欄位、外鍵和 API 後，實作田區新增和查詢，再串接 Angular 新增表單與田區管理列表。[桌機畫面及 Figma 原型](ui/first-desktop-slice/README.md) · [桌機版需求](requirements/desktop-field-and-planting.md)
 
 OpenAPI 契約已通過 OpenAPI Generator 7.27.0 驗證，登入 Controller、DTO 和 Angular client 由同一契約生成。田區與栽培的 PostgreSQL 欄位、ERD、外鍵與刪除行為仍待審查。[OpenAPI 契約](openapi/openapi.yaml)
+
+本版沿用 Cookie 登入，受保護的寫入操作須附防偽權杖。下版將受保護的 API 改用 Bearer access token，並同步更新後端、Angular 與 OpenAPI 契約。[下版驗證方式](design/first-desktop-slice-data-api.md#下版驗證方式)
 
 新對話可由專案根目錄的 [AGENTS.md](../AGENTS.md)接續。需求訪談與資料庫及 API 審查可使用 `feature-discovery` 和 `data-api-design-review` Skills。
