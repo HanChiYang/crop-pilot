@@ -36,6 +36,14 @@ dotnet user-secrets set 'DevelopmentAccount:Password' '<本機測試密碼>' --p
 dotnet run --project $project -- --SeedDevelopmentAccount=true
 ```
 
+## 執行田區 API 整合測試
+
+啟動 Docker 後，在 `backend/` 執行以下指令。測試會建立獨立的 PostgreSQL 容器並套用 EF Core migrations。
+
+```powershell
+dotnet test CropPilot.Api.Tests/CropPilot.Api.Tests.csproj
+```
+
 ## 重新生成 API 契約
 
 在 `backend/` 目錄執行：
