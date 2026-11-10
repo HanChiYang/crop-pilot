@@ -34,6 +34,6 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 OpenAPI 契約已通過 OpenAPI Generator 7.27.0 驗證，登入 Controller、DTO 和 Angular client 由同一契約生成。田區與栽培的 PostgreSQL 欄位、ERD、外鍵與刪除行為仍待審查。[OpenAPI 契約](openapi/openapi.yaml)
 
-本版沿用 Cookie 登入，受保護的寫入操作須附防偽權杖。下版將受保護的 API 改用 Bearer access token，並同步更新後端、Angular 與 OpenAPI 契約。[下版驗證方式](design/first-desktop-slice-data-api.md#下版驗證方式)
+受保護的 API 直接驗證 CropPilot 簽發的短效 JWT，並使用簽發時的角色。Angular 只在記憶體保存權杖，重新整理時透過續期 Cookie 恢復登入。帳密登入、續期和登出要求防偽權杖。登出後停止續期，已簽發的 JWT 在原定時間到期。[Bearer 驗證方式](design/first-desktop-slice-data-api.md#bearer-驗證方式)
 
 新對話可由專案根目錄的 [AGENTS.md](../AGENTS.md)接續。需求訪談與資料庫及 API 審查可使用 `feature-discovery` 和 `data-api-design-review` Skills。

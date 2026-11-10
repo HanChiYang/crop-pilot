@@ -2,11 +2,13 @@ CropPilot.Contract/Attributes/ValidateModelStateAttribute.cs
 CropPilot.Contract/Controllers/AuthApi.cs
 CropPilot.Contract/Controllers/FieldsApi.cs
 CropPilot.Contract/Converters/CustomEnumConverter.cs
-CropPilot.Contract/Models/ApiProblem.cs
-CropPilot.Contract/Models/ApiValidationProblem.cs
+CropPilot.Contract/Models/AccessTokenRsDto.cs
+CropPilot.Contract/Models/ApiProblemRsDto.cs
+CropPilot.Contract/Models/ApiValidationProblemRsDto.cs
 CropPilot.Contract/Models/CreateFieldRqDto.cs
 CropPilot.Contract/Models/DeleteFieldRqDto.cs
 CropPilot.Contract/Models/EditFieldRqDto.cs
 CropPilot.Contract/Models/FieldDto.cs
 CropPilot.Contract/Models/FieldRsDto.cs
-CropPilot.Contract/Models/LoginRequest.cs
+CropPilot.Contract/Models/LoginRqDto.cs
+CropPilot.Contract/Models/LogoutRqDto.cs

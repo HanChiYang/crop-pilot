@@ -25,14 +25,14 @@ tags:
   - name: Plantings
     description: 新增和查詢田區的栽培紀錄。
 security:
-  - SessionCookie: []
+  - BearerAuth: []
 paths:
   /api/v1/auth/csrf:
     get:
       tags: [Auth]
       operationId: getCsrfToken
       summary: 取得防偽權杖
-      description: 首次寫入前與登入或登出後呼叫。伺服器設定供 Angular 讀取的 XSRF-TOKEN Cookie。
+      description: 帳密登入、續期或登出前呼叫。伺服器設定供 Angular 讀取的 XSRF-TOKEN Cookie。
       security: []
       responses:
         '204':
@@ -48,7 +48,7 @@ paths:
       tags: [Auth]
       operationId: login
       summary: 以 CropPilot 帳號密碼登入
-      description: 使用帳號、密碼和防偽權杖送出登入請求。登入成功時設定工作階段 Cookie。
+      description: 使用帳號、密碼和防偽權杖送出登入請求。登入成功時回傳短效 Access Token 並設定續期 Cookie。
       security:
         - CsrfToken: []
       requestBody:
@@ -56,14 +56,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: '#/components/schemas/LoginRqDto'
       responses:
-        '204':
-          description: 已登入並設定工作階段 Cookie
+        '200':
+          description: 已登入，回傳 Access Token 並設定續期 Cookie。
           headers:
             Set-Cookie:
               schema:
                 type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenRsDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -71,7 +75,13 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: '#/components/schemas/ApiProblem'
+                $ref: '#/components/schemas/ApiProblemRsDto'
+        '409':
+          description: 原登入工作階段已被另一個請求撤銷或取代。
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApiProblemRsDto'
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/auth/google:
@@ -94,26 +104,54 @@ paths:
       tags: [Auth]
       operationId: getSession
       summary: 確認登入工作階段
-      description: 依請求的工作階段 Cookie 確認登入狀態。工作階段有效時回傳 204，無效時回傳 401。
+      description: 驗證 Bearer JWT 的簽章、簽發者、適用對象與效期。有效時回傳 204。
       security:
-        - SessionCookie: []
+        - BearerAuth: []
       responses:
         '204':
           description: 目前工作階段有效
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshAccessToken
+      summary: 續發 Access Token
+      description: 使用有效的續期 Cookie 與防偽權杖簽發新的短效 Access Token。續期不延長工作階段期限。
+      security:
+        - RenewalCookie: []
+          CsrfToken: []
+      responses:
+        '200':
+          description: 已簽發新的 Access Token。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
   /api/v1/auth/logout:
     post:
       tags: [Auth]
       operationId: logout
       summary: 登出
-      description: 驗證工作階段與防偽權杖後，登出目前帳號並清除工作階段 Cookie。
+      description: 驗證續期 Cookie 與防偽權杖後，撤銷指定的工作階段並清除續期 Cookie。已簽發的 Access Token 在原定時間到期。
       security:
-        - SessionCookie: []
+        - RenewalCookie: []
           CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRqDto'
       responses:
         '204':
-          description: 已登出並清除工作階段 Cookie
+          description: 已登出並清除續期 Cookie
           headers:
             Set-Cookie:
               schema:
@@ -122,6 +160,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: 續期 Cookie 已切換至另一個工作階段。
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApiProblemRsDto'
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/fields:
@@ -131,7 +175,7 @@ paths:
       summary: 列出自己的田區清單
       description: 回傳登入帳號所擁有的田區。尚未建立田區時回傳空陣列。
       security:
-        - SessionCookie: []
+        - BearerAuth: []
       responses:
         '200':
           description: 田區列表。尚無田區時 fields 為空陣列。
@@ -149,8 +193,7 @@ paths:
       summary: 新增單筆田區
       description: 擁有者由伺服器依登入身分設定。同帳號的田區名稱去除頭尾空白後不得重複，並區分大小寫。緯度及經度都可留空，填寫時須成對提供。
       security:
-        - SessionCookie: []
-          CsrfToken: []
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -199,7 +242,7 @@ paths:
       summary: 列出自己的田區詳細資料
       description: 依田區識別碼查詢登入帳號的田區。田區不存在或屬於其他帳號時回傳 404。
       security:
-        - SessionCookie: []
+        - BearerAuth: []
       responses:
         '200':
           description: 田區資料
@@ -221,8 +264,7 @@ paths:
       summary: 編輯單筆田區
       description: 更新指定田區的名稱、面積、座標與備註。省略座標或備註會清除對應值。名稱去除頭尾空白後不得與同帳號的其他田區重複，並區分大小寫。
       security:
-        - SessionCookie: []
-          CsrfToken: []
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -252,8 +294,7 @@ paths:
       summary: 刪除單筆田區
       description: 依路徑上的田區識別碼刪除登入帳號的田區。有任何栽培紀錄的田區禁止刪除。
       security:
-        - SessionCookie: []
-          CsrfToken: []
+        - BearerAuth: []
       responses:
         '204':
           description: 已刪除田區。
@@ -274,8 +315,7 @@ paths:
       summary: 批次刪除田區
       description: 一次刪除指定的田區。任一田區不存在、屬於其他帳號或已有栽培紀錄時，整批保留。
       security:
-        - SessionCookie: []
-          CsrfToken: []
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -304,14 +344,13 @@ paths:
       summary: 新增單筆規劃中的栽培紀錄
       description: 伺服器將狀態設為 planned，實際栽種日設為 null。
       security:
-        - SessionCookie: []
-          CsrfToken: []
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePlantingRequest'
+              $ref: '#/components/schemas/CreatePlantingRqDto'
             example:
               cropName: 番茄
       responses:
@@ -327,7 +366,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Planting'
+                $ref: '#/components/schemas/PlantingRsDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -346,14 +385,14 @@ paths:
       summary: 列出自己的栽培紀錄詳細資料
       description: 依田區和栽培紀錄識別碼查詢。田區或紀錄不存在、兩者不相符，或田區屬於其他帳號時回傳 404。
       security:
-        - SessionCookie: []
+        - BearerAuth: []
       responses:
         '200':
           description: 栽培紀錄
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Planting'
+                $ref: '#/components/schemas/PlantingRsDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -369,7 +408,7 @@ paths:
       summary: 列出自己的田區清單及目前栽培狀況
       description: 回傳自己的所有田區及各田區的規劃中、栽培中與採收中紀錄。已結束紀錄會保留在資料庫。
       security:
-        - SessionCookie: []
+        - BearerAuth: []
       responses:
         '200':
           description: 田區總覽。尚無田區時回傳空陣列。
@@ -378,18 +417,23 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/FieldOverview'
+                  $ref: '#/components/schemas/FieldOverviewRsDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
 components:
   securitySchemes:
-    SessionCookie:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: CropPilot 簽發的 JWT Access Token，效期最多五分鐘。角色反映簽發當下的授權狀態。
+    RenewalCookie:
       type: apiKey
       in: cookie
-      name: CropPilot.Session
-      description: 由伺服器設定並由瀏覽器管理的 HttpOnly 工作階段 Cookie。
+      name: CropPilot.Renewal
+      description: 由瀏覽器管理的 HttpOnly 續期 Cookie，用於續期和登出。
     CsrfToken:
       type: apiKey
       in: header
@@ -418,39 +462,58 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ApiValidationProblem'
+            $ref: '#/components/schemas/ApiValidationProblemRsDto'
     FieldDeleteConflict:
       description: 至少一塊指定田區已有栽培紀錄，刪除未執行。
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ApiProblem'
+            $ref: '#/components/schemas/ApiProblemRsDto'
     BadRequest:
       description: 請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ApiValidationProblem'
+            $ref: '#/components/schemas/ApiValidationProblemRsDto'
     Unauthorized:
-      description: 未登入或工作階段已失效
+      description: 權杖無效、未登入或工作階段已失效
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ApiProblem'
+            $ref: '#/components/schemas/ApiProblemRsDto'
     NotFound:
       description: 資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ApiProblem'
+            $ref: '#/components/schemas/ApiProblemRsDto'
     ServerError:
       description: 伺服器處理失敗
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ApiProblem'
+            $ref: '#/components/schemas/ApiProblemRsDto'
   schemas:
-    LoginRequest:
+    AccessTokenRsDto:
+      type: object
+      required: [accessToken, sessionId]
+      properties:
+        accessToken:
+          type: string
+          description: CropPilot 簽發的短效 JWT Bearer Access Token。
+        sessionId:
+          type: string
+          format: uuid
+          description: 工作階段識別碼，讓前端辨識續期時是否已切換登入。
+    LogoutRqDto:
+      type: object
+      required: [sessionId]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          description: 目前分頁取得 Access Token 時收到的工作階段識別碼。
+    LoginRqDto:
       type: object
       required: [username, password]
       properties:
@@ -543,7 +606,7 @@ components:
         notes:
           type: [string, 'null']
           maxLength: 1000
-    CreatePlantingRequest:
+    CreatePlantingRqDto:
       type: object
       required: [cropName]
       properties:
@@ -560,7 +623,7 @@ components:
         notes:
           type: [string, 'null']
           maxLength: 1000
-    Planting:
+    PlantingRsDto:
       type: object
       required: [id, fieldId, cropName, variety, plannedPlantingDate, actualPlantingDate, status, notes]
       properties:
@@ -590,7 +653,7 @@ components:
     PlantingStatus:
       type: string
       enum: [planned, growing, harvesting, completed]
-    FieldOverview:
+    FieldOverviewRsDto:
       allOf:
         - $ref: '#/components/schemas/FieldDto'
         - type: object
@@ -600,8 +663,8 @@ components:
               type: array
               description: 目前栽培紀錄，沒有紀錄時為空陣列。
               items:
-                $ref: '#/components/schemas/Planting'
-    ApiProblem:
+                $ref: '#/components/schemas/PlantingRsDto'
+    ApiProblemRsDto:
       type: object
       required: [status, title]
       properties:
@@ -617,9 +680,9 @@ components:
         instance:
           type: string
           format: uri-reference
-    ApiValidationProblem:
+    ApiValidationProblemRsDto:
       allOf:
-        - $ref: '#/components/schemas/ApiProblem'
+        - $ref: '#/components/schemas/ApiProblemRsDto'
         - type: object
           required: [errors]
           properties:

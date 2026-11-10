@@ -3,6 +3,7 @@ using CropPilot.Api.Authentication;
 using CropPilot.Api.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
@@ -22,23 +23,32 @@ builder.Services.AddIdentityCore<MainAccount>()
     .AddSignInManager();
 builder.Services.AddSingleton<ILookupNormalizer, AccountLookupNormalizer>();
 
-var authentication = builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme);
+var accessTokens = new AccessTokens(builder.Configuration, builder.Environment);
+var authentication = builder.Services.AddAuthentication();
+authentication.AddJwtBearer(accessTokens.ConfigureValidation);
 authentication.AddIdentityCookies();
 GoogleSignIn.Configure(authentication, builder.Configuration, isDevelopment);
+builder.Services.AddScoped<AuthSessions>();
+builder.Services.AddSingleton(accessTokens);
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.Cookie.Name = "CropPilot.Session";
+    options.Cookie.Name = "CropPilot.Renewal";
+    options.Cookie.Path = "/api/v1/auth";
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = cookieSecurePolicy;
+    options.SlidingExpiration = false;
     options.Events.OnValidatePrincipal = async context =>
     {
-        var signIn = context.HttpContext.RequestServices.GetRequiredService<SignInManager<MainAccount>>();
-        if (await signIn.ValidateSecurityStampAsync(context.Principal) is not { Status: MainAccount.Active })
+        var id = AuthSessions.GetId(context.Principal);
+        var sessions = context.HttpContext.RequestServices.GetRequiredService<AuthSessions>();
+        if (id == Guid.Empty || await sessions.FindActiveAsync(id, context.HttpContext.RequestAborted) is not { } session)
         {
             context.RejectPrincipal();
-            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+            return;
         }
+
+        context.HttpContext.Features.Set(session);
     };
     options.Events.OnRedirectToLogin = context =>
     {
@@ -48,10 +58,13 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("SessionCookie", policy => policy
+    .SetDefaultPolicy(new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme).RequireAuthenticatedUser().Build())
+    .AddPolicy("RenewalCookie", policy => policy
         .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
         .RequireAuthenticatedUser())
-    .AddPolicy("CsrfToken", policy => policy.AddRequirements(new CsrfTokenRequirement()));
+    .AddPolicy("CsrfToken", policy => policy
+        .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
+        .AddRequirements(new CsrfTokenRequirement()));
 builder.Services.AddScoped<IAuthorizationHandler, CsrfTokenHandler>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, AuthPolicyResultHandler>();
 builder.Services.AddAntiforgery(options =>

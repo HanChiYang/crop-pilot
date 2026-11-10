@@ -9,7 +9,7 @@
  */
 
 
-export interface ApiValidationProblem { 
+export interface ApiValidationProblemRsDto { 
     type?: string;
     title: string;
     status: number;

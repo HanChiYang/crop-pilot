@@ -17,11 +17,15 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
-import { ApiProblem } from '../model/apiProblem';
+import { AccessTokenRsDto } from '../model/accessTokenRsDto';
 // @ts-ignore
-import { ApiValidationProblem } from '../model/apiValidationProblem';
+import { ApiProblemRsDto } from '../model/apiProblemRsDto';
 // @ts-ignore
-import { LoginRequest } from '../model/loginRequest';
+import { ApiValidationProblemRsDto } from '../model/apiValidationProblemRsDto';
+// @ts-ignore
+import { LoginRqDto } from '../model/loginRqDto';
+// @ts-ignore
+import { LogoutRqDto } from '../model/logoutRqDto';
 
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS }                     from '../variables';
@@ -30,7 +34,11 @@ import { BaseService } from '../api.base.service';
 
 
 export interface LoginRequestParams {
-    loginRequest: LoginRequest;
+    loginRqDto: LoginRqDto;
+}
+
+export interface LogoutRequestParams {
+    logoutRqDto: LogoutRqDto;
 }
 
 
@@ -45,7 +53,7 @@ export class AuthService extends BaseService {
 
     /**
      * 取得防偽權杖
-     * 首次寫入前與登入或登出後呼叫。伺服器設定供 Angular 讀取的 XSRF-TOKEN Cookie。
+     * 帳密登入、續期或登出前呼叫。伺服器設定供 Angular 讀取的 XSRF-TOKEN Cookie。
      * @endpoint get /api/v1/auth/csrf
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -98,7 +106,7 @@ export class AuthService extends BaseService {
 
     /**
      * 確認登入工作階段
-     * 依請求的工作階段 Cookie 確認登入狀態。工作階段有效時回傳 204，無效時回傳 401。
+     * 驗證 Bearer JWT 的簽章、簽發者、適用對象與效期。有效時回傳 204。
      * @endpoint get /api/v1/auth/session
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -111,7 +119,8 @@ export class AuthService extends BaseService {
 
         let localVarHeaders = this.defaultHeaders;
 
-        // authentication (SessionCookie) required
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
             'application/problem+json'
@@ -153,20 +162,20 @@ export class AuthService extends BaseService {
 
     /**
      * 以 CropPilot 帳號密碼登入
-     * 使用帳號、密碼和防偽權杖送出登入請求。登入成功時設定工作階段 Cookie。
+     * 使用帳號、密碼和防偽權杖送出登入請求。登入成功時回傳短效 Access Token 並設定續期 Cookie。
      * @endpoint post /api/v1/auth/login
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public login(requestParameters: LoginRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
-    public login(requestParameters: LoginRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
-    public login(requestParameters: LoginRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
-    public login(requestParameters: LoginRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const loginRequest = requestParameters?.loginRequest;
-        if (loginRequest === null || loginRequest === undefined) {
-            throw new Error('Required parameter loginRequest was null or undefined when calling login.');
+    public login(requestParameters: LoginRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<AccessTokenRsDto>;
+    public login(requestParameters: LoginRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<AccessTokenRsDto>>;
+    public login(requestParameters: LoginRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<AccessTokenRsDto>>;
+    public login(requestParameters: LoginRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const loginRqDto = requestParameters?.loginRqDto;
+        if (loginRqDto === null || loginRqDto === undefined) {
+            throw new Error('Required parameter loginRqDto was null or undefined when calling login.');
         }
 
         let localVarHeaders = this.defaultHeaders;
@@ -175,6 +184,7 @@ export class AuthService extends BaseService {
         localVarHeaders = this.configuration.addCredentialToHeaders('CsrfToken', 'X-XSRF-TOKEN', localVarHeaders);
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
             'application/problem+json'
         ]);
         if (localVarHttpHeaderAcceptSelected !== undefined) {
@@ -208,10 +218,10 @@ export class AuthService extends BaseService {
 
         let localVarPath = `/api/v1/auth/login`;
         const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<any>('post', `${basePath}${localVarPath}`,
+        return this.httpClient.request<AccessTokenRsDto>('post', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
-                body: loginRequest,
+                body: loginRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -224,25 +234,99 @@ export class AuthService extends BaseService {
 
     /**
      * 登出
-     * 驗證工作階段與防偽權杖後，登出目前帳號並清除工作階段 Cookie。
+     * 驗證續期 Cookie 與防偽權杖後，撤銷指定的工作階段並清除續期 Cookie。已簽發的 Access Token 在原定時間到期。
      * @endpoint post /api/v1/auth/logout
+     * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public logout(observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
-    public logout(observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
-    public logout(observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
-    public logout(observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+    public logout(requestParameters: LogoutRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
+    public logout(requestParameters: LogoutRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
+    public logout(requestParameters: LogoutRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
+    public logout(requestParameters: LogoutRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const logoutRqDto = requestParameters?.logoutRqDto;
+        if (logoutRqDto === null || logoutRqDto === undefined) {
+            throw new Error('Required parameter logoutRqDto was null or undefined when calling logout.');
+        }
 
         let localVarHeaders = this.defaultHeaders;
 
         // authentication (CsrfToken) required
         localVarHeaders = this.configuration.addCredentialToHeaders('CsrfToken', 'X-XSRF-TOKEN', localVarHeaders);
 
-        // authentication (SessionCookie) required
+        // authentication (RenewalCookie) required
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/auth/logout`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<any>('post', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: logoutRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 續發 Access Token
+     * 使用有效的續期 Cookie 與防偽權杖簽發新的短效 Access Token。續期不延長工作階段期限。
+     * @endpoint post /api/v1/auth/refresh
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public refreshAccessToken(observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<AccessTokenRsDto>;
+    public refreshAccessToken(observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<AccessTokenRsDto>>;
+    public refreshAccessToken(observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<AccessTokenRsDto>>;
+    public refreshAccessToken(observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (CsrfToken) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('CsrfToken', 'X-XSRF-TOKEN', localVarHeaders);
+
+        // authentication (RenewalCookie) required
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
             'application/problem+json'
         ]);
         if (localVarHttpHeaderAcceptSelected !== undefined) {
@@ -265,9 +349,9 @@ export class AuthService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/auth/logout`;
+        let localVarPath = `/api/v1/auth/refresh`;
         const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<any>('post', `${basePath}${localVarPath}`,
+        return this.httpClient.request<AccessTokenRsDto>('post', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,

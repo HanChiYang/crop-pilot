@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from './generated/api/auth.service';
+import { AuthSession } from './auth-session';
 
 @Component({
   selector: 'app-overview-page',
@@ -37,7 +37,7 @@ import { AuthService } from './generated/api/auth.service';
   `,
 })
 export class OverviewPage {
-  private readonly auth = inject(AuthService);
+  private readonly auth = inject(AuthSession);
   private readonly router = inject(Router);
 
   protected readonly busy = signal(false);
@@ -48,12 +48,11 @@ export class OverviewPage {
     this.busy.set(true);
     this.message.set('');
     try {
-      await firstValueFrom(this.auth.getCsrfToken());
-      await firstValueFrom(this.auth.logout());
+      await firstValueFrom(this.auth.signOut());
       await this.router.navigateByUrl('/login', { replaceUrl: true });
     } catch (error: unknown) {
-      if (error instanceof HttpErrorResponse && error.status === 401) {
-        await this.router.navigateByUrl('/login', { replaceUrl: true });
+      if (error instanceof HttpErrorResponse && error.status === 409) {
+        await this.router.navigate(['/login'], { replaceUrl: true, queryParams: { error: 'session_changed' } });
       } else {
         this.message.set('目前無法登出，請再試一次。');
       }

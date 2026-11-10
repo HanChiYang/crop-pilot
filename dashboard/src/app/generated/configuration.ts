@@ -92,13 +92,22 @@ constructor({ accessToken, apiKeys, basePath, credentials, encodeParam, encoder,
         this.encodeParam = encodeParam ?? (param => this.defaultEncodeParam(param));
         this.credentials = credentials ?? {};
 
-        // init default SessionCookie credential
-        if (!this.credentials['SessionCookie']) {
-            this.credentials['SessionCookie'] = () => {
+        // init default BearerAuth credential
+        if (!this.credentials['BearerAuth']) {
+            this.credentials['BearerAuth'] = () => {
+                return typeof this.accessToken === 'function'
+                    ? this.accessToken()
+                    : this.accessToken;
+            };
+        }
+
+        // init default RenewalCookie credential
+        if (!this.credentials['RenewalCookie']) {
+            this.credentials['RenewalCookie'] = () => {
                 if (this.apiKeys === null || this.apiKeys === undefined) {
                     return undefined;
                 } else {
-                    return this.apiKeys['SessionCookie'] || this.apiKeys['CropPilot.Session'];
+                    return this.apiKeys['RenewalCookie'] || this.apiKeys['CropPilot.Renewal'];
                 }
             };
         }

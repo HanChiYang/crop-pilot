@@ -9,9 +9,17 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
     public DbSet<FederatedIdentity> FederatedIdentities => Set<FederatedIdentity>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
+    internal DbSet<AuthSession> AuthSessions => Set<AuthSession>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.Entity<AuthSession>(session =>
+        {
+            session.ToTable("auth_sessions");
+            session.HasOne(value => value.MainAccount).WithMany().HasForeignKey(value => value.MainAccountId);
+            session.Property(value => value.SecurityStamp).HasMaxLength(256);
+        });
+
         builder.Entity<MainAccount>(account =>
         {
             account.ToTable("main_account", table => table.HasCheckConstraint(

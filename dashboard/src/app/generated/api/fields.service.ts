@@ -17,9 +17,9 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
-import { ApiProblem } from '../model/apiProblem';
+import { ApiProblemRsDto } from '../model/apiProblemRsDto';
 // @ts-ignore
-import { ApiValidationProblem } from '../model/apiValidationProblem';
+import { ApiValidationProblemRsDto } from '../model/apiValidationProblemRsDto';
 // @ts-ignore
 import { CreateFieldRqDto } from '../model/createFieldRqDto';
 // @ts-ignore
@@ -91,10 +91,8 @@ export class FieldsService extends BaseService {
 
         let localVarHeaders = this.defaultHeaders;
 
-        // authentication (CsrfToken) required
-        localVarHeaders = this.configuration.addCredentialToHeaders('CsrfToken', 'X-XSRF-TOKEN', localVarHeaders);
-
-        // authentication (SessionCookie) required
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
             'application/json',
@@ -165,10 +163,8 @@ export class FieldsService extends BaseService {
 
         let localVarHeaders = this.defaultHeaders;
 
-        // authentication (CsrfToken) required
-        localVarHeaders = this.configuration.addCredentialToHeaders('CsrfToken', 'X-XSRF-TOKEN', localVarHeaders);
-
-        // authentication (SessionCookie) required
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
             'application/problem+json'
@@ -228,10 +224,8 @@ export class FieldsService extends BaseService {
 
         let localVarHeaders = this.defaultHeaders;
 
-        // authentication (CsrfToken) required
-        localVarHeaders = this.configuration.addCredentialToHeaders('CsrfToken', 'X-XSRF-TOKEN', localVarHeaders);
-
-        // authentication (SessionCookie) required
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
             'application/problem+json'
@@ -305,10 +299,8 @@ export class FieldsService extends BaseService {
 
         let localVarHeaders = this.defaultHeaders;
 
-        // authentication (CsrfToken) required
-        localVarHeaders = this.configuration.addCredentialToHeaders('CsrfToken', 'X-XSRF-TOKEN', localVarHeaders);
-
-        // authentication (SessionCookie) required
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
             'application/json',
@@ -379,7 +371,8 @@ export class FieldsService extends BaseService {
 
         let localVarHeaders = this.defaultHeaders;
 
-        // authentication (SessionCookie) required
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
             'application/json',
@@ -435,7 +428,8 @@ export class FieldsService extends BaseService {
 
         let localVarHeaders = this.defaultHeaders;
 
-        // authentication (SessionCookie) required
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
 
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
             'application/json',

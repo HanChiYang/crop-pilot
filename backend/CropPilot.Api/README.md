@@ -20,9 +20,13 @@ dotnet ef database update --project $project
 dotnet run --project $project -- --urls http://localhost:7081
 ```
 
-在 `http://localhost:4200/login` 操作前端。登入成功後，Angular 以 `GET /api/v1/auth/session` 確認 `CropPilot.Session` Cookie 有效才顯示總覽。使用帳密登入和登出前，Angular 會先向 `GET /api/v1/auth/csrf` 取得防偽權杖。Google 登入失敗會返回登入頁顯示提示。[前端操作說明](../../dashboard/README.md)
+在 `http://localhost:4200/login` 操作前端。Angular 用 Bearer Access Token 呼叫 `GET /api/v1/auth/session` 確認登入狀態。重新整理或完成 Google 登入後，Angular 用 `CropPilot.Renewal` Cookie 呼叫續期端點取得 Access Token。帳密登入、續期與登出前會先取得防偽權杖。[前端操作說明](../../dashboard/README.md)
 
 本機以 `Development` 環境使用 HTTP。部署時使用 HTTPS，並設定部署網域的 Google OAuth HTTPS 回呼網址。非開發環境會啟用 HTTPS 轉址，且登入及防偽 Cookie 會加上 `Secure`。
+
+JWT 使用 HS256 簽章。部署時透過 `Authentication__Jwt__SigningKey` 提供至少 32 個隨機位元組的 Base64 值，多執行個體共用同一把 JWT 簽章金鑰。本機開發可省略此設定，程式會在每次啟動時產生暫用金鑰。
+
+續期 Cookie 與防偽權杖使用 ASP.NET Core Data Protection。部署時保存金鑰環，多執行個體共用同一組金鑰環與應用程式名稱。
 
 若開發庫沒有帳密測試帳號，可用以下指令建立一個已啟用的 `USER`。種子指令僅能在 `Development` 執行，帳號已存在時會保留原本的密碼。
 

@@ -22,6 +22,35 @@ namespace CropPilot.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("CropPilot.Api.Data.AuthSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("MainAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("main_account_id");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("security_stamp");
+
+                    b.HasKey("Id")
+                        .HasName("pk_auth_sessions");
+
+                    b.HasIndex("MainAccountId")
+                        .HasDatabaseName("ix_auth_sessions_main_account_id");
+
+                    b.ToTable("auth_sessions", (string)null);
+                });
+
             modelBuilder.Entity("CropPilot.Api.Data.FederatedIdentity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -216,6 +245,18 @@ namespace CropPilot.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_user_roles_role", "role IN ('USER', 'ADMIN')");
                         });
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.AuthSession", b =>
+                {
+                    b.HasOne("CropPilot.Api.Data.MainAccount", "MainAccount")
+                        .WithMany()
+                        .HasForeignKey("MainAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_auth_sessions_main_accounts_main_account_id");
+
+                    b.Navigation("MainAccount");
                 });
 
             modelBuilder.Entity("CropPilot.Api.Data.FederatedIdentity", b =>
