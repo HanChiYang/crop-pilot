@@ -24,7 +24,7 @@ namespace CropPilot.Contract.Models
     /// 
     /// </summary>
     [DataContract]
-    public class ApiProblem : IEquatable<ApiProblem>
+    public class ApiValidationProblemRsDto : IEquatable<ApiValidationProblemRsDto>
     {
         /// <summary>
         /// Gets or Sets Type
@@ -59,18 +59,27 @@ namespace CropPilot.Contract.Models
         public string Instance { get; set; }
 
         /// <summary>
+        /// 以 JSON 欄位名對應錯誤訊息陣列。防偽驗證失敗時使用空物件。
+        /// </summary>
+        /// <value>以 JSON 欄位名對應錯誤訊息陣列。防偽驗證失敗時使用空物件。</value>
+        [Required]
+        [DataMember(Name="errors", EmitDefaultValue=false)]
+        public Dictionary<string, List<string>> Errors { get; set; }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.Append("class ApiProblem {\n");
+            sb.Append("class ApiValidationProblemRsDto {\n");
             sb.Append("  Type: ").Append(Type).Append("\n");
             sb.Append("  Title: ").Append(Title).Append("\n");
             sb.Append("  Status: ").Append(Status).Append("\n");
             sb.Append("  Detail: ").Append(Detail).Append("\n");
             sb.Append("  Instance: ").Append(Instance).Append("\n");
+            sb.Append("  Errors: ").Append(Errors).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -93,15 +102,15 @@ namespace CropPilot.Contract.Models
         {
             if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            return obj.GetType() == GetType() && Equals((ApiProblem)obj);
+            return obj.GetType() == GetType() && Equals((ApiValidationProblemRsDto)obj);
         }
 
         /// <summary>
-        /// Returns true if ApiProblem instances are equal
+        /// Returns true if ApiValidationProblemRsDto instances are equal
         /// </summary>
-        /// <param name="other">Instance of ApiProblem to be compared</param>
+        /// <param name="other">Instance of ApiValidationProblemRsDto to be compared</param>
         /// <returns>Boolean</returns>
-        public bool Equals(ApiProblem other)
+        public bool Equals(ApiValidationProblemRsDto other)
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -131,6 +140,12 @@ namespace CropPilot.Contract.Models
                     Instance == other.Instance ||
                     Instance != null &&
                     Instance.Equals(other.Instance)
+                ) && 
+                (
+                    Errors == other.Errors ||
+                    Errors != null &&
+                    other.Errors != null &&
+                    Errors.SequenceEqual(other.Errors)
                 );
         }
 
@@ -154,6 +169,8 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + Detail.GetHashCode();
                     if (Instance != null)
                     hashCode = hashCode * 59 + Instance.GetHashCode();
+                    if (Errors != null)
+                    hashCode = hashCode * 59 + Errors.GetHashCode();
                 return hashCode;
             }
         }
@@ -161,12 +178,12 @@ namespace CropPilot.Contract.Models
         #region Operators
         #pragma warning disable 1591
 
-        public static bool operator ==(ApiProblem left, ApiProblem right)
+        public static bool operator ==(ApiValidationProblemRsDto left, ApiValidationProblemRsDto right)
         {
             return Equals(left, right);
         }
 
-        public static bool operator !=(ApiProblem left, ApiProblem right)
+        public static bool operator !=(ApiValidationProblemRsDto left, ApiValidationProblemRsDto right)
         {
             return !Equals(left, right);
         }

@@ -91,6 +91,17 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 
 三個名稱欄位可獨立填寫，首次建帳時可留空。個人資料編輯流程待該功能的需求審查時定義。
 
+#### auth_sessions
+
+| 欄位 | PostgreSQL 型別 | 約束 | 說明 |
+| --- | --- | --- | --- |
+| `id` | `uuid` | PK | 伺服器產生的工作階段識別碼。 |
+| `main_account_id` | `uuid` | NOT NULL，FK → `main_account.id`，索引 | 登入的主帳號。 |
+| `security_stamp` | `varchar(256)` | 可為 NULL | 登入時的 Identity 安全戳記，欄位可空性與主帳號一致。 |
+| `expires_at` | `timestamptz` | NOT NULL | 登入後八小時到期。 |
+
+登出刪除目前的工作階段。續期與 API 驗證同時檢查工作階段期限、帳號狀態和安全戳記。
+
 #### fields
 
 | 欄位 | PostgreSQL 型別 | 約束 | 描述 |
@@ -126,6 +137,7 @@ erDiagram
     main_account ||..o{ federated_identities : has
     main_account ||..o| local_credentials : has
     main_account ||..o| user_profiles : has
+    main_account ||..o{ auth_sessions : has
     main_account ||--o{ fields : owns
     fields ||--o{ plantings : contains
     main_account {
@@ -157,6 +169,12 @@ erDiagram
         string surname
         string given_name
     }
+    auth_sessions {
+        uuid id PK
+        uuid main_account_id FK
+        string security_stamp
+        timestamptz expires_at
+    }
     fields {
         uuid id PK
         uuid main_account_id FK
@@ -180,6 +198,7 @@ erDiagram
 | `federated_identities.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的外部身分。 | 資料庫拒絕不存在的帳號與重複的 `(identity_provider, provider_user_id)`。 |
 | `local_credentials.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的本地帳密。 | 資料庫拒絕不存在的帳號、同一帳號的第二筆本地帳密，以及忽略大小寫後重複的 `username`，例如 `Farmer01` 與 `farmer01`。 |
 | `user_profiles.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併刪除該帳號的個人資料。 | 資料庫拒絕不存在的帳號、同一帳號的第二筆個人資料，以及重複的小寫 Email。 |
+| `auth_sessions.main_account_id` → `main_account.id` | 採 `ON DELETE CASCADE`，一併撤銷該帳號的工作階段。 | 資料庫拒絕不存在的帳號，刪除帳號時不保留工作階段。 |
 | `fields.main_account_id` → `main_account.id` | 提案採 `ON DELETE RESTRICT`。帳號有田區時阻擋刪除，保留田區資料。 | 資料庫拒絕不存在的帳號、刪除仍有田區的帳號，以及同帳號的相同名稱。不同帳號可使用相同名稱，同帳號也可使用僅大小寫不同的名稱。 |
 | `plantings.field_id` → `fields.id` | 採 `ON DELETE RESTRICT`，符合有栽培紀錄的田區禁止刪除的需求。 | 使用不存在的田區建立栽培，資料庫應拒絕。即使田區只有已結束的栽培，也應阻擋刪除。 |
 

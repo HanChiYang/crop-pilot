@@ -4,34 +4,41 @@
 
 ## API 約定
 
-提案採同源部署及登入 Cookie。Angular 在首次寫入前及登入或登出後取得新的防偽權杖，寫入時在 `X-XSRF-TOKEN` 標頭帶上該權杖。資料 API 依登入身分限制讀寫範圍，建立田區時由伺服器將登入者的主帳號 ID 寫入 `fields.main_account_id`。其他帳號的田區或栽培紀錄視為找不到。
+採同源部署。資料 API 依登入身分限制讀寫範圍，建立田區時由伺服器將登入者的主帳號 ID 寫入 `fields.main_account_id`。其他帳號的田區或栽培紀錄視為找不到。
 
-OpenAPI 全域預設要求 `SessionCookie`，各端點也明列所需憑證。田區、栽培與總覽的查詢，以及工作階段確認，要求有效的登入 Cookie。資料寫入和登出同時要求 `SessionCookie` 與 `CsrfToken`。登入前可取得防偽權杖、開始 Google 登入，或帶上防偽權杖送出帳密登入。
+### Bearer 驗證方式
 
-### 下版驗證方式
+OpenAPI 全域預設為 `BearerAuth`。田區、栽培、總覽與工作階段查詢使用 `Authorization: Bearer <access_token>`。續期與登出要求 `RenewalCookie` 和 `CsrfToken`。帳密登入也要求 `CsrfToken`。Angular 在這三項操作前先取得防偽權杖，再於 `X-XSRF-TOKEN` 標頭帶上權杖。取得防偽權杖及開始 Google 登入皆可匿名呼叫。
 
-本版沿用上述 Cookie 登入與防偽權杖。下版將受保護的 API 改用 Bearer access token。Angular 透過 `Authorization: Bearer <access_token>` 傳送權杖，由 ASP.NET Core 驗證，並同步更新 OpenAPI 的安全要求。
+帳密由 ASP.NET Core Identity 驗證，成功後 CropPilot 回傳已簽章的 JWT Access Token 並設定 `CropPilot.Renewal` Cookie。JWT 的 `sub` 是 `main_account.id`，`role` 是簽發當下的角色陣列，`iat` 與 `exp` 分別是簽發及到期時間。受保護 API 驗證簽章、`iss`、`aud` 與效期後直接使用 JWT claims。權杖效期最多五分鐘，並受工作階段到期時間限制。
 
-下版設計時確認權杖的簽發、有效期限、前端保存、更新與登出方式。若更新權杖或登出依賴瀏覽器自動附帶的 Cookie，須另行定義這些端點的 CSRF 防護。
+Angular 只在記憶體保存權杖，重新整理後用續期 Cookie 取得新權杖。當資料 API 回傳 Bearer 驗證失敗的 `401`，Angular 可續期並重試一次，續期回應中的 `sessionId` 須符合原工作階段才會重試原請求。
+
+續期 Cookie 採 `HttpOnly`、`SameSite=Lax`，HTTPS 環境設定 `Secure`，路徑限 `/api/v1/auth`。Cookie 隨瀏覽器工作階段保存，後端期限為登入後八小時，續期不延長期限。續期時會檢查工作階段、帳號狀態與 Identity 安全戳記，並以最新角色簽發 JWT。登出撤銷資料庫工作階段並清除續期 Cookie。已簽發的 JWT 在原定時間到期，期間仍保有簽發時的角色與帳號授權。重新登入會撤銷登入請求所帶續期 Cookie 對應的工作階段，Google 登入以啟動時收到的 Cookie 為準。若另一個分頁已切換登入，舊分頁的登出請求會收到 `409`，新工作階段保持有效。[工作階段資料表](first-desktop-slice-database.md#auth_sessions)
 
 ### 端點與回應
 
 | 操作 | 請求 | 成功結果 |
 | --- | --- | --- |
 | 取得防偽權杖 | `GET /api/v1/auth/csrf`，可在登入前呼叫 | `204`，設定供 Angular 讀取的 `XSRF-TOKEN` Cookie。 |
-| 登入 | `POST /api/v1/auth/login`，傳 `username`、`password` | `204`，設定登入 Cookie。 |
-| 確認登入狀態 | `GET /api/v1/auth/session`，由 Angular 進入總覽前呼叫 | 有效工作階段回 `204`，失效時回 `401`。 |
+| 登入 | `POST /api/v1/auth/login`，傳 `LoginRqDto` 的 `username`、`password` | `200`，回傳 `AccessTokenRsDto` 並設定續期 Cookie。 |
+| 確認登入狀態 | `GET /api/v1/auth/session`，由 Angular 進入總覽前呼叫 | 有效權杖回 `204`，失效時回 `401`。 |
 | 開始 Google 登入 | `GET /api/v1/auth/google`，由瀏覽器整頁導覽 | `302`，透過 `Location` 跳轉到 Google。 |
-| 登出 | `POST /api/v1/auth/logout` | `204`，清除登入 Cookie。 |
+| 續期 | `POST /api/v1/auth/refresh` | `200`，回傳新的 `AccessTokenRsDto`。 |
+| 登出 | `POST /api/v1/auth/logout`，傳 `LogoutRqDto` 的 `sessionId` | `204`，撤銷工作階段並清除續期 Cookie。 |
 | 田區管理與田區選單 | `GET /api/v1/fields` | `200`，回傳 `FieldRsDto`，其中 `fields` 是自己的田區陣列。 |
 | 新增田區 | `POST /api/v1/fields`，傳 `CreateFieldRqDto` | `201`，回傳 `FieldRsDto`，其中 `fields` 只含新田區。`Location` 指向 `GET /api/v1/fields/{fieldId}`。 |
 | 查詢田區 | `GET /api/v1/fields/{fieldId}` | `200`，回傳單筆 `FieldDto`。 |
 | 編輯田區 | `PUT /api/v1/fields/{fieldId}`，傳 `EditFieldRqDto` | `200`，回傳 `FieldRsDto`，其中 `fields` 只含更新後的田區。 |
 | 刪除單筆田區 | `DELETE /api/v1/fields/{fieldId}`，由路徑指定田區 | `204`，請求與成功回應皆無 body。 |
 | 批次刪除田區 | `DELETE /api/v1/fields/bulk-delete`，傳 `DeleteFieldRqDto` 的 `fieldIds` | `204`，成功回應無 body。 |
-| 新增規劃中的栽培 | `POST /api/v1/fields/{fieldId}/plantings`，傳 `cropName` 及選填的 `variety`、`plannedPlantingDate`、`notes` | `201`，回傳已建立的栽培紀錄，並以 `Location` 指向該紀錄的查詢端點。 |
-| 查詢栽培紀錄 | `GET /api/v1/fields/{fieldId}/plantings/{plantingId}` | `200`，回傳指定田區的栽培紀錄。 |
-| 田區總覽 | `GET /api/v1/overview` | `200`，回傳自己的田區陣列，每筆加上 `plantings`。田區沒有目前的栽培紀錄時，`plantings` 為空陣列。 |
+| 新增規劃中的栽培 | `POST /api/v1/fields/{fieldId}/plantings`，傳 `CreatePlantingRqDto` | `201`，回傳 `PlantingRsDto`，並以 `Location` 指向該紀錄的查詢端點。 |
+| 查詢栽培紀錄 | `GET /api/v1/fields/{fieldId}/plantings/{plantingId}` | `200`，回傳 `PlantingRsDto`。 |
+| 田區總覽 | `GET /api/v1/overview` | `200`，回傳自己的 `FieldOverviewRsDto` 陣列，每筆加上 `plantings`。田區沒有目前的栽培紀錄時，`plantings` 為空陣列。 |
+
+### Schema 命名
+
+請求物件以 `RqDto` 結尾，回應物件以 `RsDto` 結尾，錯誤回應的 body 也採同一規則。可重用的資料項目使用 `Dto`，例如單筆田區使用 `FieldDto`，田區集合由 `FieldRsDto` 包裝。列舉以其代表的值命名，例如 `PlantingStatus`。
 
 ### 端點標題與田區 Operation ID
 
@@ -92,7 +99,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 `USER` 可使用農務功能，田區與栽培 API 仍須檢查登入者是否擁有該筆資料。`ADMIN` 用於後臺管理，角色指派與管理操作待後臺功能需求審查時定義。
 
-登入需要的身分 Claim 由後端從帳號、角色及個人資料產生。CropPilot 以 Cookie 維持登入，Google 權杖在登入過程中驗證後即用完。
+API 使用的身分 Claim 由後端依目前的主帳號與角色產生。Google 權杖用於登入時的身分驗證。
 
 ### Google 登入
 
@@ -100,7 +107,7 @@ Google 提供 OpenID Connect（OIDC）身分驗證，建立在 OAuth 2.0 上。O
 
 1. Angular 的「以 Google 帳號登入」以連結整頁導覽到 `GET /api/v1/auth/google`。CropPilot 的入口呼叫 `Challenge`，中介軟體回傳 Google 授權網址。帳密登入由 `POST /api/v1/auth/login` 呼叫 Identity 的帳密驗證。
 2. Google 導回註冊的 `/signin-google`，此路徑由 OIDC 中介軟體接收。中介軟體驗證 `state`、換取並驗證 ID token（含 `nonce`），再交由 CropPilot 完成帳號查找與工作階段建立。設定採 `response_type=code`、`response_mode=query` 及 `openid email` 範圍。`/signin-google` 的回呼路徑需轉送到 ASP.NET Core，並以各環境完整 HTTPS 網址註冊於 Google。用戶端密鑰放在伺服器端設定。[Google 回呼與 ID token 驗證](https://developers.google.com/identity/openid-connect/openid-connect)
-3. 身分對應成功後，後端設定 `CropPilot.Session` Cookie，將瀏覽器導向 `/dashboard`。Angular 照常用 Cookie 呼叫 API，首次寫入前取得新的防偽權杖。Google 權杖留在伺服器端處理。取消時導回 `/login?error=google_cancelled`，其他失敗導回 `/login?error=google_sign_in_failed`，由 Angular 顯示提示並讓使用者重試。
+3. 身分對應成功後，後端設定 `CropPilot.Renewal` Cookie，將瀏覽器導向 `/dashboard`。Angular 透過 CropPilot 的續期端點取得 Access Token。Google 權杖留在伺服器端處理。取消時導回 `/login?error=google_cancelled`，其他失敗導回 `/login?error=google_sign_in_failed`，由 Angular 顯示提示並讓使用者重試。
 
 OIDC 中介軟體驗證 ID token 時會檢查發行者 `iss`。驗證通過後，後端以 `identity_provider = GOOGLE` 和 `provider_user_id = sub` 查找 `federated_identities`。找到綁定就透過 `main_account_id` 取得原帳號。首次遇到尚未綁定的 Google 身分時，後端將已驗證的 Email 去除頭尾空白並轉成小寫，再與 `user_profiles.email` 比對。[Google 的身分識別欄位](https://developers.google.com/identity/openid-connect/reference#id-tokens)
 
@@ -115,7 +122,7 @@ Email 相符時，後端導回登入頁顯示提示。既有本地帳號若為 `
 
 ## OpenAPI 契約與程式碼生成
 
-已確認採 contract-first。Stoplight 匯出的原檔沿用 OpenAPI 3.1.0，已填入首個切片的操作、請求及回應模型、Cookie 認證、防偽權杖與錯誤格式。每個操作有獨立的 `operationId`。JSON API 的錯誤回應使用 `application/problem+json`，Google 登入入口則使用瀏覽器跳轉。[openapi.yaml](../openapi/openapi.yaml)
+已確認採 contract-first。Stoplight 匯出的原檔沿用 OpenAPI 3.1.0，已填入首個切片的操作、請求及回應模型、Bearer 驗證、續期 Cookie、防偽權杖與錯誤格式。每個操作有獨立的 `operationId`。JSON API 的錯誤回應使用 `application/problem+json`，Google 登入入口則使用瀏覽器跳轉。[openapi.yaml](../openapi/openapi.yaml)
 
 使用 OpenAPI Generator 7.27.0 驗證規格並試產兩端程式碼。C# 使用 `aspnetcore` 生成抽象 Controller 與 DTO，Angular 使用 `typescript-angular` 生成服務與型別。已檢查新增田區的名稱、面積及可為 `null` 的座標型別。實作時再以 `POST /api/v1/fields` 驗證兩端編譯、HTTP 回應及重複生成。OpenAPI Generator 將 3.1 列為 beta。[C# generator](https://openapi-generator.tech/docs/generators/aspnetcore/) · [Angular generator](https://openapi-generator.tech/docs/generators/typescript-angular/) · [OpenAPI 版本相容性](https://github.com/OpenAPITools/openapi-generator#1---installation)
 

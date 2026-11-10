@@ -34,20 +34,19 @@ namespace CropPilot.Contract.Controllers
         /// <param name="createFieldRqDto"></param>
         /// <response code="201">已建立田區。fields 僅含本次建立的一筆田區。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
-        /// <response code="401">未登入或工作階段已失效</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="409">同帳號已有同名田區。errors.name 提供欄位提示。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPost]
         [Route("/api/v1/fields")]
-        [Authorize(Policy = "SessionCookie")]
-        [Authorize(Policy = "CsrfToken")]
+        [Authorize]
         [Consumes("application/json")]
         [ValidateModelState]
         [ProducesResponseType(statusCode: 201, type: typeof(FieldRsDto))]
-        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 409, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> CreateField([FromBody]CreateFieldRqDto createFieldRqDto);
 
         /// <summary>
@@ -57,20 +56,19 @@ namespace CropPilot.Contract.Controllers
         /// <param name="fieldId">田區的 UUID。</param>
         /// <response code="204">已刪除田區。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
-        /// <response code="401">未登入或工作階段已失效</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
         /// <response code="409">至少一塊指定田區已有栽培紀錄，刪除未執行。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpDelete]
         [Route("/api/v1/fields/{fieldId}")]
-        [Authorize(Policy = "SessionCookie")]
-        [Authorize(Policy = "CsrfToken")]
+        [Authorize]
         [ValidateModelState]
-        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 409, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> DeleteField([FromRoute (Name = "fieldId")][Required]Guid fieldId);
 
         /// <summary>
@@ -80,21 +78,20 @@ namespace CropPilot.Contract.Controllers
         /// <param name="deleteFieldRqDto"></param>
         /// <response code="204">已刪除指定的所有田區。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
-        /// <response code="401">未登入或工作階段已失效</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
         /// <response code="409">至少一塊指定田區已有栽培紀錄，刪除未執行。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpDelete]
         [Route("/api/v1/fields/bulk-delete")]
-        [Authorize(Policy = "SessionCookie")]
-        [Authorize(Policy = "CsrfToken")]
+        [Authorize]
         [Consumes("application/json")]
         [ValidateModelState]
-        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 409, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> DeleteFields([FromBody]DeleteFieldRqDto deleteFieldRqDto);
 
         /// <summary>
@@ -105,22 +102,21 @@ namespace CropPilot.Contract.Controllers
         /// <param name="editFieldRqDto"></param>
         /// <response code="200">已更新田區。fields 僅含本次更新的一筆田區。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
-        /// <response code="401">未登入或工作階段已失效</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
         /// <response code="409">同帳號已有同名田區。errors.name 提供欄位提示。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPut]
         [Route("/api/v1/fields/{fieldId}")]
-        [Authorize(Policy = "SessionCookie")]
-        [Authorize(Policy = "CsrfToken")]
+        [Authorize]
         [Consumes("application/json")]
         [ValidateModelState]
         [ProducesResponseType(statusCode: 200, type: typeof(FieldRsDto))]
-        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 409, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> EditField([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromBody]EditFieldRqDto editFieldRqDto);
 
         /// <summary>
@@ -130,18 +126,18 @@ namespace CropPilot.Contract.Controllers
         /// <param name="fieldId">田區的 UUID。</param>
         /// <response code="200">田區資料</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
-        /// <response code="401">未登入或工作階段已失效</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpGet]
         [Route("/api/v1/fields/{fieldId}")]
-        [Authorize(Policy = "SessionCookie")]
+        [Authorize]
         [ValidateModelState]
         [ProducesResponseType(statusCode: 200, type: typeof(FieldDto))]
-        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetField([FromRoute (Name = "fieldId")][Required]Guid fieldId);
 
         /// <summary>
@@ -149,15 +145,15 @@ namespace CropPilot.Contract.Controllers
         /// </summary>
         /// <remarks>回傳登入帳號所擁有的田區。尚未建立田區時回傳空陣列。</remarks>
         /// <response code="200">田區列表。尚無田區時 fields 為空陣列。</response>
-        /// <response code="401">未登入或工作階段已失效</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpGet]
         [Route("/api/v1/fields")]
-        [Authorize(Policy = "SessionCookie")]
+        [Authorize]
         [ValidateModelState]
         [ProducesResponseType(statusCode: 200, type: typeof(FieldRsDto))]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetFields();
     }
 }

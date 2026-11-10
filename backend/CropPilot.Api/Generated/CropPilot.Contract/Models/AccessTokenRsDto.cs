@@ -24,24 +24,23 @@ namespace CropPilot.Contract.Models
     /// 
     /// </summary>
     [DataContract]
-    public class LoginRequest : IEquatable<LoginRequest>
+    public class AccessTokenRsDto : IEquatable<AccessTokenRsDto>
     {
         /// <summary>
-        /// 本地登入帳號。後端去除頭尾空白後，要求至少有一個字元，並區分大小寫比對。
+        /// CropPilot 簽發的短效 JWT Bearer Access Token。
         /// </summary>
-        /// <value>本地登入帳號。後端去除頭尾空白後，要求至少有一個字元，並區分大小寫比對。</value>
+        /// <value>CropPilot 簽發的短效 JWT Bearer Access Token。</value>
         [Required]
-        [StringLength(256, MinimumLength=1)]
-        [DataMember(Name="username", EmitDefaultValue=false)]
-        public string Username { get; set; }
+        [DataMember(Name="accessToken", EmitDefaultValue=false)]
+        public string AccessToken { get; set; }
 
         /// <summary>
-        /// Gets or Sets Password
+        /// 工作階段識別碼，讓前端辨識續期時是否已切換登入。
         /// </summary>
+        /// <value>工作階段識別碼，讓前端辨識續期時是否已切換登入。</value>
         [Required]
-        [MinLength(1)]
-        [DataMember(Name="password", EmitDefaultValue=false)]
-        public string Password { get; set; }
+        [DataMember(Name="sessionId", EmitDefaultValue=true)]
+        public Guid SessionId { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -50,9 +49,9 @@ namespace CropPilot.Contract.Models
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.Append("class LoginRequest {\n");
-            sb.Append("  Username: ").Append(Username).Append("\n");
-            sb.Append("  Password: ").Append(Password).Append("\n");
+            sb.Append("class AccessTokenRsDto {\n");
+            sb.Append("  AccessToken: ").Append(AccessToken).Append("\n");
+            sb.Append("  SessionId: ").Append(SessionId).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -75,29 +74,29 @@ namespace CropPilot.Contract.Models
         {
             if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            return obj.GetType() == GetType() && Equals((LoginRequest)obj);
+            return obj.GetType() == GetType() && Equals((AccessTokenRsDto)obj);
         }
 
         /// <summary>
-        /// Returns true if LoginRequest instances are equal
+        /// Returns true if AccessTokenRsDto instances are equal
         /// </summary>
-        /// <param name="other">Instance of LoginRequest to be compared</param>
+        /// <param name="other">Instance of AccessTokenRsDto to be compared</param>
         /// <returns>Boolean</returns>
-        public bool Equals(LoginRequest other)
+        public bool Equals(AccessTokenRsDto other)
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
 
             return 
                 (
-                    Username == other.Username ||
-                    Username != null &&
-                    Username.Equals(other.Username)
+                    AccessToken == other.AccessToken ||
+                    AccessToken != null &&
+                    AccessToken.Equals(other.AccessToken)
                 ) && 
                 (
-                    Password == other.Password ||
-                    Password != null &&
-                    Password.Equals(other.Password)
+                    SessionId == other.SessionId ||
+                    
+                    SessionId.Equals(other.SessionId)
                 );
         }
 
@@ -111,10 +110,10 @@ namespace CropPilot.Contract.Models
             {
                 var hashCode = 41;
                 // Suitable nullity checks etc, of course :)
-                    if (Username != null)
-                    hashCode = hashCode * 59 + Username.GetHashCode();
-                    if (Password != null)
-                    hashCode = hashCode * 59 + Password.GetHashCode();
+                    if (AccessToken != null)
+                    hashCode = hashCode * 59 + AccessToken.GetHashCode();
+                    
+                    hashCode = hashCode * 59 + SessionId.GetHashCode();
                 return hashCode;
             }
         }
@@ -122,12 +121,12 @@ namespace CropPilot.Contract.Models
         #region Operators
         #pragma warning disable 1591
 
-        public static bool operator ==(LoginRequest left, LoginRequest right)
+        public static bool operator ==(AccessTokenRsDto left, AccessTokenRsDto right)
         {
             return Equals(left, right);
         }
 
-        public static bool operator !=(LoginRequest left, LoginRequest right)
+        public static bool operator !=(AccessTokenRsDto left, AccessTokenRsDto right)
         {
             return !Equals(left, right);
         }

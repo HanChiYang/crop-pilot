@@ -3,7 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from './generated/api/auth.service';
+import { AuthSession } from './auth-session';
 
 const redirectErrors: Readonly<Record<string, string>> = {
   google_cancelled: '已取消 Google 登入。',
@@ -13,6 +13,7 @@ const redirectErrors: Readonly<Record<string, string>> = {
   use_existing_sign_in: '這個 Email 已有 CropPilot 帳號，請使用原帳號密碼或原先綁定的 Google 帳號登入。',
   account_pending: '請先完成原帳號的 Email 驗證。',
   session_unavailable: '目前無法確認登入狀態，請稍後再試。',
+  session_changed: '登入工作階段已在其他分頁變更，請重新確認登入帳號。',
 };
 
 @Component({
@@ -44,7 +45,7 @@ const redirectErrors: Readonly<Record<string, string>> = {
   `,
 })
 export class LoginPage {
-  private readonly auth = inject(AuthService);
+  private readonly auth = inject(AuthSession);
   private readonly router = inject(Router);
   private readonly redirectError = inject(ActivatedRoute).snapshot.queryParamMap.get('error');
 
@@ -69,8 +70,7 @@ export class LoginPage {
     this.busy.set(true);
     this.message.set('');
     try {
-      await firstValueFrom(this.auth.getCsrfToken());
-      await firstValueFrom(this.auth.login({ loginRequest: { username, password } }));
+      await firstValueFrom(this.auth.signIn({ username, password }));
       await this.router.navigateByUrl('/dashboard', { replaceUrl: true });
     } catch (error: unknown) {
       const invalid = error instanceof HttpErrorResponse && error.status === 401;

@@ -9,11 +9,10 @@
  */
 
 
-export interface LoginRequest { 
+export interface LogoutRqDto { 
     /**
-     * 本地登入帳號。後端去除頭尾空白後，要求至少有一個字元，並區分大小寫比對。
+     * 目前分頁取得 Access Token 時收到的工作階段識別碼。
      */
-    username: string;
-    password: string;
+    sessionId: string;
 }
 

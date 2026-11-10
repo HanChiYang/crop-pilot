@@ -10,7 +10,7 @@ namespace CropPilot.Api.Authentication;
 
 internal sealed class GoogleSignIn(
     UserManager<MainAccount> users,
-    SignInManager<MainAccount> signInManager,
+    AuthSessions sessions,
     CropPilotDbContext database,
     ILogger<GoogleSignIn> logger)
 {
@@ -56,7 +56,9 @@ internal sealed class GoogleSignIn(
             {
                 context.HandleResponse();
                 var signIn = context.HttpContext.RequestServices.GetRequiredService<GoogleSignIn>();
-                await signIn.CompleteAsync(context.HttpContext, context.Principal);
+                var previousSessionId = Guid.TryParse(context.Properties?.GetString(AuthSessions.SessionIdClaim),
+                    out var id) ? id : Guid.Empty;
+                await signIn.CompleteAsync(context.HttpContext, context.Principal, previousSessionId);
             };
             options.Events.OnAccessDenied = context =>
             {
@@ -73,12 +75,12 @@ internal sealed class GoogleSignIn(
         });
     }
 
-    private async Task CompleteAsync(HttpContext context, ClaimsPrincipal? principal)
+    private async Task CompleteAsync(HttpContext context, ClaimsPrincipal? principal, Guid previousSessionId)
     {
         var destination = FailedPath;
         try
         {
-            destination = await SignInAsync(principal, context.RequestAborted);
+            destination = await SignInAsync(principal, previousSessionId, context);
         }
         catch (Exception exception) when (!context.RequestAborted.IsCancellationRequested)
         {
@@ -88,8 +90,9 @@ internal sealed class GoogleSignIn(
         context.Response.Redirect(destination);
     }
 
-    private async Task<string> SignInAsync(ClaimsPrincipal? principal, CancellationToken cancellationToken)
+    private async Task<string> SignInAsync(ClaimsPrincipal? principal, Guid previousSessionId, HttpContext context)
     {
+        var cancellationToken = context.RequestAborted;
         var subject = principal?.FindFirstValue("sub");
         if (string.IsNullOrWhiteSpace(subject) || subject.Length > 255)
         {
@@ -134,8 +137,9 @@ internal sealed class GoogleSignIn(
             return FailedPath;
         }
 
-        await signInManager.SignInAsync(account, isPersistent: false, authenticationMethod: Scheme);
-        return "/dashboard";
+        return await sessions.StartAsync(account, previousSessionId, context) is null
+            ? "/login?error=session_changed"
+            : "/dashboard";
     }
 
     private Task<MainAccount?> FindAccountAsync(string subject, CancellationToken cancellationToken) =>

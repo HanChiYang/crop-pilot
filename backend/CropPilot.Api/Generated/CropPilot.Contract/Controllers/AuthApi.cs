@@ -30,64 +30,90 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 取得防偽權杖
         /// </summary>
-        /// <remarks>首次寫入前與登入或登出後呼叫。伺服器設定供 Angular 讀取的 XSRF-TOKEN Cookie。</remarks>
+        /// <remarks>帳密登入、續期或登出前呼叫。伺服器設定供 Angular 讀取的 XSRF-TOKEN Cookie。</remarks>
         /// <response code="204">已發送防偽權杖</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpGet]
         [Route("/api/v1/auth/csrf")]
         [ValidateModelState]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetCsrfToken();
 
         /// <summary>
         /// 確認登入工作階段
         /// </summary>
-        /// <remarks>依請求的工作階段 Cookie 確認登入狀態。工作階段有效時回傳 204，無效時回傳 401。</remarks>
+        /// <remarks>驗證 Bearer JWT 的簽章、簽發者、適用對象與效期。有效時回傳 204。</remarks>
         /// <response code="204">目前工作階段有效</response>
-        /// <response code="401">未登入或工作階段已失效</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         [HttpGet]
         [Route("/api/v1/auth/session")]
-        [Authorize(Policy = "SessionCookie")]
+        [Authorize]
         [ValidateModelState]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetSession();
 
         /// <summary>
         /// 以 CropPilot 帳號密碼登入
         /// </summary>
-        /// <remarks>使用帳號、密碼和防偽權杖送出登入請求。登入成功時設定工作階段 Cookie。</remarks>
-        /// <param name="loginRequest"></param>
-        /// <response code="204">已登入並設定工作階段 Cookie</response>
+        /// <remarks>使用帳號、密碼和防偽權杖送出登入請求。登入成功時回傳短效 Access Token 並設定續期 Cookie。</remarks>
+        /// <param name="loginRqDto"></param>
+        /// <response code="200">已登入，回傳 Access Token 並設定續期 Cookie。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">帳號或密碼錯誤</response>
+        /// <response code="409">原登入工作階段已被另一個請求撤銷或取代。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPost]
         [Route("/api/v1/auth/login")]
         [Authorize(Policy = "CsrfToken")]
         [Consumes("application/json")]
         [ValidateModelState]
-        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
-        public abstract Task<IActionResult> Login([FromBody]LoginRequest loginRequest);
+        [ProducesResponseType(statusCode: 200, type: typeof(AccessTokenRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> Login([FromBody]LoginRqDto loginRqDto);
 
         /// <summary>
         /// 登出
         /// </summary>
-        /// <remarks>驗證工作階段與防偽權杖後，登出目前帳號並清除工作階段 Cookie。</remarks>
-        /// <response code="204">已登出並清除工作階段 Cookie</response>
+        /// <remarks>驗證續期 Cookie 與防偽權杖後，撤銷指定的工作階段並清除續期 Cookie。已簽發的 Access Token 在原定時間到期。</remarks>
+        /// <param name="logoutRqDto"></param>
+        /// <response code="204">已登出並清除續期 Cookie</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
-        /// <response code="401">未登入或工作階段已失效</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="409">續期 Cookie 已切換至另一個工作階段。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPost]
         [Route("/api/v1/auth/logout")]
-        [Authorize(Policy = "SessionCookie")]
+        [Authorize(Policy = "RenewalCookie")]
+        [Authorize(Policy = "CsrfToken")]
+        [Consumes("application/json")]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> Logout([FromBody]LogoutRqDto logoutRqDto);
+
+        /// <summary>
+        /// 續發 Access Token
+        /// </summary>
+        /// <remarks>使用有效的續期 Cookie 與防偽權杖簽發新的短效 Access Token。續期不延長工作階段期限。</remarks>
+        /// <response code="200">已簽發新的 Access Token。</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpPost]
+        [Route("/api/v1/auth/refresh")]
+        [Authorize(Policy = "RenewalCookie")]
         [Authorize(Policy = "CsrfToken")]
         [ValidateModelState]
-        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblem))]
-        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblem))]
-        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblem))]
-        public abstract Task<IActionResult> Logout();
+        [ProducesResponseType(statusCode: 200, type: typeof(AccessTokenRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> RefreshAccessToken();
 
         /// <summary>
         /// 開始 Google 登入

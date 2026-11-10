@@ -15,7 +15,7 @@ $root = Split-Path -Parent $backend
 $contract = Join-Path $root 'docs/openapi/openapi.yaml'
 $output = Join-Path $backend 'CropPilot.Api/Generated'
 $apis = 'Auth:Fields'
-$models = 'LoginRequest:ApiProblem:ApiValidationProblem:CreateFieldRqDto:EditFieldRqDto:DeleteFieldRqDto:FieldDto:FieldRsDto'
+$models = 'LoginRqDto:AccessTokenRsDto:LogoutRqDto:ApiProblemRsDto:ApiValidationProblemRsDto:CreateFieldRqDto:EditFieldRqDto:DeleteFieldRqDto:FieldDto:FieldRsDto'
 
 & java -jar $generator generate -g aspnetcore -i $contract -o $output `
     --additional-properties 'packageName=CropPilot.Contract,sourceFolder=.,buildTarget=library,classModifier=abstract,operationModifier=abstract,operationResultTask=true,aspnetCoreVersion=10.0' `
