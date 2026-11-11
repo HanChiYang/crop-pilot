@@ -8,13 +8,13 @@ using CropPilot.Contract.Models;
 
 namespace CropPilot.Api.Fields;
 
-/// <summary>檢查田區新增請求中數值的小數位數。</summary>
+/// <summary>檢查田區新增及編輯請求中數值的小數位數。</summary>
 internal sealed class FieldDecimalJsonConverter : JsonConverter<decimal>
 {
-    /// <summary>為生成的新增請求註冊面積及座標轉換器。</summary>
-    internal static void ConfigureCreateField(JsonTypeInfo type)
+    /// <summary>為生成的新增及編輯請求註冊面積及座標轉換器。</summary>
+    internal static void ConfigureFieldSave(JsonTypeInfo type)
     {
-        if (type.Type != typeof(CreateFieldRqDto))
+        if (type.Type != typeof(CreateFieldRqDto) && type.Type != typeof(EditFieldRqDto))
         {
             return;
         }

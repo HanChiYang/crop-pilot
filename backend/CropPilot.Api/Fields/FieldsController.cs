@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CropPilot.Api.Authentication;
+using CropPilot.Api.Constants;
 using CropPilot.Api.Data;
 using CropPilot.Contract.Controllers;
 using CropPilot.Contract.Models;
@@ -9,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CropPilot.Api.Fields;
 
-/// <summary>提供具備 <c>USER</c> 角色的帳號新增與查詢田區。</summary>
+/// <summary>提供具備 <c>USER</c> 角色的帳號管理自己的田區。</summary>
 [Authorize(Roles = UserRole.User)]
 public sealed class FieldsController(FieldService fields) : FieldsApiController
 {
@@ -22,14 +23,7 @@ public sealed class FieldsController(FieldService fields) : FieldsApiController
         var result = await fields.CreateAsync(AccountId, request, HttpContext.RequestAborted);
         if (result.Field is not { } field)
         {
-            foreach (var (property, message) in result.Errors)
-            {
-                ModelState.AddModelError(JsonNamingPolicy.CamelCase.ConvertName(property), message);
-            }
-
-            return ValidationProblem(modelStateDictionary: ModelState, statusCode: result.NameConflict
-                ? StatusCodes.Status409Conflict
-                : StatusCodes.Status400BadRequest);
+            return SaveProblem(result);
         }
 
         return CreatedAtAction(nameof(GetField), new { fieldId = field.Id },
@@ -50,15 +44,57 @@ public sealed class FieldsController(FieldService fields) : FieldsApiController
         return field is null ? NotFound() : Ok(FieldDtoMapper.ToDto(field));
     }
 
-    /// <summary>保留生成契約的田區編輯方法，供後續開發。</summary>
-    [NonAction]
-    public override Task<IActionResult> EditField(Guid fieldId, EditFieldRqDto request) => throw new NotSupportedException();
+    /// <summary>更新帳號擁有的田區，並回傳更新後的資料或對應問題。</summary>
+    public override async Task<IActionResult> EditField(Guid fieldId, EditFieldRqDto request)
+    {
+        var result = await fields.EditAsync(AccountId, fieldId, request, HttpContext.RequestAborted);
+        return result.Field is { } field
+            ? Ok(new FieldRsDto { Fields = [FieldDtoMapper.ToDto(field)] })
+            : SaveProblem(result);
+    }
 
-    /// <summary>保留生成契約的單筆田區刪除方法，供後續開發。</summary>
-    [NonAction]
-    public override Task<IActionResult> DeleteField(Guid fieldId) => throw new NotSupportedException();
+    /// <summary>刪除帳號擁有的一筆田區，成功時回傳 HTTP 204。</summary>
+    public override async Task<IActionResult> DeleteField(Guid fieldId) =>
+        DeleteResponse(await fields.DeleteAsync(AccountId, fieldId, HttpContext.RequestAborted));
 
-    /// <summary>保留生成契約的批次田區刪除方法，供後續開發。</summary>
-    [NonAction]
-    public override Task<IActionResult> DeleteFields(DeleteFieldRqDto request) => throw new NotSupportedException();
+    /// <summary>刪除帳號擁有的全部指定田區；任一筆無法刪除時保留整批。</summary>
+    public override async Task<IActionResult> DeleteFields(DeleteFieldRqDto request) =>
+        DeleteResponse(await fields.DeleteAsync(AccountId, request, HttpContext.RequestAborted));
+
+    /// <summary>將儲存失敗結果轉換成找不到田區或欄位問題回應。</summary>
+    private IActionResult SaveProblem(FieldSaveResult result)
+    {
+        if (result.Status == FieldWriteStatus.NotFound)
+        {
+            return NotFound();
+        }
+
+        foreach (var (property, message) in result.Errors)
+        {
+            ModelState.AddModelError(JsonNamingPolicy.CamelCase.ConvertName(property), message);
+        }
+
+        return ValidationProblem(modelStateDictionary: ModelState, statusCode: result.Status == FieldWriteStatus.NameConflict
+            ? StatusCodes.Status409Conflict
+            : StatusCodes.Status400BadRequest);
+    }
+
+    /// <summary>依刪除結果回傳無內容或契約定義的問題。</summary>
+    private IActionResult DeleteResponse(FieldWriteStatus status)
+    {
+        if (status == FieldWriteStatus.InvalidInput)
+        {
+            ModelState.AddModelError("fieldIds", ErrorMessages.FieldDeleteIdsInvalid);
+            return ValidationProblem(ModelState);
+        }
+
+        return status switch
+        {
+            FieldWriteStatus.Success => NoContent(),
+            FieldWriteStatus.NotFound => NotFound(),
+            FieldWriteStatus.RelatedPlantings => Problem(statusCode: StatusCodes.Status409Conflict,
+                detail: ErrorMessages.FieldHasPlantings),
+            _ => throw new InvalidOperationException(ErrorMessages.UnexpectedFieldDeleteResult)
+        };
+    }
 }

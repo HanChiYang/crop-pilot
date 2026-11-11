@@ -268,7 +268,7 @@ paths:
       tags: [Fields]
       operationId: editField
       summary: 編輯單筆田區
-      description: 更新指定田區的名稱、面積、座標與備註。省略座標或備註會清除對應值。名稱去除頭尾空白後不得與同帳號的其他田區重複，並區分大小寫。
+      description: 需要 USER 角色。更新登入帳號的指定田區名稱、面積、座標與備註。省略座標或備註會清除對應值。名稱去除頭尾空白後不得與同帳號的其他田區重複，並區分大小寫。
       security:
         - BearerAuth: []
       requestBody:
@@ -288,6 +288,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -298,7 +300,7 @@ paths:
       tags: [Fields]
       operationId: deleteField
       summary: 刪除單筆田區
-      description: 依路徑上的田區識別碼刪除登入帳號的田區。有任何栽培紀錄的田區禁止刪除。
+      description: 需要 USER 角色。依路徑上的田區識別碼刪除登入帳號的田區。有任何栽培紀錄的田區禁止刪除。
       security:
         - BearerAuth: []
       responses:
@@ -308,6 +310,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -319,7 +323,7 @@ paths:
       tags: [Fields]
       operationId: deleteFields
       summary: 批次刪除田區
-      description: 一次刪除指定的田區。任一田區不存在、屬於其他帳號或已有栽培紀錄時，整批保留。
+      description: 需要 USER 角色。一次刪除指定的田區。任一田區不存在、屬於其他帳號或已有栽培紀錄時，整批保留。
       security:
         - BearerAuth: []
       requestBody:
@@ -335,6 +339,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':

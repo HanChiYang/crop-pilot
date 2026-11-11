@@ -145,7 +145,7 @@ export class FieldsService extends BaseService {
 
     /**
      * 刪除單筆田區
-     * 依路徑上的田區識別碼刪除登入帳號的田區。有任何栽培紀錄的田區禁止刪除。
+     * 需要 USER 角色。依路徑上的田區識別碼刪除登入帳號的田區。有任何栽培紀錄的田區禁止刪除。
      * @endpoint delete /api/v1/fields/{fieldId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -206,7 +206,7 @@ export class FieldsService extends BaseService {
 
     /**
      * 批次刪除田區
-     * 一次刪除指定的田區。任一田區不存在、屬於其他帳號或已有栽培紀錄時，整批保留。
+     * 需要 USER 角色。一次刪除指定的田區。任一田區不存在、屬於其他帳號或已有栽培紀錄時，整批保留。
      * @endpoint delete /api/v1/fields/bulk-delete
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -277,7 +277,7 @@ export class FieldsService extends BaseService {
 
     /**
      * 編輯單筆田區
-     * 更新指定田區的名稱、面積、座標與備註。省略座標或備註會清除對應值。名稱去除頭尾空白後不得與同帳號的其他田區重複，並區分大小寫。
+     * 需要 USER 角色。更新登入帳號的指定田區名稱、面積、座標與備註。省略座標或備註會清除對應值。名稱去除頭尾空白後不得與同帳號的其他田區重複，並區分大小寫。
      * @endpoint put /api/v1/fields/{fieldId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
