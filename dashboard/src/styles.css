@@ -117,7 +117,13 @@ button, input, textarea { font: inherit; }
 .field-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .field-control { display: grid; align-content: start; gap: .3rem; }
 .field-control label { font-weight: 700; }
-.field-control input, .field-control textarea { width: 100%; padding: .5rem .75rem; border: 1px solid var(--border); border-radius: .5rem; }
+.field-control input, .field-control textarea, .field-control select { width: 100%; padding: .5rem .75rem; border: 1px solid var(--border); border-radius: .5rem; }
+.planting-field-picker { max-width: 23rem; margin: 1.5rem 0 1rem; }
+.planting-form-notes { margin-top: 1rem; }
+.overview-planting { white-space: normal; overflow-wrap: anywhere; }
+.overview-planting + .overview-planting { margin-top: .65rem; }
+.overview-planting > span { margin-inline-start: .35rem; }
+.overview-planting p { font-size: .875rem; color: var(--muted); }
 .field-control textarea { resize: vertical; }
 .field-control [aria-invalid="true"] { border-color: #9f2c2c; }
 .field-coordinates > p { margin-top: .35rem; font-size: .875rem; }

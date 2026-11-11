@@ -18,7 +18,7 @@ async function signIn(page: Page): Promise<void> {
   await page.getByRole('button', { name: '登入', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: '田區總覽', exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 test('未登入直接開啟田區頁面時轉至登入', async ({ page }) => {
@@ -27,6 +27,8 @@ test('未登入直接開啟田區頁面時轉至登入', async ({ page }) => {
     '/dashboard/fields',
     '/dashboard/fields/new',
     `/dashboard/fields/${randomUUID()}/edit`,
+    '/dashboard/plantings',
+    `/dashboard/plantings/${randomUUID()}/new`,
   ]) {
     await page.goto(path);
     await expect(page).toHaveURL('/login');
@@ -75,7 +77,7 @@ test('田區可編輯、取消刪除，確認後才刪除', async ({ page }) => 
   await expect(dialog).toBeHidden();
   await expect(row).toBeVisible();
 
-  // 栽培資料表尚未建立，攔截一次回應以驗證前端如何顯示契約中的衝突。
+  // 攔截一次回應以驗證田區編輯流程中的刪除衝突提示。
   await page.route(
     '**/api/v1/fields/*',
     (route) => route.fulfill({ status: 409 }),
@@ -136,8 +138,8 @@ test('田區列表載入失敗後可重試，空列表提供新增入口', async
     page.getByRole('heading', { name: '目前還沒有田區' }),
   ).toBeVisible();
   await page.route(
-    fieldsUrl,
-    (route) => route.fulfill({ json: { fields: [] } }),
+    '**/api/v1/overview',
+    (route) => route.fulfill({ json: [] }),
     { times: 1 },
   );
   await page.getByRole('link', { name: '田區總覽', exact: true }).click();
@@ -145,6 +147,87 @@ test('田區列表載入失敗後可重試，空列表提供新增入口', async
   await expect(page.getByRole('heading', { name: '新增田區' })).toBeVisible();
   await page.getByRole('button', { name: '取消' }).click();
   await expect(page).toHaveURL('/dashboard');
+});
+
+test('作物栽培可取消並保留田區，補登採收中後可在列表和總覽讀回', async ({
+  page,
+}) => {
+  const fieldName = `栽培測試 ${randomUUID()}`;
+  await signIn(page);
+  await page.getByRole('link', { name: '田區管理', exact: true }).click();
+  await page.getByRole('link', { name: '＋ 新增田區' }).click();
+  await page.getByLabel('田區名稱（必填）').fill(fieldName);
+  await page.getByLabel('面積（平方公尺，必填）').fill('100');
+  await page.getByRole('button', { name: '儲存田區' }).click();
+  await expect(
+    page.getByRole('row').filter({ hasText: fieldName }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: '作物栽培管理', exact: true }).click();
+  const field = page.getByLabel('田區', { exact: true });
+  const add = page.getByRole('link', { name: '新增栽培紀錄', exact: true });
+  await expect(field).toHaveValue('');
+  await expect(add).toBeHidden();
+  await page.route(
+    '**/api/v1/fields/*/plantings',
+    (route) => route.fulfill({ status: 503 }),
+    { times: 1 },
+  );
+  const fieldId = (await field.selectOption({ label: fieldName }))[0];
+  await expect(page.getByRole('alert')).toHaveText('目前無法載入栽培紀錄。');
+  await expect(field).toHaveValue(fieldId);
+  await page.getByRole('button', { name: '重新載入' }).click();
+  await expect(page.getByText('這個田區還沒有栽培紀錄')).toBeVisible();
+  await add.click();
+  await page.getByRole('button', { name: '取消' }).click();
+  await expect(field).toHaveValue(fieldId);
+  await expect(page.getByText('這個田區還沒有栽培紀錄')).toBeVisible();
+  await add.click();
+
+  const crop = page.getByLabel('作物名稱（必填）');
+  const status = page.getByLabel('狀態', { exact: true });
+  const save = page.getByRole('button', { name: '儲存', exact: true });
+  await expect(status).toHaveValue('planned');
+  await crop.fill('番茄');
+  await status.selectOption('growing');
+  await save.click();
+  await expect(
+    page.getByLabel('實際栽種日（必填）'),
+  ).toHaveAccessibleDescription('請填寫實際栽種日。');
+  await status.selectOption('harvesting');
+  await expect(page.getByLabel('實際栽種日（選填）')).toHaveValue('');
+  await page.route(
+    '**/api/v1/fields/*/plantings',
+    (route) => route.fulfill({ status: 503 }),
+    { times: 1 },
+  );
+  await save.click();
+  await expect(page.getByRole('alert')).toHaveText(
+    '目前無法儲存栽培紀錄，請再試一次。',
+  );
+  await expect(crop).toHaveValue('番茄');
+  await expect(status).toHaveValue('harvesting');
+  await save.click();
+  const planting = page.getByRole('row').filter({ hasText: '番茄' });
+  await expect(field).toHaveValue(fieldId);
+  await expect(planting).toContainText('採收中');
+  await expect(planting).toContainText('尚未設定');
+  await page.reload();
+  await expect(planting).toBeVisible();
+
+  await add.click();
+  await crop.fill('小白菜');
+  await save.click();
+  const planned = page.getByRole('row').filter({ hasText: '小白菜' });
+  await expect(planned).toContainText('規劃中');
+  await expect(planned).toContainText('尚未設定');
+
+  await page.getByRole('link', { name: '田區總覽', exact: true }).click();
+  const overview = page.getByRole('row').filter({ hasText: fieldName });
+  await expect(overview).toContainText('番茄');
+  await expect(overview).toContainText('採收中');
+  await expect(overview).toContainText('小白菜');
+  await expect(overview).toContainText('規劃中');
+  await expect(overview).toContainText('尚未設定');
 });
 
 test('新增田區後可重新載入，驗證錯誤和名稱衝突保留輸入', async ({ page }) => {
