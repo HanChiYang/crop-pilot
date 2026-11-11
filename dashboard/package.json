@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "test:e2e": "playwright test",
     "watch": "ng build --watch --configuration development"
   },
   "private": true,
@@ -23,6 +24,7 @@
     "@angular/build": "^22.1.4",
     "@angular/cli": "^22.1.4",
     "@angular/compiler-cli": "^22.1.0",
+    "@playwright/test": "1.65.0",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2"
   }
