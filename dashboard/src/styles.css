@@ -92,14 +92,23 @@ button, input { font: inherit; }
 .sidebar nav { display: grid; gap: .45rem; margin-top: 1.8rem; }
 .sidebar nav p { font-size: .8rem; }
 .sidebar nav a, .sidebar nav span { padding: .55rem .65rem; border-radius: .45rem; }
-.sidebar nav a { color: var(--green); background: var(--pale); font-weight: 700; }
+.sidebar nav a.active { color: var(--green); background: var(--pale); font-weight: 700; }
 .sidebar nav span { color: var(--muted); }
 .sidebar-account { display: grid; gap: .45rem; margin-top: auto; padding-top: 1.5rem; }
 .sidebar-account .button { justify-self: start; }
-.overview-main { padding: 2rem; }
+.overview-main { min-width: 0; padding: 2rem; }
+.page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
 .empty-state { display: grid; justify-items: center; gap: .55rem; margin-top: 1.5rem; padding: 3.2rem 1rem; text-align: center; }
 .empty-icon { width: 3rem; height: 3rem; color: var(--green); background: var(--pale); }
 .empty-state .button { margin-top: .35rem; }
+.field-table { margin-top: 1.5rem; overflow-x: auto; }
+.field-table table { width: 100%; border-collapse: collapse; text-align: left; }
+.field-table th, .field-table td { padding: .85rem 1rem; vertical-align: top; }
+.field-table thead th { color: var(--muted); font-size: .875rem; }
+.field-table tbody tr { border-top: 1px solid var(--border); }
+.field-table tbody th { width: 42%; overflow-wrap: anywhere; }
+.field-table td { white-space: nowrap; }
+.field-notes { margin-top: .2rem; font-size: .875rem; font-weight: 400; white-space: pre-wrap; }
 
 @media (max-width: 650px) {
   .hero, .feature-grid, .login-layout, .overview-layout { grid-template-columns: 1fr; }
