@@ -6,6 +6,7 @@ import { AuthService } from './generated/api/auth.service';
 import { LandingPage } from './landing-page';
 import { LoginPage } from './login-page';
 import { DashboardLayout } from './dashboard-layout';
+import { FieldCreatePage } from './field-create-page';
 import { FieldListPage } from './field-list-page';
 
 const redirectSignedIn: CanActivateFn = () => {
@@ -45,6 +46,7 @@ export const routes: Routes = [
     children: [
       { path: '', component: FieldListPage, data: { overview: true }, title: '田區總覽｜CropPilot' },
       { path: 'fields', component: FieldListPage, title: '田區管理｜CropPilot' },
+      { path: 'fields/new', component: FieldCreatePage, title: '新增田區｜CropPilot' },
     ],
   },
   { path: '**', redirectTo: '' },

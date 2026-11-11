@@ -2,7 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FieldsService } from './generated/api/fields.service';
 import { FieldDto } from './generated/model/fieldDto';
 
@@ -13,7 +13,7 @@ type ListState =
 
 @Component({
   selector: 'app-field-list-page',
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, RouterLink],
   template: `
     <header class="page-heading">
       <div>
@@ -24,7 +24,16 @@ type ListState =
           }}
         </p>
       </div>
+      @if (!overview && state().status === 'ready') {
+        <a class="button" routerLink="/dashboard/fields/new">＋ 新增田區</a>
+      }
     </header>
+
+    @if (createdFieldName) {
+      <p class="field-success" role="status">
+        已新增田區「{{ createdFieldName }}」
+      </p>
+    }
 
     @let result = state();
     @switch (result.status) {
@@ -50,6 +59,12 @@ type ListState =
           <section class="panel empty-state">
             <span class="empty-icon" aria-hidden="true">田</span>
             <h2>目前還沒有田區</h2>
+            <p>先新增一塊田，就可以開始記錄要種的作物。</p>
+            @if (overview) {
+              <a class="button" routerLink="/dashboard/fields/new"
+                >＋ 新增田區</a
+              >
+            }
           </section>
         } @else {
           <div class="panel field-table">
@@ -93,9 +108,13 @@ export class FieldListPage {
   private readonly fields = inject(FieldsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
+  private readonly navigationInfo =
+    this.router.currentNavigation()?.extras.info;
 
   protected readonly overview =
     inject(ActivatedRoute).snapshot.data['overview'] === true;
+  protected readonly createdFieldName =
+    typeof this.navigationInfo === 'string' ? this.navigationInfo : undefined;
   protected readonly state = signal<ListState>({ status: 'loading' });
 
   ngOnInit(): void {
