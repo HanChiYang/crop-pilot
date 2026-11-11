@@ -1,7 +1,7 @@
 /*
  * CropPilot
  *
- * 首個桌機切片涵蓋登入、新增田區、新增規劃中的栽培及田區總覽。
+ * 首個桌機切片涵蓋登入、新增田區、栽培紀錄新增與查詢及田區總覽。
  *
  * The version of the OpenAPI document: 1.0
  * Contact: example@mail.com

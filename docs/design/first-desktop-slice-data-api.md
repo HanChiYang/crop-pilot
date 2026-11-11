@@ -1,6 +1,6 @@
 # CropPilot｜首個桌機切片的 API 設計
 
-範圍為「首頁 → 登入 → 新增田區 → 田區管理 → 新增規劃中的栽培 → 回總覽」。欄位和操作流程依照已審查的 Figma 與驗收條件。資料表、欄位、ER 圖與外鍵另見資料庫設計。[資料庫設計](first-desktop-slice-database.md) · [Figma 審查記錄](../ui/first-desktop-slice/README.md) · [驗收條件](../requirements/desktop-field-and-planting.md#驗收切片) · [OpenAPI 契約](../openapi/openapi.yaml)
+範圍為「首頁 → 登入 → 新增田區 → 田區管理 → 新增栽培紀錄 → 回總覽」。欄位和操作流程依照已審查的 Figma 與驗收條件。資料表、欄位、ER 圖與外鍵另見資料庫設計。[資料庫設計](first-desktop-slice-database.md) · [Figma 審查記錄](../ui/first-desktop-slice/README.md) · [驗收條件](../requirements/desktop-field-and-planting.md#驗收切片) · [OpenAPI 契約](../openapi/openapi.yaml)
 
 ## API 約定
 
@@ -32,9 +32,16 @@ Angular 只在記憶體保存權杖，重新整理後用續期 Cookie 取得新�
 | 編輯田區 | `PUT /api/v1/fields/{fieldId}`，傳 `EditFieldRqDto` | `200`，回傳 `FieldRsDto`，其中 `fields` 只含更新後的田區。 |
 | 刪除單筆田區 | `DELETE /api/v1/fields/{fieldId}`，由路徑指定田區 | `204`，請求與成功回應皆無 body。 |
 | 批次刪除田區 | `DELETE /api/v1/fields/bulk-delete`，傳 `DeleteFieldRqDto` 的 `fieldIds` | `204`，成功回應無 body。 |
-| 新增規劃中的栽培 | `POST /api/v1/fields/{fieldId}/plantings`，傳 `CreatePlantingRqDto` | `201`，回傳 `PlantingRsDto`，並以 `Location` 指向該紀錄的查詢端點。 |
+| 新增栽培紀錄 | `POST /api/v1/fields/{fieldId}/plantings`，傳 `CreatePlantingRqDto` | `201`，回傳 `PlantingRsDto`，並以 `Location` 指向該紀錄的查詢端點。 |
+| 查詢田區的栽培列表 | `GET /api/v1/fields/{fieldId}/plantings` | `200`，回傳 `PlantingRsDto` 陣列。自己的田區沒有目前的紀錄時回傳 `[]`。 |
 | 查詢栽培紀錄 | `GET /api/v1/fields/{fieldId}/plantings/{plantingId}` | `200`，回傳 `PlantingRsDto`。 |
 | 田區總覽 | `GET /api/v1/overview` | `200`，回傳自己的 `FieldOverviewRsDto` 陣列，每筆加上 `plantings`。田區沒有目前的栽培紀錄時，`plantings` 為空陣列。 |
+
+### 新增時選擇栽培狀態
+
+新增請求可傳 `status`，省略時預設為 `planned`。允許值為 `planned`、`growing`、`harvesting`。`growing` 要求 `actualPlantingDate`，缺省或傳 `null` 時回 `400`。補登 `harvesting` 時，`actualPlantingDate` 可省略或傳 `null`，成功回 `201`，回應含 `status: harvesting` 和 `actualPlantingDate: null`。管理列表與總覽均可查到該筆採收中的紀錄。
+
+驗收時，以自己的田區補登一筆採收中紀錄，實際栽種日留空。重新查詢管理列表與總覽，確認狀態為「採收中」，預定與實際日期均無值時顯示「尚未設定」。
 
 ### Schema 命名
 
@@ -57,13 +64,21 @@ OpenAPI 的 `operationId` 使用 lower camel case，由動詞加上資源名稱�
 
 ### 田區與栽培資料
 
-田區回應含 `id`、`name`、`areaSquareMeters`、`latitude`、`longitude`、`notes`。栽培紀錄回應含 `id`、`fieldId`、`cropName`、`variety`、`plannedPlantingDate`、`actualPlantingDate`、`status`、`notes`。田區和栽培紀錄請求與回應的 `notes` 分別對應資料庫的 `fields.description` 和 `plantings.description`。選填欄位缺省或為 `null` 時存為 `null`，回應也使用 `null`。總覽可顯示 `planned`、`growing`、`harvesting`，首切片只會新增 `planned`。後續切片處理編輯、刪除與狀態變更。
+田區回應含 `id`、`name`、`areaSquareMeters`、`latitude`、`longitude`、`notes`。栽培紀錄回應含 `id`、`fieldId`、`cropName`、`variety`、`plannedPlantingDate`、`actualPlantingDate`、`status`、`notes`。田區和栽培紀錄請求與回應的 `notes` 分別對應資料庫的 `fields.description` 和 `plantings.description`。選填欄位缺省或為 `null` 時存為 `null`，回應也使用 `null`。新增、管理列表與總覽涵蓋 `planned`、`growing` 和 `harvesting`。後續切片處理編輯、刪除與狀態變更。
 
 編輯以完整表單更新，省略座標或備註會清除原值。同名檢查排除正在編輯的田區。批次刪除須提供至少一個且互不重複的田區 ID。若任一田區不存在或屬於其他帳號，整批回傳 `404`。有田區含栽培紀錄時回傳 `409`，整批保留。單筆刪除也適用相同的擁有權與栽培紀錄限制。
 
-田區端點皆要求 `USER` 角色。刪除由資料庫交易檢查整批擁有權並執行，栽培衝突由 `plantings.field_id` 的限制刪除外鍵保護。栽培資料表尚未實作；建立資料表時須一併驗證已有栽培及只有已結束紀錄時，單筆與批次刪除均回傳 `409`，並保留原資料。
+田區、栽培及總覽端點皆要求 `USER` 角色。刪除由資料庫交易檢查整批擁有權並執行，栽培衝突由 `plantings.field_id` 的限制刪除外鍵保護。只要田區有栽培紀錄，即使全部已結束，單筆與批次刪除均回傳 `409`，並保留原資料。
 
 API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例如 `planned` 對應 `PLANNED`。
+
+#### 田區栽培列表
+
+管理頁在選取或切換田區時呼叫列表端點。成功新增後回到管理頁，沿用原田區選擇並重新讀取列表，顯示已儲存的紀錄。取消新增也回到原田區的列表。
+
+列表沿用總覽的目前栽培範圍，包含 `planned`、`growing` 與 `harvesting`。`completed` 保留供後續歷史列表使用。端點使用 Bearer 驗證並要求 `USER` 角色。無效的田區 ID 格式回 `400`，未登入回 `401`，缺少角色回 `403`，田區不存在或屬於其他帳號回 `404`。
+
+列表驗收涵蓋自己的空田區回傳 `[]`、新增後查得到同一筆紀錄、其他田區的紀錄不混入、已結束的紀錄從目前列表收起，以及其他帳號查詢回傳 `404`。
 
 只填必填欄位即可建立田區。以下請求送往 `POST /api/v1/fields`，兩個座標欄位會存為 `null`。
 

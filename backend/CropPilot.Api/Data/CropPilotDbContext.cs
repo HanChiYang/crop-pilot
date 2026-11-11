@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CropPilot.Api.Data;
 
+/// <summary>定義 CropPilot 的 PostgreSQL 資料模型。</summary>
 public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> options) : DbContext(options)
 {
     public DbSet<MainAccount> MainAccounts => Set<MainAccount>();
@@ -11,7 +12,9 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     internal DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     internal DbSet<Field> Fields => Set<Field>();
+    internal DbSet<Planting> Plantings => Set<Planting>();
 
+    /// <summary>設定資料表、欄位及資料完整性約束。</summary>
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.Entity<Field>(field =>
@@ -38,6 +41,26 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
             field.Property(value => value.Longitude).HasPrecision(9, 6);
             field.Property(value => value.Description).HasMaxLength(1000);
             field.HasIndex(value => new { value.MainAccountId, value.Name }).IsUnique();
+        });
+
+        builder.Entity<Planting>(planting =>
+        {
+            planting.ToTable("plantings", table =>
+            {
+                table.HasCheckConstraint("ck_plantings_crop_name", """
+                    btrim(crop_name, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000') <> ''
+                    """);
+                table.HasCheckConstraint("ck_plantings_status",
+                    "status IN ('PLANNED', 'GROWING', 'HARVESTING', 'COMPLETED')");
+                table.HasCheckConstraint("ck_plantings_actual_planting_date",
+                    "status NOT IN ('GROWING', 'COMPLETED') OR actual_planting_date IS NOT NULL");
+            });
+            planting.HasOne(value => value.Field).WithMany().HasForeignKey(value => value.FieldId)
+                .HasConstraintName(Planting.FieldForeignKey).OnDelete(DeleteBehavior.Restrict);
+            planting.Property(value => value.CropName).HasMaxLength(120);
+            planting.Property(value => value.Variety).HasMaxLength(120);
+            planting.Property(value => value.Status).HasMaxLength(16).HasDefaultValue(Planting.Planned);
+            planting.Property(value => value.Description).HasMaxLength(1000);
         });
 
         builder.Entity<AuthSession>(session =>

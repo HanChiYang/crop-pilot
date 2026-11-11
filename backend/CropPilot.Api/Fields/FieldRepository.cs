@@ -59,7 +59,7 @@ public sealed class FieldRepository(CropPilotDbContext database)
             return FieldWriteStatus.Success;
         }
         catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
-            exception.TableName == "plantings")
+            exception.ConstraintName == Planting.FieldForeignKey)
         {
             await transaction.RollbackAsync(cancellationToken);
             return FieldWriteStatus.RelatedPlantings;

@@ -16,4 +16,9 @@ internal static class ErrorMessages
     internal const string FieldDeleteIdsInvalid = "請指定至少一個田區，且不可重複。";
     internal const string FieldHasPlantings = "有栽培紀錄的田區不能刪除。";
     internal const string UnexpectedFieldDeleteResult = "Unexpected field deletion result.";
+    internal const string PlantingCropNameInvalid = "作物名稱須為 1 至 120 個字元，且不得含有無效字元。";
+    internal const string PlantingVarietyInvalid = "品種最多 120 個字元，且不得含有無效字元。";
+    internal const string PlantingNotesInvalid = "備註最多 1000 個字元，且不得含有無效字元。";
+    internal const string PlantingActualDateRequired = "栽培中須填寫實際栽種日。";
+    internal const string PlantingStatusInvalid = "栽培狀態不正確。";
 }
