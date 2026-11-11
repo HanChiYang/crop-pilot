@@ -1,8 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+using CropPilot.Api;
 using CropPilot.Api.Authentication;
 using CropPilot.Api.Data;
+using CropPilot.Api.Constants;
 using CropPilot.Api.Fields;
+using CropPilot.Api.Fertilizers;
 using CropPilot.Api.Plantings;
 using CropPilot.Contract.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -25,6 +28,8 @@ builder.Services.AddScoped<FieldRepository>();
 builder.Services.AddScoped<FieldService>();
 builder.Services.AddScoped<PlantingRepository>();
 builder.Services.AddScoped<PlantingService>();
+builder.Services.AddScoped<FertilizerRepository>();
+builder.Services.AddScoped<FertilizerService>();
 builder.Services.AddIdentityCore<MainAccount>()
     .AddUserStore<CropPilotUserStore>()
     .AddClaimsPrincipalFactory<AccountPrincipalFactory>()
@@ -90,10 +95,15 @@ builder.Services.AddControllers(options =>
 }).AddJsonOptions(options =>
 {
     var serializer = options.JsonSerializerOptions;
-    serializer.Converters.Add(new PlantingStatusJsonConverter<CreatePlantingRqDto.StatusEnum>());
-    serializer.Converters.Add(new PlantingStatusJsonConverter<PlantingStatus>());
+    serializer.Converters.Add(new ContractEnumJsonConverter<CreatePlantingRqDto.StatusEnum>(ErrorMessages.PlantingStatusInvalid));
+    serializer.Converters.Add(new ContractEnumJsonConverter<PlantingStatus>(ErrorMessages.PlantingStatusInvalid));
+    serializer.Converters.Add(new ContractEnumJsonConverter<CreateFertilizerLotRqDto.SourceEnum>(ErrorMessages.FertilizerSourceInvalid));
+    serializer.Converters.Add(new ContractEnumJsonConverter<FertilizerLotRsDto.SourceEnum>(ErrorMessages.FertilizerSourceInvalid));
+    serializer.Converters.Add(new ContractEnumJsonConverter<FertilizerLotRsDto.CurrencyCodeEnum>(ErrorMessages.FertilizerCurrencyInvalid));
+    serializer.Converters.Add(new ContractEnumJsonConverter<FertilizationDetailRsDto.CurrencyCodeEnum>(ErrorMessages.FertilizerCurrencyInvalid));
     serializer.TypeInfoResolver = serializer.TypeInfoResolver!
-        .WithAddedModifier(FieldDecimalJsonConverter.ConfigureFieldSave);
+        .WithAddedModifier(FieldDecimalJsonConverter.ConfigureFieldSave)
+        .WithAddedModifier(FertilizationDetailIdJsonConverter.Configure);
 }).ConfigureApiBehaviorOptions(options =>
 {
     options.InvalidModelStateResponseFactory = context =>

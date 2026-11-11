@@ -27,4 +27,21 @@ internal static class ErrorMessages
     internal const string PlantingAreaInvalid = "占用面積須大於 0，最多四位小數，且不得超過 9999999999.9999 m²。";
     internal const string PlantingAreaExceedsAvailable = "占用面積超過可分配的 {0:0.####} m²。";
     internal const string FieldAreaBelowAllocated = "田區面積不得小於已分配面積。";
+    internal const string FertilizerTextInvalid = "請輸入有效的名稱或庫存單位。";
+    internal const string FertilizerUnitLocked = "已有庫存批次，無法修改庫存單位。";
+    internal const string FertilizerNameConflict = "此肥料名稱已使用。";
+    internal const string FertilizerMaterialInUse = "仍有庫存批次，無法刪除肥料資材。";
+    internal const string FertilizerLotInUse = "批次已有施肥紀錄，無法刪除。";
+    internal const string FertilizerQuantityInvalid = "數量須大於零、小於 10 億，且最多六位小數。";
+    internal const string FertilizerPriceInvalid = "單價須大於等於零且小於 10 億，且最多六位小數。";
+    internal const string FertilizerDateInvalid = "請填寫符合日期限制的日期。";
+    internal const string FertilizerQuantityBelowUsed = "批次數量不得低於已施用量。";
+    internal const string FertilizerLotDateInUse = "批次生效日不得晚於最早的施肥日期。";
+    internal const string FertilizerPlantingPlanned = "規劃中的栽培無法登記施肥。";
+    internal const string FertilizerDetailsRequired = "請至少填寫一項肥料明細。";
+    internal const string FertilizerDetailInvalid = "施肥明細不存在或重複。";
+    internal const string FertilizerSourceInvalid = "請選擇進貨或期初庫存。";
+    internal const string FertilizerCurrencyInvalid = "首版肥料庫存僅支援新臺幣。";
+    internal const string FertilizerLotUnavailable = "施肥日期不得早於批次生效日。";
+    internal const string FertilizerStockInsufficient = "此批次的庫存餘量不足。";
 }

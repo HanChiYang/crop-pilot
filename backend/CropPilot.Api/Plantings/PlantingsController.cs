@@ -1,6 +1,7 @@
 using CropPilot.Api.Authentication;
 using CropPilot.Api.Constants;
 using CropPilot.Api.Data;
+using CropPilot.Api.Fertilizers;
 using CropPilot.Contract.Controllers;
 using CropPilot.Contract.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +12,7 @@ namespace CropPilot.Api.Plantings;
 
 /// <summary>讓具備 USER 角色的帳號管理自己田區的栽培紀錄。</summary>
 [Authorize(Roles = UserRole.User)]
-public sealed class PlantingsController(PlantingService plantings) : PlantingsApiController
+public sealed class PlantingsController(PlantingService plantings, FertilizerService fertilizers) : PlantingsApiController
 {
     private Guid AccountId => HttpContext.Features.GetRequiredFeature<AuthenticatedAccount>().Id;
 
@@ -117,4 +118,22 @@ public sealed class PlantingsController(PlantingService plantings) : PlantingsAp
             ModelState.AddModelError("fieldId", ErrorMessages.PlantingHistoryFieldIdInvalid);
         }
     }
+
+    /// <summary>回傳指定栽培的施肥清單。</summary>
+    public override async Task<IActionResult> ListFertilizations(Guid fieldId, Guid plantingId)
+    {
+        var operations = await fertilizers.ListOperationsAsync(AccountId, fieldId, plantingId, HttpContext.RequestAborted);
+        return operations is null ? NotFound() : Ok(operations.ConvertAll(FertilizerDtoMapper.ToDto));
+    }
+
+    /// <summary>新增施肥作業及其批次扣用明細。</summary>
+    public override async Task<IActionResult> CreateFertilization(Guid fieldId, Guid plantingId, CreateFertilizationRqDto request) =>
+        this.ToResponse(await fertilizers.CreateOperationAsync(AccountId, fieldId, plantingId, request, HttpContext.RequestAborted),
+            FertilizerDtoMapper.ToDto);
+
+    /// <summary>更新既有施肥作業及其完整明細。</summary>
+    public override async Task<IActionResult> EditFertilization(Guid fieldId, Guid plantingId, Guid fertilizationId,
+        EditFertilizationRqDto request) =>
+        this.ToResponse(await fertilizers.EditOperationAsync(AccountId, fieldId, plantingId, fertilizationId, request,
+            HttpContext.RequestAborted), FertilizerDtoMapper.ToDto);
 }

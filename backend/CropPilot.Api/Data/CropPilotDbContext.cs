@@ -13,10 +13,16 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
     internal DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     internal DbSet<Field> Fields => Set<Field>();
     internal DbSet<Planting> Plantings => Set<Planting>();
+    internal DbSet<AgriculturalMaterial> AgriculturalMaterials => Set<AgriculturalMaterial>();
+    internal DbSet<MaterialPurchaseLot> MaterialPurchaseLots => Set<MaterialPurchaseLot>();
+    internal DbSet<FieldOperation> FieldOperations => Set<FieldOperation>();
+    internal DbSet<FertilizationDetail> FertilizationDetails => Set<FertilizationDetail>();
 
     /// <summary>設定資料表、欄位及資料完整性約束。</summary>
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        FertilizationModel.Configure(builder);
+
         builder.Entity<Field>(field =>
         {
             field.ToTable("fields", table =>

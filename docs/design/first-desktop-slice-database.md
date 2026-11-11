@@ -15,6 +15,8 @@
 | 個人資料 | [user_profiles](#user_profiles) | 每個主帳號最多一筆，保存 Email、顯示名稱、姓氏和名字。 |
 | 田區 | [fields](#fields) | 記錄田區名稱、面積和選填的座標與備註。 |
 | 栽培紀錄 | [plantings](#plantings) | 記錄各田區的作物和栽培狀態。 |
+| 田間作業 | [field_operations](#field_operations)、[fertilization_details](#fertilization_details) | 保存一次作業的共用資料及各項肥料明細。 |
+| 肥料庫存 | [agricultural_materials](#agricultural_materials)、[material_purchase_lots](#material_purchase_lots) | 保存肥料主檔、進貨及期初庫存。 |
 
 - 提案使用 PostgreSQL。田區面積與座標採 `numeric`，由 C# `decimal` 對應。資料庫對名稱、面積和成對座標設約束，API 也驗證這些條件，以便 Angular 顯示對應欄位的提示。
 - 栽種日期使用資料庫 `date`，API 傳 `YYYY-MM-DD` 或 `null`。預定與實際栽種日分開保存，供後續管理切片使用。
@@ -146,6 +148,120 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `status`、`plannedPlantingDate`、`notes` | `plantings.status`、`plantings.planned_planting_date`、`plantings.description` | 單筆詳情回傳 `completed`，預定日期與備註可為 NULL。 |
 
 首版沿用 `fields(main_account_id, name)` 與 `plantings(field_id)` 索引及現有外鍵限制，資料模型沿用下列 ER 圖，因此無須 migration 或資料回填。
+
+### 田間作業與施肥
+
+#### field_operations
+
+| 欄位 | 型別 | 約束 | 說明 |
+| --- | --- | --- | --- |
+| `id` | `uuid` | PK | 一次作業的識別碼。 |
+| `planting_id` | `uuid` | NOT NULL、FK 至 `plantings.id`，ON DELETE RESTRICT | 保留所屬栽培。已有作業的栽培不得刪除。 |
+| `operation_type` | `varchar(24)` | NOT NULL、CHECK 首版僅允許 `FERTILIZATION` | 後續加入其他類型時同步擴充 CHECK。 |
+| `operation_date` | `date` | NOT NULL | 實際作業日。由 API 以台北日期驗證。 |
+| `description` | `varchar(500)` | 可為 NULL | 共用備註，首版表單與契約省略。 |
+| `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 建立時間，同日作業的排序依據。 |
+| `updated_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 每次成功編輯後更新。 |
+
+以 `(planting_id, operation_type, operation_date DESC, created_at DESC, id DESC)` 建立清單索引。同一批次同一天可登記多次。
+
+#### fertilization_details
+
+| 欄位 | 型別 | 約束 | 說明 |
+| --- | --- | --- | --- |
+| `id` | `uuid` | PK | 一項肥料明細的識別碼。 |
+| `field_operation_id` | `uuid` | NOT NULL、FK 至 `field_operations.id`，ON DELETE CASCADE | 對應一次施肥作業。 |
+| `material_purchase_lot_id` | `uuid` | NOT NULL、FK 至 `material_purchase_lots.id`，ON DELETE RESTRICT | 實際扣用的批次。 |
+| `fertilizer_name` | `varchar(100)` | NOT NULL | 資材名稱快照。 |
+| `quantity` | `numeric(15,6)` | NOT NULL、CHECK 大於 0 且不超過 999999999.999999 | 保存實際施用總量。API 拒絕超過六位小數的輸入，避免入庫時四捨五入。 |
+| `unit` | `varchar(20)` | NOT NULL | 庫存單位快照，明細用量以此計量。 |
+| `unit_price` | `numeric(15,6)` | 可為 NULL，已知時介於 0 和欄位上限 | 當次採用的單價快照。NULL 表示待補。 |
+| `currency_code` | `char(3)` | NOT NULL、CHECK 首版為 `TWD` | 幣別快照。 |
+| `sort_order` | `integer` | NOT NULL、CHECK 大於等於 0 | 依表單列順序從 0 編號。 |
+
+作業類型由 `field_operations.operation_type` 保存。施肥 API 建立 `FERTILIZATION` 作業，查詢及編輯時只取同類型作業。一筆施肥至少有一項明細。以 `(field_operation_id, sort_order)` 索引查明細，以 `material_purchase_lot_id` 索引加總批次使用量。
+
+#### agricultural_materials
+
+| 欄位 | 型別 | 約束 | 說明 |
+| --- | --- | --- | --- |
+| `id` | `uuid` | PK | 資材識別碼。 |
+| `main_account_id` | `uuid` | NOT NULL、FK 至 `main_account.id`，ON DELETE RESTRICT | 庫存所屬帳號。 |
+| `name` | `varchar(100)` | NOT NULL、去除首尾空白後非空 | 資材名稱。 |
+| `material_type` | `varchar(24)` | NOT NULL、CHECK 首版為 `FERTILIZER` | 資材類別。 |
+| `stock_unit` | `varchar(20)` | NOT NULL、去除首尾空白後非空 | 批次與施用共用的單位。已有批次後固定。 |
+| `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 建立時間。 |
+
+`(main_account_id, material_type, name)` 唯一。名稱以去除首尾空白後的文字精確比較。
+
+#### material_purchase_lots
+
+| 欄位 | 型別 | 約束 | 說明 |
+| --- | --- | --- | --- |
+| `id` | `uuid` | PK | 庫存批次識別碼。 |
+| `material_id` | `uuid` | NOT NULL、FK 至 `agricultural_materials.id`，ON DELETE RESTRICT | 批次對應的資材。 |
+| `source` | `varchar(24)` | NOT NULL、CHECK 為 `PURCHASE` 或 `OPENING_STOCK` | 進貨或期初庫存。 |
+| `purchased_on` | `date` | 進貨必填，期初庫存可為 NULL | 已知的購買日。 |
+| `available_from` | `date` | NOT NULL，進貨須等於購買日，期初已知購買日須早於或等於盤點日 | 批次開始計入庫存的日期。 |
+| `received_quantity` | `numeric(15,6)` | NOT NULL、CHECK 大於 0 且在欄位上限內 | 進貨量或期初盤點時的實際剩餘量。 |
+| `unit_price` | `numeric(15,6)` | 可為 NULL，已知時介於 0 和欄位上限 | 每庫存單位的單價。 |
+| `currency_code` | `char(3)` | NOT NULL、CHECK 首版為 `TWD` | 批次幣別。 |
+| `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 登記時間。 |
+
+以 `(material_id, available_from, id)` 建立批次清單索引。批次餘量由 `received_quantity` 減去所有關聯施肥明細的 `quantity` 算出，資材餘量為各批合計。新增或編輯施肥時，在同一筆交易依 UUID 順序鎖定所有舊批次與新批次，取得鎖後再加總已用量及驗證。編輯以同批次新舊明細用量差額判斷扣量或退回。作業與全部明細同時提交或回滾。
+
+建立批次與修改資材庫存單位時，先鎖定同一筆資材再查驗。批次編輯及刪除與施肥寫入共用批次鎖。修改批次時，在取得鎖後檢查已用量及最早的關聯施肥日期。刪除資材須無任何批次，刪除批次須無任何施肥明細引用，由外鍵的 `ON DELETE RESTRICT` 保護。
+
+```mermaid
+erDiagram
+    main_account ||--o{ agricultural_materials : owns
+    agricultural_materials ||--o{ material_purchase_lots : receives
+    material_purchase_lots ||--o{ fertilization_details : supplies
+    plantings ||--o{ field_operations : contains
+    field_operations ||--|{ fertilization_details : contains
+    plantings {
+        uuid id PK
+    }
+    field_operations {
+        uuid id PK
+        uuid planting_id FK
+        varchar operation_type
+        date operation_date
+        varchar description
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    fertilization_details {
+        uuid id PK
+        uuid field_operation_id FK
+        uuid material_purchase_lot_id FK
+        varchar fertilizer_name
+        numeric quantity
+        varchar unit
+        numeric unit_price
+        char currency_code
+        integer sort_order
+    }
+    agricultural_materials {
+        uuid id PK
+        uuid main_account_id FK
+        varchar name
+        varchar material_type
+        varchar stock_unit
+        timestamptz created_at
+    }
+    material_purchase_lots {
+        uuid id PK
+        uuid material_id FK
+        varchar source
+        date purchased_on
+        date available_from
+        numeric received_quantity
+        numeric unit_price
+        char currency_code
+        timestamptz created_at
+    }
+```
 
 ### ERD 與外鍵審查
 

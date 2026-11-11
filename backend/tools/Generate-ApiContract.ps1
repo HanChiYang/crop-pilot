@@ -14,8 +14,8 @@ $backend = Split-Path -Parent $PSScriptRoot
 $root = Split-Path -Parent $backend
 $contract = Join-Path $root 'docs/openapi/openapi.yaml'
 $output = Join-Path $backend 'CropPilot.Api/Generated'
-$apis = 'Auth:Fields:Plantings:Overview'
-$models = 'LoginRqDto:AccessTokenRsDto:LogoutRqDto:ApiProblemRsDto:ApiValidationProblemRsDto:CreateFieldRqDto:EditFieldRqDto:DeleteFieldRqDto:FieldDto:FieldRsDto:CreatePlantingRqDto:EditPlantingRqDto:PlantingRsDto:PlantingStatus:FieldPlantingsRsDto:FieldOverviewRsDto:PlantingHistoryItemDto'
+$apis = 'Auth:Fields:Plantings:Overview:Materials'
+$models = 'LoginRqDto:AccessTokenRsDto:LogoutRqDto:ApiProblemRsDto:ApiValidationProblemRsDto:CreateFieldRqDto:EditFieldRqDto:DeleteFieldRqDto:FieldDto:FieldRsDto:CreatePlantingRqDto:EditPlantingRqDto:PlantingRsDto:PlantingStatus:FieldPlantingsRsDto:FieldOverviewRsDto:PlantingHistoryItemDto:CreateFertilizerMaterialRqDto:FertilizerMaterialRsDto:CreateFertilizerLotRqDto:EditFertilizerLotRqDto:FertilizerLotRsDto:CreateFertilizationRqDto:EditFertilizationRqDto:FertilizationRsDto:FertilizationDetailRqDto:EditFertilizationDetailRqDto:FertilizationDetailRsDto:ApiConflictRsDto'
 
 & java -jar $generator generate -g aspnetcore -i $contract -o $output `
     --additional-properties 'packageName=CropPilot.Contract,sourceFolder=.,buildTarget=library,classModifier=abstract,operationModifier=abstract,operationResultTask=true,aspnetCoreVersion=10.0' `
