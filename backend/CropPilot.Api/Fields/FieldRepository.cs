@@ -18,6 +18,16 @@ public sealed class FieldRepository(CropPilotDbContext database)
     /// <summary>在擁有者範圍內更新田區，並辨識名稱衝突及已刪除的田區。</summary>
     internal async Task<FieldWriteStatus> UpdateAsync(Field field, CancellationToken cancellationToken)
     {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        if (await FieldAreaQueries.LockAsync(database, field.MainAccountId, field.Id, cancellationToken) is null)
+        {
+            return FieldWriteStatus.NotFound;
+        }
+        var allocated = await FieldAreaQueries.AllocatedAsync(database, field.Id, null, cancellationToken);
+        if (field.AreaSquareMeters < allocated)
+        {
+            return FieldWriteStatus.AreaConflict;
+        }
         try
         {
             var count = await OwnedFields(field.MainAccountId).Where(value => value.Id == field.Id)
@@ -27,6 +37,7 @@ public sealed class FieldRepository(CropPilotDbContext database)
                     .SetProperty(value => value.Latitude, field.Latitude)
                     .SetProperty(value => value.Longitude, field.Longitude)
                     .SetProperty(value => value.Description, field.Description), cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             return count == 0 ? FieldWriteStatus.NotFound : FieldWriteStatus.Success;
         }
         catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation &&
@@ -99,5 +110,6 @@ internal enum FieldWriteStatus
     InvalidInput,
     NotFound,
     NameConflict,
+    AreaConflict,
     RelatedPlantings
 }

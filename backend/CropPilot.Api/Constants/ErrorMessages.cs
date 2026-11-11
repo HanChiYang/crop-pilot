@@ -19,6 +19,11 @@ internal static class ErrorMessages
     internal const string PlantingCropNameInvalid = "作物名稱須為 1 至 120 個字元，且不得含有無效字元。";
     internal const string PlantingVarietyInvalid = "品種最多 120 個字元，且不得含有無效字元。";
     internal const string PlantingNotesInvalid = "備註最多 1000 個字元，且不得含有無效字元。";
-    internal const string PlantingActualDateRequired = "栽培中須填寫實際栽種日。";
+    internal const string PlantingActualDateRequired = "栽培中或已結束須填寫實際栽種日。";
     internal const string PlantingStatusInvalid = "栽培狀態不正確。";
+    internal const string PlantingTransitionInvalid = "目前的栽培狀態無法變更為所選狀態。";
+    internal const string PlantingDeleteInvalid = "只有規劃中的栽培紀錄可以刪除。";
+    internal const string PlantingAreaInvalid = "占用面積須大於 0，最多四位小數，且不得超過 9999999999.9999 m²。";
+    internal const string PlantingAreaExceedsAvailable = "占用面積超過可分配的 {0:0.####} m²。";
+    internal const string FieldAreaBelowAllocated = "田區面積不得小於已分配面積。";
 }

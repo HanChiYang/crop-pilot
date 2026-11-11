@@ -12,6 +12,7 @@ internal static class PlantingDtoMapper
         Id = planting.Id,
         FieldId = planting.FieldId,
         CropName = planting.CropName,
+        AreaSquareMeters = planting.AreaSquareMeters,
         Variety = planting.Variety!,
         PlannedPlantingDate = planting.PlannedPlantingDate,
         ActualPlantingDate = planting.ActualPlantingDate,
@@ -25,6 +26,19 @@ internal static class PlantingDtoMapper
             _ => throw new InvalidOperationException(Constants.ErrorMessages.PlantingStatusInvalid)
         }
     };
+
+    /// <summary>從同一批目前紀錄計算已分配與剩餘面積。</summary>
+    internal static FieldPlantingsRsDto ToFieldPlantingsDto(FieldPlantings entry)
+    {
+        var allocated = entry.Plantings.Sum(planting => planting.AreaSquareMeters);
+        return new()
+        {
+            AreaSquareMeters = entry.Field.AreaSquareMeters,
+            AllocatedAreaSquareMeters = allocated,
+            RemainingAreaSquareMeters = entry.Field.AreaSquareMeters - allocated,
+            Plantings = entry.Plantings.ConvertAll(ToDto)
+        };
+    }
 
     /// <summary>轉換田區及該田區目前的栽培清單。</summary>
     internal static FieldOverviewRsDto ToOverviewDto(FieldPlantings entry) => new()

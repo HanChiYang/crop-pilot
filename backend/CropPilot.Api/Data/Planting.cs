@@ -12,10 +12,11 @@ internal sealed class Planting
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid FieldId { get; init; }
     public Field Field { get; init; } = null!;
-    public required string CropName { get; init; }
-    public string? Variety { get; init; }
-    public DateOnly? PlannedPlantingDate { get; init; }
-    public DateOnly? ActualPlantingDate { get; init; }
-    public string Status { get; init; } = Planned;
-    public string? Description { get; init; }
+    public required string CropName { get; set; }
+    public decimal AreaSquareMeters { get; set; }
+    public string? Variety { get; set; }
+    public DateOnly? PlannedPlantingDate { get; set; }
+    public DateOnly? ActualPlantingDate { get; set; }
+    public string Status { get; set; } = Planned;
+    public string? Description { get; set; }
 }

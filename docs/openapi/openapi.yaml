@@ -293,7 +293,11 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/FieldNameConflict'
+          description: 同帳號已有同名田區，或新面積低於已分配面積。errors 以 name 或 areaSquareMeters 標示欄位。
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApiValidationProblemRsDto'
         '500':
           $ref: '#/components/responses/ServerError'
     delete:
@@ -354,7 +358,7 @@ paths:
       tags: [Plantings]
       operationId: listFieldPlantings
       summary: 列出指定田區目前的栽培紀錄
-      description: 需要 USER 角色。回傳規劃中、栽培中與採收中的紀錄。自己的田區沒有目前紀錄時回傳空陣列。田區不存在或屬於其他帳號時回傳 404。
+      description: 需要 USER 角色。回傳田區面積摘要及規劃中、栽培中與採收中的紀錄。空田區仍回傳面積摘要。田區不存在或屬於其他帳號時回傳 404。
       security:
         - BearerAuth: []
       responses:
@@ -363,9 +367,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PlantingRsDto'
+                $ref: '#/components/schemas/FieldPlantingsRsDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -394,10 +396,12 @@ paths:
                 summary: 新增規劃中紀錄
                 value:
                   cropName: 番茄
+                  areaSquareMeters: 300
               harvesting:
                 summary: 補登採收中紀錄，實際栽種日未知
                 value:
                   cropName: 番茄
+                  areaSquareMeters: 300
                   status: harvesting
       responses:
         '201':
@@ -421,6 +425,8 @@ paths:
           $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/PlantingConflict'
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/fields/{fieldId}/plantings/{plantingId}:
@@ -449,6 +455,63 @@ paths:
           $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags: [Plantings]
+      operationId: editPlanting
+      summary: 編輯單筆栽培紀錄
+      description: 更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditPlantingRqDto'
+      responses:
+        '200':
+          description: 已更新的栽培紀錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlantingRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/PlantingConflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Plantings]
+      operationId: deletePlanting
+      summary: 刪除單筆規劃中栽培紀錄
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 已刪除並釋放占用面積
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 只有規劃中的紀錄可以刪除
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApiProblemRsDto'
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/overview:
@@ -509,6 +572,12 @@ components:
         type: string
         format: uuid
   responses:
+    PlantingConflict:
+      description: 超過可分配面積或目前狀態不允許更新。errors 以 areaSquareMeters 或 status 標示欄位，超額訊息包含當下可分配面積。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApiValidationProblemRsDto'
     FieldAccessForbidden:
       description: 登入帳號沒有使用田區功能所需的 USER 角色。
       content:
@@ -666,7 +735,7 @@ components:
           maxLength: 1000
     CreatePlantingRqDto:
       type: object
-      required: [cropName]
+      required: [cropName, areaSquareMeters]
       if:
         required: [status]
         properties:
@@ -682,6 +751,8 @@ components:
           type: string
           pattern: '^[\s\S]*\S[\s\S]*$'
           maxLength: 120
+        areaSquareMeters:
+          $ref: '#/components/schemas/PlantingAreaSquareMeters'
         variety:
           type: [string, 'null']
           maxLength: 120
@@ -699,9 +770,61 @@ components:
         notes:
           type: [string, 'null']
           maxLength: 1000
+    EditPlantingRqDto:
+      type: object
+      required: [cropName, status, areaSquareMeters]
+      if:
+        properties:
+          status:
+            enum: [growing, completed]
+      then:
+        required: [actualPlantingDate]
+        properties:
+          actualPlantingDate:
+            type: string
+      properties:
+        cropName:
+          type: string
+          pattern: '^[\s\S]*\S[\s\S]*$'
+          maxLength: 120
+        areaSquareMeters:
+          $ref: '#/components/schemas/PlantingAreaSquareMeters'
+        variety:
+          type: [string, 'null']
+          maxLength: 120
+        plannedPlantingDate:
+          type: [string, 'null']
+          format: date
+        actualPlantingDate:
+          type: [string, 'null']
+          format: date
+        status:
+          $ref: '#/components/schemas/PlantingStatus'
+        notes:
+          type: [string, 'null']
+          maxLength: 1000
+    PlantingAreaSquareMeters:
+      type: number
+      minimum: 0.0001
+      maximum: 9999999999.9999
+      multipleOf: 0.0001
+    FieldPlantingsRsDto:
+      type: object
+      required: [areaSquareMeters, allocatedAreaSquareMeters, remainingAreaSquareMeters, plantings]
+      properties:
+        areaSquareMeters:
+          type: number
+        allocatedAreaSquareMeters:
+          type: number
+        remainingAreaSquareMeters:
+          type: number
+        plantings:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlantingRsDto'
     PlantingRsDto:
       type: object
-      required: [id, fieldId, cropName, variety, plannedPlantingDate, actualPlantingDate, status, notes]
+      required: [id, fieldId, cropName, variety, plannedPlantingDate, actualPlantingDate, status, notes, areaSquareMeters]
       properties:
         id:
           type: string
@@ -709,6 +832,8 @@ components:
         fieldId:
           type: string
           format: uuid
+        areaSquareMeters:
+          $ref: '#/components/schemas/PlantingAreaSquareMeters'
         cropName:
           type: string
           maxLength: 120

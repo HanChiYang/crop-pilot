@@ -114,6 +114,8 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `longitude` | `numeric(9,6)` | 可為 NULL，範圍 −180 至 180，與 `latitude` 成對填寫 | 田區定位點的經度，以十進位度數表示。 |
 | `description` | `varchar(1000)` | 可為 NULL | 田區備註。 |
 
+栽培占用面積切片中，縮小田區與新增或變更栽培占用的操作，須在同一田區的寫入交易中先鎖定該筆 `fields`，再計算未結束紀錄的占用面積並驗證寫入結果。這可避免縮小田區和新增占用同時儲存後超額。
+
 #### plantings
 
 | 欄位 | PostgreSQL 型別 | 約束 | 描述 |
@@ -122,6 +124,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `field_id` | `uuid` | NOT NULL，FK → `fields.id`，有索引 | 此筆栽培紀錄所屬的田區。 |
 | `crop_name` | `varchar(120)` | NOT NULL，至少一個非空白字元 | 栽培的作物名稱。 |
 | `variety` | `varchar(120)` | 可為 NULL | 作物品種。 |
+| `area_square_meters` | `numeric(14,4)` | NOT NULL，無預設值，CHECK 大於 0 | 栽培占用面積，單位為平方公尺。於栽培占用面積切片加入。 |
 | `planned_planting_date` | `date` | 可為 NULL | 預計開始栽種的日期。 |
 | `actual_planting_date` | `date` | `GROWING` 或 `COMPLETED` 時必填，其餘可為 NULL | 實際開始栽種的日期。規劃中的新增表單不提供此欄，API 仍接受日期或空值。補登採收中紀錄時，日期未知可留空。 |
 | `status` | `varchar(16)` | NOT NULL，預設 `PLANNED`，以 `CHECK` 限定 `PLANNED`、`GROWING`、`HARVESTING`、`COMPLETED` | 目前的栽培階段。 |
@@ -186,6 +189,7 @@ erDiagram
         uuid id PK
         uuid field_id FK
         string crop_name
+        decimal area_square_meters
         string description
     }
 ```
@@ -209,3 +213,5 @@ erDiagram
 `DesktopAccountModel` 保留既有主帳號 UUID、密碼雜湊、安全戳記、帳密鎖定紀錄及 Google 綁定，將 Email 轉成小寫移入個人資料。舊版帳號沿用原先的啟用行為，遷移為 `ACTIVE` 並取得 `USER`。遷移在同一筆交易完成資料搬移及舊表清理。若資料庫已有額外 Claim、權杖、雙因素資料、手機資料或無法對應的登入提供者，遷移會中止。需要回復時使用遷移前備份。
 
 首版已確認由 EF Core Migrations 管理 PostgreSQL 的結構版本，搭配 Npgsql provider。它從 EF Core 模型與快照產生遷移。實作階段先用 `dotnet ef migrations script` 匯出 PostgreSQL SQL，審查資料表與欄位是否符合 `snake_case`，並核對 `FOREIGN KEY`、`ON DELETE`、`NOT NULL`、`CHECK` 與索引。審查後套用到測試資料庫，比對實際約束並執行上表的審查案例。[EF Core Migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations) · [SQL 腳本審查](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying#sql-scripts) · [Npgsql EF Core provider](https://www.npgsql.org/efcore/)
+
+新增栽培占用面積欄位時，專案負責人已確認沒有既有栽培紀錄。Migration 以 `plantings` 無資料為前提加入必填欄位，無須補填或設定預設值。套用前確認該表為空。

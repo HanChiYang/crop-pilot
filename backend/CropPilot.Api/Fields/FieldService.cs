@@ -74,6 +74,10 @@ public sealed class FieldService(FieldRepository repository)
         {
             errors.Add(nameof(EditFieldRqDto.Name), ErrorMessages.FieldNameAlreadyUsed);
         }
+        if (status == FieldWriteStatus.AreaConflict)
+        {
+            errors.Add(nameof(EditFieldRqDto.AreaSquareMeters), ErrorMessages.FieldAreaBelowAllocated);
+        }
 
         return new FieldSaveResult(status == FieldWriteStatus.Success ? field : null, errors, status);
     }

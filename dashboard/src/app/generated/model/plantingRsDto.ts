@@ -13,6 +13,7 @@ import { PlantingStatus } from './plantingStatus';
 export interface PlantingRsDto { 
     id: string;
     fieldId: string;
+    areaSquareMeters: number;
     cropName: string;
     variety: string | null;
     plannedPlantingDate: string | null;

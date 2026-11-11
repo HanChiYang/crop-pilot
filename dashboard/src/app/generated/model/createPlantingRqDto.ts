@@ -11,6 +11,7 @@
 
 export interface CreatePlantingRqDto { 
     cropName: string;
+    areaSquareMeters: number;
     variety?: string | null;
     plannedPlantingDate?: string | null;
     /**

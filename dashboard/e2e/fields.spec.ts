@@ -149,7 +149,7 @@ test('田區列表載入失敗後可重試，空列表提供新增入口', async
   await expect(page).toHaveURL('/dashboard');
 });
 
-test('作物栽培可取消並保留田區，補登採收中後可在列表和總覽讀回', async ({
+test('栽培超額保留輸入，編輯、刪除與結束後更新面積及總覽', async ({
   page,
 }) => {
   const fieldName = `栽培測試 ${randomUUID()}`;
@@ -188,6 +188,8 @@ test('作物栽培可取消並保留田區，補登採收中後可在列表和�
   const save = page.getByRole('button', { name: '儲存', exact: true });
   await expect(status).toHaveValue('planned');
   await crop.fill('番茄');
+  const area = page.getByLabel('占用面積（m²，必填）');
+  await area.fill('70');
   await status.selectOption('growing');
   await save.click();
   await expect(
@@ -216,6 +218,15 @@ test('作物栽培可取消並保留田區，補登採收中後可在列表和�
 
   await add.click();
   await crop.fill('小白菜');
+  await status.selectOption('growing');
+  await page.getByLabel('實際栽種日（必填）').fill('2026-11-01');
+  await status.selectOption('planned');
+  await area.fill('35');
+  await save.click();
+  await expect(area).toHaveAccessibleDescription('占用面積超過可分配的 30 m²。');
+  await expect(area).toHaveValue('35');
+  await expect(crop).toHaveValue('小白菜');
+  await area.fill('30');
   await save.click();
   const planned = page.getByRole('row').filter({ hasText: '小白菜' });
   await expect(planned).toContainText('規劃中');
@@ -228,6 +239,34 @@ test('作物栽培可取消並保留田區，補登採收中後可在列表和�
   await expect(overview).toContainText('小白菜');
   await expect(overview).toContainText('規劃中');
   await expect(overview).toContainText('尚未設定');
+
+  await page.goto(`/dashboard/plantings?fieldId=${fieldId}`);
+  const remaining = page.locator('dl div').filter({ hasText: '剩餘面積' }).locator('dd');
+  await expect(remaining).toHaveText('0 m²');
+  await planned.getByRole('link', { name: '編輯 小白菜' }).click();
+  await expect(area).toHaveValue('30');
+  await page.getByLabel('品種（選填）').fill('示意品種');
+  await save.click();
+  await expect(planned).toContainText('示意品種');
+  const remove = planned.getByRole('button', { name: '刪除 小白菜' });
+  const confirmation = page.getByRole('dialog', { name: '刪除栽培紀錄' });
+  await remove.click();
+  await expect(confirmation).toContainText('小白菜');
+  await confirmation.getByRole('button', { name: '取消' }).click();
+  await expect(planned).toBeVisible();
+  await remove.click();
+  await confirmation.getByRole('button', { name: '確認刪除' }).click();
+  await expect(planned).toBeHidden();
+  await expect(remaining).toHaveText('30 m²');
+
+  await planting.getByRole('link', { name: '編輯 番茄' }).click();
+  await status.selectOption('completed');
+  await page.getByLabel('實際栽種日（必填）').fill('2026-11-01');
+  await save.click();
+  await expect(remaining).toHaveText('100 m²');
+  await page.getByRole('link', { name: '田區總覽', exact: true }).click();
+  await expect(overview).toBeVisible();
+  await expect(overview).not.toContainText('番茄');
 });
 
 test('新增田區後可重新載入，驗證錯誤和名稱衝突保留輸入', async ({ page }) => {

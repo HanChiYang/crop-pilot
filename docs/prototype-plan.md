@@ -2,6 +2,20 @@
 
 ## UX 草案審查記錄
 
+**2026-11-11 · 作物栽培管理整合稿 · 範圍已確認**
+
+本輪一併驗收占用面積、單筆編輯與狀態變更、規劃中刪除。已確認沒有既有栽培紀錄，無須設計補填流程。整合稿仍須走查超額提示及保留輸入。
+
+同一頁呈現田區總面積、已分配面積、剩餘面積，以及每筆作物的狀態、日期和占用面積。原型從有 300 m² 剩餘面積的栽培列表開始，可直接新增。新增和編輯表單的占用面積皆標示必填。小白菜結束後，管理頁顯示剩餘 300 m²，田區總覽仍顯示番茄。舊流程圖中的待補面積分支已退出播放流程。[可點選原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=87-2035&page-id=87%3A1916&starting-point-node-id=87%3A2035&scaling=scale-down&show-proto-sidebar=1)
+
+整合稿補上規劃中紀錄的刪除分支。已在播放模式確認取消會保留小白菜，確認刪除後同一田區的剩餘面積從 0 m² 增至 300 m²。[從規劃中紀錄試走刪除](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=87-2173&page-id=87%3A1916&starting-point-node-id=87%3A2173&scaling=scale-down)
+
+單筆栽培改從列表的「編輯」開啟完整表單，載入作物名稱、品種、狀態、預定與實際栽種日、占用面積和備註。播放模式已走查小白菜維持規劃中儲存，以及在表單內改為栽培中、補填必填日期後儲存。其他欄位目前呈現於原型表單，逐欄輸入與儲存結果依需求驗收。[編輯表單原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=103-2&page-id=87%3A1916&starting-point-node-id=87%3A2173&scaling=scale-down)
+
+**2026-11-11 · 栽培占用面積 · 舊稿**
+
+桌機原型以 1,000 m² 的北側田示範先補填番茄 700 m²，再新增小白菜規劃 300 m²。另一條流程示範輸入 350 m² 時保留輸入並提示剩餘面積，修正後可儲存。已在播放模式走查兩條流程。[流程圖](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=83-1874) · [可點選原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=83-1484&page-id=83%3A1483&starting-point-node-id=83%3A1484&scaling=scale-down&show-proto-sidebar=1) · [占用面積需求](requirements/desktop-field-and-planting.md#栽培占用面積)
+
 **v0.1 · 2026-11-09 · 初步檢視**
 
 這次看過的互動稿涵蓋總覽、田區列表與新增、種植批次列表與新增。使用者初步認可整體操作方向，首輪以桌機版為優先。手機版保留作為後續設計參考。

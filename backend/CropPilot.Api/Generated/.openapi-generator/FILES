@@ -11,8 +11,10 @@ CropPilot.Contract/Models/CreateFieldRqDto.cs
 CropPilot.Contract/Models/CreatePlantingRqDto.cs
 CropPilot.Contract/Models/DeleteFieldRqDto.cs
 CropPilot.Contract/Models/EditFieldRqDto.cs
+CropPilot.Contract/Models/EditPlantingRqDto.cs
 CropPilot.Contract/Models/FieldDto.cs
 CropPilot.Contract/Models/FieldOverviewRsDto.cs
+CropPilot.Contract/Models/FieldPlantingsRsDto.cs
 CropPilot.Contract/Models/FieldRsDto.cs
 CropPilot.Contract/Models/LoginRqDto.cs
 CropPilot.Contract/Models/LogoutRqDto.cs

@@ -36,6 +36,14 @@ namespace CropPilot.Contract.Models
         public string CropName { get; set; }
 
         /// <summary>
+        /// Gets or Sets AreaSquareMeters
+        /// </summary>
+        [Required]
+        [Range(0.00010, 9999999999.9999)]
+        [DataMember(Name="areaSquareMeters", EmitDefaultValue=true)]
+        public decimal AreaSquareMeters { get; set; }
+
+        /// <summary>
         /// Gets or Sets Variety
         /// </summary>
         [MaxLength(120)]
@@ -105,6 +113,7 @@ namespace CropPilot.Contract.Models
             var sb = new StringBuilder();
             sb.Append("class CreatePlantingRqDto {\n");
             sb.Append("  CropName: ").Append(CropName).Append("\n");
+            sb.Append("  AreaSquareMeters: ").Append(AreaSquareMeters).Append("\n");
             sb.Append("  Variety: ").Append(Variety).Append("\n");
             sb.Append("  PlannedPlantingDate: ").Append(PlannedPlantingDate).Append("\n");
             sb.Append("  ActualPlantingDate: ").Append(ActualPlantingDate).Append("\n");
@@ -152,6 +161,11 @@ namespace CropPilot.Contract.Models
                     CropName.Equals(other.CropName)
                 ) && 
                 (
+                    AreaSquareMeters == other.AreaSquareMeters ||
+
+                    AreaSquareMeters.Equals(other.AreaSquareMeters)
+                ) &&
+                (
                     Variety == other.Variety ||
                     Variety != null &&
                     Variety.Equals(other.Variety)
@@ -190,6 +204,8 @@ namespace CropPilot.Contract.Models
                 // Suitable nullity checks etc, of course :)
                     if (CropName != null)
                     hashCode = hashCode * 59 + CropName.GetHashCode();
+
+                    hashCode = hashCode * 59 + AreaSquareMeters.GetHashCode();
                     if (Variety != null)
                     hashCode = hashCode * 59 + Variety.GetHashCode();
                     if (PlannedPlantingDate != null)

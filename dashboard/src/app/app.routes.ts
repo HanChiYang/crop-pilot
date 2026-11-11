@@ -52,6 +52,7 @@ export const routes: Routes = [
       { path: 'fields/:fieldId/edit', component: FieldFormPage, title: '編輯田區｜CropPilot' },
       { path: 'plantings', component: PlantingListPage, title: '作物栽培管理｜CropPilot' },
       { path: 'plantings/:fieldId/new', component: PlantingFormPage, title: '新增栽培紀錄｜CropPilot' },
+      { path: 'plantings/:fieldId/:plantingId/edit', component: PlantingFormPage, title: '編輯栽培紀錄｜CropPilot' },
     ],
   },
   { path: '**', redirectTo: '' },
