@@ -13,4 +13,7 @@ internal static class ErrorMessages
     internal const string FieldNotesInvalid = "備註最多 1000 個字元，且不得含有無效字元。";
     internal const string FieldDecimalExpected = "Expected a decimal number.";
     internal const string FieldDecimalPrecisionExceeded = "The number has too many decimal places.";
+    internal const string FieldDeleteIdsInvalid = "請指定至少一個田區，且不可重複。";
+    internal const string FieldHasPlantings = "有栽培紀錄的田區不能刪除。";
+    internal const string UnexpectedFieldDeleteResult = "Unexpected field deletion result.";
 }

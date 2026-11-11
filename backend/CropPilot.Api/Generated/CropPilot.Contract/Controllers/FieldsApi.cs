@@ -54,11 +54,12 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 刪除單筆田區
         /// </summary>
-        /// <remarks>依路徑上的田區識別碼刪除登入帳號的田區。有任何栽培紀錄的田區禁止刪除。</remarks>
+        /// <remarks>需要 USER 角色。依路徑上的田區識別碼刪除登入帳號的田區。有任何栽培紀錄的田區禁止刪除。</remarks>
         /// <param name="fieldId">田區的 UUID。</param>
         /// <response code="204">已刪除田區。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
         /// <response code="409">至少一塊指定田區已有栽培紀錄，刪除未執行。</response>
         /// <response code="500">伺服器處理失敗</response>
@@ -68,6 +69,7 @@ namespace CropPilot.Contract.Controllers
         [ValidateModelState]
         [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 409, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
@@ -76,11 +78,12 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 批次刪除田區
         /// </summary>
-        /// <remarks>一次刪除指定的田區。任一田區不存在、屬於其他帳號或已有栽培紀錄時，整批保留。</remarks>
+        /// <remarks>需要 USER 角色。一次刪除指定的田區。任一田區不存在、屬於其他帳號或已有栽培紀錄時，整批保留。</remarks>
         /// <param name="deleteFieldRqDto"></param>
         /// <response code="204">已刪除指定的所有田區。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
         /// <response code="409">至少一塊指定田區已有栽培紀錄，刪除未執行。</response>
         /// <response code="500">伺服器處理失敗</response>
@@ -91,6 +94,7 @@ namespace CropPilot.Contract.Controllers
         [ValidateModelState]
         [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 409, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
@@ -99,12 +103,13 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 編輯單筆田區
         /// </summary>
-        /// <remarks>更新指定田區的名稱、面積、座標與備註。省略座標或備註會清除對應值。名稱去除頭尾空白後不得與同帳號的其他田區重複，並區分大小寫。</remarks>
+        /// <remarks>需要 USER 角色。更新登入帳號的指定田區名稱、面積、座標與備註。省略座標或備註會清除對應值。名稱去除頭尾空白後不得與同帳號的其他田區重複，並區分大小寫。</remarks>
         /// <param name="fieldId">田區的 UUID。</param>
         /// <param name="editFieldRqDto"></param>
         /// <response code="200">已更新田區。fields 僅含本次更新的一筆田區。</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
         /// <response code="409">同帳號已有同名田區。errors.name 提供欄位提示。</response>
         /// <response code="500">伺服器處理失敗</response>
@@ -116,6 +121,7 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 200, type: typeof(FieldRsDto))]
         [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 409, type: typeof(ApiValidationProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]

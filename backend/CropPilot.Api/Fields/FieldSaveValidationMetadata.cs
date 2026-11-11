@@ -4,13 +4,13 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 
 namespace CropPilot.Api.Fields;
 
-/// <summary>調整生成的田區新增請求在 MVC 中使用的驗證規則。</summary>
-internal sealed class CreateFieldValidationMetadata : IValidationMetadataProvider
+/// <summary>調整生成的田區儲存請求在 MVC 中使用的驗證規則。</summary>
+internal sealed class FieldSaveValidationMetadata : IValidationMetadataProvider
 {
     /// <summary>移除 MVC 的字串長度驗證，交由田區服務以 Unicode 碼點計算字數。</summary>
     public void CreateValidationMetadata(ValidationMetadataProviderContext context)
     {
-        if (context.Key.ContainerType != typeof(CreateFieldRqDto))
+        if (context.Key.ContainerType != typeof(CreateFieldRqDto) && context.Key.ContainerType != typeof(EditFieldRqDto))
         {
             return;
         }

@@ -32,9 +32,11 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 「空的田區總覽 → 新增田區 → 儲存後進入田區管理並看見新田區」已完成前後端串接，田區 API 與 Angular 串接分別經 PR #9、#10 合併至 `develop`。田區名稱和面積必填，座標和備註選填，總覽與管理列表皆查詢登入帳號的田區。PR #9 記錄 migration 驗證及 32 個 API 整合測試通過，涵蓋帳號隔離、權杖格式、並行重名與欄位驗證。PR #10 記錄 Angular 正式建置及 3 個 Playwright 案例通過，涵蓋未登入轉址、列表載入失敗重試、空列表入口、取消、新增後重新整理、欄位驗證與名稱衝突保留輸入。列表失敗與空列表使用攔截模擬。[田區 API PR](https://github.com/HanChiYang/crop-pilot/pull/9) · [前端串接 PR](https://github.com/HanChiYang/crop-pilot/pull/10) · [瀏覽器測試操作說明](../dashboard/README.md#執行田區瀏覽器測試)
 
+田區管理可編輯及刪除單筆田區。編輯沿用新增表單並載入既有資料；刪除前顯示田區名稱供確認。批次刪除由 API 提供，指定田區中有任何一筆找不到或不屬於登入帳號時，整批保留。已通過 40 個 API 整合測試與 4 個 Edge 瀏覽器測試；刪除衝突的畫面使用模擬 `409` 驗證。栽培資料表尚未建立，須在建立 `plantings` 的 migration 加入限制刪除的外鍵，並驗證田區含栽培紀錄時（含已結束）單筆及批次刪除皆回傳 `409`。[田區與栽培資料](design/first-desktop-slice-data-api.md#田區與栽培資料)
+
 下一個切片沿用 Figma 動線，完成「作物栽培管理選田區 → 新增規劃中的栽培紀錄 → 回田區總覽看見作物」。先審查栽培欄位、作物與品種輸入方式、田區外鍵、刪除行為、帳號擁有權及 API 契約，再依契約生成程式碼，實作 migration、栽培新增與查詢、含栽培資料的總覽，並串接 Angular。驗收須涵蓋預定栽種日留空仍可建立，回總覽顯示「規劃中」及「尚未設定」，以及其他帳號無法讀寫該田區的栽培紀錄。[桌機畫面及 Figma 原型](ui/first-desktop-slice/README.md) · [桌機版需求](requirements/desktop-field-and-planting.md#驗收切片) · [API 驗收案例](design/first-desktop-slice-data-api.md#第一輪驗收重點)
 
-OpenAPI 契約已通過 OpenAPI Generator 7.27.0 驗證，登入與田區 Controller、DTO 和 Angular client 由同一契約生成。田區資料表已由 `CreateFields` migration 建立，栽培資料表的 PostgreSQL 欄位、ERD、外鍵與刪除行為仍待審查。田區編輯、刪除及栽培狀態變更列在後續管理切片。[OpenAPI 契約](openapi/openapi.yaml) · [資料庫設計](design/first-desktop-slice-database.md)
+OpenAPI 契約已通過 OpenAPI Generator 7.27.0 驗證，登入與田區 Controller、DTO 和 Angular client 由同一契約生成。田區資料表已由 `CreateFields` migration 建立，栽培資料表的 PostgreSQL 欄位、ERD、外鍵與刪除行為仍待審查。栽培狀態變更列在後續管理切片。[OpenAPI 契約](openapi/openapi.yaml) · [資料庫設計](design/first-desktop-slice-database.md)
 
 後端 API 分層、DTO、錯誤處理、Bearer 擁有權驗證及 XML 註解慣例已整理至 `AGENTS.md`，並經 PR #11 合併至 `develop`。[協作指引](../AGENTS.md#後端-api-實作慣例) · [慣例更新 PR](https://github.com/HanChiYang/crop-pilot/pull/11)
 

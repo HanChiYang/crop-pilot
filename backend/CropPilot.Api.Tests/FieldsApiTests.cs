@@ -156,7 +156,129 @@ public sealed class FieldsApiTests(FieldsApiFixture fixture) : IClassFixture<Fie
         Assert.Equal(1, await fixture.CountFieldsAsync(secondId));
     }
 
-    /// <summary>驗證三個田區端點皆要求 Bearer 權杖。</summary>
+    /// <summary>驗證保留原名稱仍可更新，並能清除省略的選填資料。</summary>
+    [Fact]
+    public async Task EditsOwnFieldAndClearsOmittedOptionalValues()
+    {
+        var (client, _) = await fixture.CreateAccountClientAsync();
+        using var owner = client;
+        using var created = await owner.PostAsJsonAsync(FieldsUrl, new
+        {
+            name = "北側田", areaSquareMeters = 1m, latitude = 23m, longitude = 121m, notes = "舊備註"
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var location = Assert.IsType<Uri>(created.Headers.Location);
+
+        using var response = await owner.PutAsJsonAsync(location, new { name = " 北側田 ", areaSquareMeters = 1234.5678m });
+
+        Assert.True(response.StatusCode == HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        var edited = Assert.Single((await response.Content.ReadFromJsonAsync<FieldRsDto>())!.Fields);
+        Assert.Equal($"{FieldsUrl}/{edited.Id}", location.AbsolutePath);
+        Assert.Equal("北側田", edited.Name);
+        Assert.Equal(1234.5678m, edited.AreaSquareMeters);
+        Assert.Null(edited.Latitude);
+        Assert.Null(edited.Longitude);
+        Assert.Null(edited.Notes);
+        Assert.Equal(edited, await owner.GetFromJsonAsync<FieldDto>(location));
+    }
+
+    /// <summary>驗證精度與成對座標錯誤會阻擋編輯，原有資料仍保留。</summary>
+    [Theory]
+    [InlineData("""{"name":"新田區","areaSquareMeters":1.000000000000000000000000000001}""", "areaSquareMeters")]
+    [InlineData("""{"name":"新田區","areaSquareMeters":1,"latitude":23}""", "longitude")]
+    public async Task RejectsInvalidEditsWithoutChangingStoredValues(string json, string errorField)
+    {
+        var (client, _) = await fixture.CreateAccountClientAsync();
+        using var owner = client;
+        var field = await CreateFieldAsync(owner, "北側田");
+        using var body = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await owner.PutAsync($"{FieldsUrl}/{field.Id}", body);
+
+        await AssertFieldErrorAsync(response, HttpStatusCode.BadRequest, errorField);
+        Assert.Equal(field, await owner.GetFromJsonAsync<FieldDto>($"{FieldsUrl}/{field.Id}"));
+    }
+
+    /// <summary>驗證並行編輯成同名時只有一筆成功，另一筆保留原資料。</summary>
+    [Fact]
+    public async Task ConcurrentEditsToSameNameReturnOneConflict()
+    {
+        var (client, _) = await fixture.CreateAccountClientAsync();
+        using var owner = client;
+        var first = await CreateFieldAsync(owner, "北側田");
+        var second = await CreateFieldAsync(owner, "南側田");
+        var responses = await Task.WhenAll(
+            owner.PutAsJsonAsync($"{FieldsUrl}/{first.Id}", new { name = "共用名稱", areaSquareMeters = 2 }),
+            owner.PutAsJsonAsync($"{FieldsUrl}/{second.Id}", new { name = " 共用名稱 ", areaSquareMeters = 2 }));
+        using var firstResponse = responses[0];
+        using var secondResponse = responses[1];
+
+        Assert.Single(responses, response => response.StatusCode == HttpStatusCode.OK);
+        var conflict = Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Conflict);
+        await AssertFieldErrorAsync(conflict, HttpStatusCode.Conflict, "name");
+        var unchanged = conflict == firstResponse ? first : second;
+        Assert.Equal(unchanged, await owner.GetFromJsonAsync<FieldDto>($"{FieldsUrl}/{unchanged.Id}"));
+        var fields = (await owner.GetFromJsonAsync<FieldRsDto>(FieldsUrl))!.Fields;
+        Assert.Equal(2, fields.Count);
+        Assert.Equal(2m, Assert.Single(fields, field => field.Name == "共用名稱").AreaSquareMeters);
+    }
+
+    /// <summary>驗證他人田區不能編輯或刪除，批次混入他人或不存在的田區時整批保留。</summary>
+    [Fact]
+    public async Task OtherAccountsFieldsAreHiddenAndInvalidBatchesLeaveAllFields()
+    {
+        var (client, _) = await fixture.CreateAccountClientAsync();
+        using var owner = client;
+        var (otherClient, _) = await fixture.CreateAccountClientAsync();
+        using var other = otherClient;
+        var first = await CreateFieldAsync(owner, "北側田");
+        var second = await CreateFieldAsync(other, "南側田");
+        using var edit = await owner.PutAsJsonAsync($"{FieldsUrl}/{second.Id}", new { name = "改名", areaSquareMeters = 2 });
+        using var delete = await owner.DeleteAsync($"{FieldsUrl}/{second.Id}");
+        using var mixed = await DeleteFieldsAsync(owner, [first.Id, second.Id]);
+        using var missing = await DeleteFieldsAsync(owner, [first.Id, Guid.NewGuid()]);
+
+        Assert.All(new[] { edit, delete, mixed, missing }, response => Assert.Equal(HttpStatusCode.NotFound, response.StatusCode));
+        Assert.Equal(first, await owner.GetFromJsonAsync<FieldDto>($"{FieldsUrl}/{first.Id}"));
+        Assert.Equal(second, await other.GetFromJsonAsync<FieldDto>($"{FieldsUrl}/{second.Id}"));
+    }
+
+    /// <summary>驗證空清單及重複 ID 會收到欄位錯誤，且不刪除任何田區。</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BulkDeleteRejectsEmptyAndDuplicateIds(bool duplicate)
+    {
+        var (client, accountId) = await fixture.CreateAccountClientAsync();
+        using var owner = client;
+        var field = await CreateFieldAsync(owner, "北側田");
+        using var response = await DeleteFieldsAsync(owner, duplicate ? [field.Id, field.Id] : []);
+
+        await AssertFieldErrorAsync(response, HttpStatusCode.BadRequest, "fieldIds");
+        Assert.Equal(1, await fixture.CountFieldsAsync(accountId));
+    }
+
+    /// <summary>驗證單筆及批次刪除只移除指定田區，重複刪除同一筆時回傳找不到。</summary>
+    [Fact]
+    public async Task DeletesSingleAndMultipleFieldsOwnedByCaller()
+    {
+        var (client, accountId) = await fixture.CreateAccountClientAsync();
+        using var owner = client;
+        var first = await CreateFieldAsync(owner, "北側田");
+        var second = await CreateFieldAsync(owner, "南側田");
+        var third = await CreateFieldAsync(owner, "東側田");
+        var kept = await CreateFieldAsync(owner, "西側田");
+        using var single = await owner.DeleteAsync($"{FieldsUrl}/{first.Id}");
+        using var repeated = await owner.DeleteAsync($"{FieldsUrl}/{first.Id}");
+        using var batch = await DeleteFieldsAsync(owner, [second.Id, third.Id]);
+
+        Assert.Equal(HttpStatusCode.NoContent, single.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, repeated.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, batch.StatusCode);
+        Assert.Equal(kept, Assert.Single((await owner.GetFromJsonAsync<FieldRsDto>(FieldsUrl))!.Fields));
+        Assert.Equal(1, await fixture.CountFieldsAsync(accountId));
+    }
+
+    /// <summary>驗證田區端點皆要求 Bearer 權杖。</summary>
     [Fact]
     public async Task FieldEndpointsRequireBearerAuthentication()
     {
@@ -164,10 +286,16 @@ public sealed class FieldsApiTests(FieldsApiFixture fixture) : IClassFixture<Fie
         using var list = await anonymous.GetAsync(FieldsUrl);
         using var get = await anonymous.GetAsync($"{FieldsUrl}/{Guid.NewGuid()}");
         using var create = await anonymous.PostAsJsonAsync(FieldsUrl, new { name = "北側田", areaSquareMeters = 1 });
+        using var edit = await anonymous.PutAsJsonAsync($"{FieldsUrl}/{Guid.NewGuid()}", new { name = "北側田", areaSquareMeters = 1 });
+        using var delete = await anonymous.DeleteAsync($"{FieldsUrl}/{Guid.NewGuid()}");
+        using var bulkDelete = await DeleteFieldsAsync(anonymous, [Guid.NewGuid()]);
 
         Assert.Equal(HttpStatusCode.Unauthorized, list.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, get.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, create.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, edit.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, delete.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, bulkDelete.StatusCode);
     }
 
     /// <summary>驗證已簽章但 <c>sub</c> 無效的權杖在工作階段和田區端點皆回傳 HTTP 401。</summary>
@@ -213,11 +341,35 @@ public sealed class FieldsApiTests(FieldsApiFixture fixture) : IClassFixture<Fie
         using var list = await account.GetAsync(FieldsUrl);
         using var get = await account.GetAsync($"{FieldsUrl}/{Guid.NewGuid()}");
         using var create = await account.PostAsJsonAsync(FieldsUrl, new { name = "北側田", areaSquareMeters = 1 });
+        using var edit = await account.PutAsJsonAsync($"{FieldsUrl}/{Guid.NewGuid()}", new { name = "北側田", areaSquareMeters = 1 });
+        using var delete = await account.DeleteAsync($"{FieldsUrl}/{Guid.NewGuid()}");
+        using var bulkDelete = await DeleteFieldsAsync(account, [Guid.NewGuid()]);
 
         Assert.Equal(HttpStatusCode.Forbidden, list.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, get.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, create.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, edit.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, delete.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, bulkDelete.StatusCode);
         Assert.Equal(0, await fixture.CountFieldsAsync(accountId));
+    }
+
+    /// <summary>透過 API 建立田區，並取得後續測試所需的識別碼與初始資料。</summary>
+    private static async Task<FieldDto> CreateFieldAsync(HttpClient client, string name)
+    {
+        using var response = await client.PostAsJsonAsync(FieldsUrl, new { name, areaSquareMeters = 1 });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return Assert.Single((await response.Content.ReadFromJsonAsync<FieldRsDto>())!.Fields);
+    }
+
+    /// <summary>送出包含田區 ID 清單的批次刪除請求。</summary>
+    private static async Task<HttpResponseMessage> DeleteFieldsAsync(HttpClient client, Guid[] fieldIds)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"{FieldsUrl}/bulk-delete")
+        {
+            Content = JsonContent.Create(new { fieldIds })
+        };
+        return await client.SendAsync(request);
     }
 
     /// <summary>核對欄位錯誤的 HTTP 狀態、媒體類型及回應欄位。</summary>

@@ -29,10 +29,8 @@ type ListState =
       }
     </header>
 
-    @if (createdFieldName) {
-      <p class="field-success" role="status">
-        已新增田區「{{ createdFieldName }}」
-      </p>
+    @if (notice()) {
+      <p class="field-success" role="status">{{ notice() }}</p>
     }
 
     @let result = state();
@@ -74,6 +72,9 @@ type ListState =
                   <th scope="col">田區名稱</th>
                   <th scope="col">面積</th>
                   <th scope="col">座標（緯度、經度）</th>
+                  @if (!overview) {
+                    <th scope="col">操作</th>
+                  }
                 </tr>
               </thead>
               <tbody>
@@ -94,6 +95,30 @@ type ListState =
                         未設定
                       }
                     </td>
+                    @if (!overview) {
+                      <td>
+                        <div class="field-row-actions">
+                          <a
+                            class="button button-outline"
+                            [routerLink]="[
+                              '/dashboard/fields',
+                              field.id,
+                              'edit',
+                            ]"
+                            [attr.aria-label]="'編輯田區：' + field.name"
+                            >編輯</a
+                          >
+                          <button
+                            class="button button-outline"
+                            type="button"
+                            [attr.aria-label]="'刪除田區：' + field.name"
+                            (click)="confirmDelete(field, deleteDialog)"
+                          >
+                            刪除
+                          </button>
+                        </div>
+                      </td>
+                    }
                   </tr>
                 }
               </tbody>
@@ -102,20 +127,56 @@ type ListState =
         }
       }
     }
+
+    <dialog
+      #deleteDialog
+      class="field-delete-dialog"
+      aria-labelledby="field-delete-title"
+      aria-describedby="field-delete-description"
+      (cancel)="onCancelDelete($event)"
+    >
+      <h2 id="field-delete-title">刪除田區</h2>
+      <p id="field-delete-description">
+        確定刪除「{{ deletingField()?.name }}」？此操作無法復原。
+      </p>
+      @if (deleteError()) {
+        <p class="error" role="alert">{{ deleteError() }}</p>
+      }
+      <div class="field-form-actions">
+        <button
+          class="button button-outline"
+          type="button"
+          autofocus
+          [disabled]="deleting()"
+          (click)="deleteDialog.close()"
+        >
+          取消
+        </button>
+        <button
+          class="button"
+          type="button"
+          [disabled]="deleting()"
+          (click)="deleteField(deleteDialog)"
+        >
+          {{ deleting() ? '刪除中…' : '確認刪除' }}
+        </button>
+      </div>
+    </dialog>
   `,
 })
 export class FieldListPage {
   private readonly fields = inject(FieldsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
-  private readonly navigationInfo =
-    this.router.currentNavigation()?.extras.info;
-
   protected readonly overview =
     inject(ActivatedRoute).snapshot.data['overview'] === true;
-  protected readonly createdFieldName =
-    typeof this.navigationInfo === 'string' ? this.navigationInfo : undefined;
   protected readonly state = signal<ListState>({ status: 'loading' });
+  protected readonly notice = signal(
+    fieldSaveNotice(this.router.currentNavigation()?.extras.info),
+  );
+  protected readonly deletingField = signal<FieldDto | null>(null);
+  protected readonly deleting = signal(false);
+  protected readonly deleteError = signal('');
 
   ngOnInit(): void {
     this.load();
@@ -149,4 +210,70 @@ export class FieldListPage {
         },
       });
   }
+
+  protected confirmDelete(field: FieldDto, dialog: HTMLDialogElement): void {
+    this.deletingField.set(field);
+    this.deleteError.set('');
+    dialog.showModal();
+  }
+
+  protected onCancelDelete(event: Event): void {
+    if (this.deleting()) event.preventDefault();
+  }
+
+  protected deleteField(dialog: HTMLDialogElement): void {
+    const field = this.deletingField();
+    if (!field || this.deleting()) return;
+    this.deleting.set(true);
+    this.deleteError.set('');
+    this.fields
+      .deleteField({ fieldId: field.id })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deleting.set(false);
+          dialog.close();
+          this.state.update((result) =>
+            result.status === 'ready'
+              ? {
+                  status: 'ready',
+                  fields: result.fields.filter((item) => item.id !== field.id),
+                }
+              : result,
+          );
+          this.notice.set(`已刪除田區「${field.name}」`);
+        },
+        error: (error: unknown) => {
+          this.deleting.set(false);
+          const status =
+            error instanceof HttpErrorResponse ? error.status : undefined;
+          if (status === 401) {
+            dialog.close();
+            void this.router.navigateByUrl('/login', { replaceUrl: true });
+          } else if (status === 404) {
+            this.deleteError.set('找不到此田區，請關閉後重新整理列表。');
+          } else if (status === 403) {
+            this.deleteError.set('此帳號無法刪除田區。');
+          } else if (status === 409) {
+            this.deleteError.set('有栽培紀錄的田區不能刪除。');
+          } else {
+            this.deleteError.set('目前無法刪除田區，請再試一次。');
+          }
+        },
+      });
+  }
+}
+
+function fieldSaveNotice(info: unknown): string {
+  if (
+    typeof info !== 'object' ||
+    !info ||
+    !('action' in info) ||
+    !('name' in info) ||
+    typeof info.name !== 'string'
+  )
+    return '';
+  if (info.action === 'created') return `已新增田區「${info.name}」`;
+  if (info.action === 'edited') return `已更新田區「${info.name}」`;
+  return '';
 }

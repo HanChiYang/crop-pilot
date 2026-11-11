@@ -82,12 +82,12 @@ builder.Services.AddProblemDetails();
 builder.Services.AddControllers(options =>
 {
     options.ModelMetadataDetailsProviders.Add(new SystemTextJsonValidationMetadataProvider());
-    options.ModelMetadataDetailsProviders.Add(new CreateFieldValidationMetadata());
+    options.ModelMetadataDetailsProviders.Add(new FieldSaveValidationMetadata());
 }).AddJsonOptions(options =>
 {
     var serializer = options.JsonSerializerOptions;
     serializer.TypeInfoResolver = serializer.TypeInfoResolver!
-        .WithAddedModifier(FieldDecimalJsonConverter.ConfigureCreateField);
+        .WithAddedModifier(FieldDecimalJsonConverter.ConfigureFieldSave);
 }).ConfigureApiBehaviorOptions(options =>
 {
     options.InvalidModelStateResponseFactory = context =>

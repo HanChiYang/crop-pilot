@@ -123,6 +123,17 @@ button, input, textarea { font: inherit; }
 .field-coordinates > p { margin-top: .35rem; font-size: .875rem; }
 .field-form-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.2rem; }
 .field-form-message { margin-top: .65rem; }
+.field-row-actions { display: flex; gap: .5rem; }
+.field-row-actions .button { padding: .35rem .65rem; }
+.field-delete-dialog {
+  width: min(28rem, calc(100% - 2rem));
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: .9rem;
+  overflow-wrap: anywhere;
+}
+.field-delete-dialog::backdrop { background: rgb(20 38 29 / 55%); }
+.field-delete-dialog .field-form-actions { justify-content: flex-end; }
 
 @media (max-width: 650px) {
   .hero, .feature-grid, .login-layout, .overview-layout, .field-form-grid { grid-template-columns: 1fr; }
