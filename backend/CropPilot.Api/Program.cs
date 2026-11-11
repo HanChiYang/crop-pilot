@@ -3,6 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 using CropPilot.Api.Authentication;
 using CropPilot.Api.Data;
 using CropPilot.Api.Fields;
+using CropPilot.Api.Plantings;
+using CropPilot.Contract.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -21,6 +23,8 @@ builder.Services.AddDbContext<CropPilotDbContext>(options => options
     .UseSnakeCaseNamingConvention());
 builder.Services.AddScoped<FieldRepository>();
 builder.Services.AddScoped<FieldService>();
+builder.Services.AddScoped<PlantingRepository>();
+builder.Services.AddScoped<PlantingService>();
 builder.Services.AddIdentityCore<MainAccount>()
     .AddUserStore<CropPilotUserStore>()
     .AddClaimsPrincipalFactory<AccountPrincipalFactory>()
@@ -86,6 +90,8 @@ builder.Services.AddControllers(options =>
 }).AddJsonOptions(options =>
 {
     var serializer = options.JsonSerializerOptions;
+    serializer.Converters.Add(new PlantingStatusJsonConverter<CreatePlantingRqDto.StatusEnum>());
+    serializer.Converters.Add(new PlantingStatusJsonConverter<PlantingStatus>());
     serializer.TypeInfoResolver = serializer.TypeInfoResolver!
         .WithAddedModifier(FieldDecimalJsonConverter.ConfigureFieldSave);
 }).ConfigureApiBehaviorOptions(options =>

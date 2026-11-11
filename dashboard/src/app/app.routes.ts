@@ -8,6 +8,8 @@ import { LoginPage } from './login-page';
 import { DashboardLayout } from './dashboard-layout';
 import { FieldFormPage } from './field-form-page';
 import { FieldListPage } from './field-list-page';
+import { PlantingFormPage } from './planting-form-page';
+import { PlantingListPage } from './planting-list-page';
 
 const redirectSignedIn: CanActivateFn = () => {
   const auth = inject(AuthService);
@@ -48,6 +50,8 @@ export const routes: Routes = [
       { path: 'fields', component: FieldListPage, title: '田區管理｜CropPilot' },
       { path: 'fields/new', component: FieldFormPage, title: '新增田區｜CropPilot' },
       { path: 'fields/:fieldId/edit', component: FieldFormPage, title: '編輯田區｜CropPilot' },
+      { path: 'plantings', component: PlantingListPage, title: '作物栽培管理｜CropPilot' },
+      { path: 'plantings/:fieldId/new', component: PlantingFormPage, title: '新增栽培紀錄｜CropPilot' },
     ],
   },
   { path: '**', redirectTo: '' },

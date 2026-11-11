@@ -3,6 +3,8 @@ api.module.ts
 api/api.ts
 api/auth.service.ts
 api/fields.service.ts
+api/overview.service.ts
+api/plantings.service.ts
 configuration.ts
 encoder.ts
 index.ts
@@ -10,13 +12,17 @@ model/accessTokenRsDto.ts
 model/apiProblemRsDto.ts
 model/apiValidationProblemRsDto.ts
 model/createFieldRqDto.ts
+model/createPlantingRqDto.ts
 model/deleteFieldRqDto.ts
 model/editFieldRqDto.ts
 model/fieldDto.ts
+model/fieldOverviewRsDto.ts
 model/fieldRsDto.ts
 model/loginRqDto.ts
 model/logoutRqDto.ts
 model/models.ts
+model/plantingRsDto.ts
+model/plantingStatus.ts
 param.ts
 provide-api.ts
 query.params.ts

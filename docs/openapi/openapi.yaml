@@ -4,7 +4,7 @@ x-stoplight:
 info:
   title: CropPilot
   version: '1.0'
-  description: 首個桌機切片涵蓋登入、新增田區、新增規劃中的栽培及田區總覽。
+  description: 首個桌機切片涵蓋登入、新增田區、栽培紀錄新增與查詢及田區總覽。
   contact:
     name: CropPilot 專案維護
     url: https://github.com/HanChiYang/crop-pilot
@@ -350,11 +350,37 @@ paths:
   /api/v1/fields/{fieldId}/plantings:
     parameters:
       - $ref: '#/components/parameters/FieldId'
+    get:
+      tags: [Plantings]
+      operationId: listFieldPlantings
+      summary: 列出指定田區目前的栽培紀錄
+      description: 需要 USER 角色。回傳規劃中、栽培中與採收中的紀錄。自己的田區沒有目前紀錄時回傳空陣列。田區不存在或屬於其他帳號時回傳 404。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 目前的栽培紀錄
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlantingRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
     post:
       tags: [Plantings]
       operationId: createPlanting
-      summary: 新增單筆規劃中的栽培紀錄
-      description: 伺服器將狀態設為 planned，實際栽種日設為 null。
+      summary: 新增單筆栽培紀錄
+      description: 省略狀態時預設為 planned。選 growing 時必須提供實際栽種日，否則回傳 400。補登 harvesting 時實際栽種日可留空。
       security:
         - BearerAuth: []
       requestBody:
@@ -363,8 +389,16 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreatePlantingRqDto'
-            example:
-              cropName: 番茄
+            examples:
+              planned:
+                summary: 新增規劃中紀錄
+                value:
+                  cropName: 番茄
+              harvesting:
+                summary: 補登採收中紀錄，實際栽種日未知
+                value:
+                  cropName: 番茄
+                  status: harvesting
       responses:
         '201':
           description: 已建立栽培紀錄
@@ -383,6 +417,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -409,6 +445,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -432,6 +470,8 @@ paths:
                   $ref: '#/components/schemas/FieldOverviewRsDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
         '500':
           $ref: '#/components/responses/ServerError'
 components:
@@ -627,6 +667,16 @@ components:
     CreatePlantingRqDto:
       type: object
       required: [cropName]
+      if:
+        required: [status]
+        properties:
+          status:
+            const: growing
+      then:
+        required: [actualPlantingDate]
+        properties:
+          actualPlantingDate:
+            type: string
       properties:
         cropName:
           type: string
@@ -638,6 +688,14 @@ components:
         plannedPlantingDate:
           type: [string, 'null']
           format: date
+        actualPlantingDate:
+          type: [string, 'null']
+          format: date
+          description: 栽培中必填。採收中日期未知時可省略或傳 null。
+        status:
+          type: string
+          enum: [planned, growing, harvesting]
+          default: planned
         notes:
           type: [string, 'null']
           maxLength: 1000

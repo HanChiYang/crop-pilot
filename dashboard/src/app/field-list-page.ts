@@ -3,13 +3,19 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { map } from 'rxjs';
 import { FieldsService } from './generated/api/fields.service';
+import { OverviewService } from './generated/api/overview.service';
 import { FieldDto } from './generated/model/fieldDto';
+import { PlantingRsDto } from './generated/model/plantingRsDto';
+import { plantingDate, plantingStatusLabel } from './planting-display';
+
+type ListedField = FieldDto & { plantings?: PlantingRsDto[] };
 
 type ListState =
   | { status: 'loading' }
   | { status: 'error'; message: string; retry: boolean }
-  | { status: 'ready'; fields: FieldDto[] };
+  | { status: 'ready'; fields: ListedField[] };
 
 @Component({
   selector: 'app-field-list-page',
@@ -25,7 +31,10 @@ type ListState =
         </p>
       </div>
       @if (!overview && state().status === 'ready') {
-        <a class="button" routerLink="/dashboard/fields/new">＋ 新增田區</a>
+        <div class="field-row-actions">
+          <a class="button button-outline" routerLink="/dashboard/plantings">前往作物栽培管理</a>
+          <a class="button" routerLink="/dashboard/fields/new">＋ 新增田區</a>
+        </div>
       }
     </header>
 
@@ -72,7 +81,9 @@ type ListState =
                   <th scope="col">田區名稱</th>
                   <th scope="col">面積</th>
                   <th scope="col">座標（緯度、經度）</th>
-                  @if (!overview) {
+                  @if (overview) {
+                    <th scope="col">目前栽培</th>
+                  } @else {
                     <th scope="col">操作</th>
                   }
                 </tr>
@@ -95,7 +106,20 @@ type ListState =
                         未設定
                       }
                     </td>
-                    @if (!overview) {
+                    @if (overview) {
+                      <td>
+                        @for (planting of field.plantings; track planting.id) {
+                          <div class="overview-planting">
+                            <strong>{{ planting.cropName }}</strong>
+                            @if (planting.variety) { <span>（{{ planting.variety }}）</span> }
+                            <span>{{ statusLabel[planting.status] }}</span>
+                            <p>{{ dateLabel(planting) }}</p>
+                          </div>
+                        } @empty {
+                          目前沒有栽培紀錄
+                        }
+                      </td>
+                    } @else {
                       <td>
                         <div class="field-row-actions">
                           <a
@@ -166,6 +190,7 @@ type ListState =
 })
 export class FieldListPage {
   private readonly fields = inject(FieldsService);
+  private readonly overviewApi = inject(OverviewService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   protected readonly overview =
@@ -176,6 +201,8 @@ export class FieldListPage {
   );
   protected readonly deletingField = signal<FieldDto | null>(null);
   protected readonly deleting = signal(false);
+  protected readonly statusLabel = plantingStatusLabel;
+  protected readonly dateLabel = plantingDate;
   protected readonly deleteError = signal('');
 
   ngOnInit(): void {
@@ -184,11 +211,13 @@ export class FieldListPage {
 
   protected load(): void {
     this.state.set({ status: 'loading' });
-    this.fields
-      .getFields()
+    const request = this.overview
+      ? this.overviewApi.getOverview()
+      : this.fields.getFields().pipe(map(({ fields }) => fields));
+    request
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ fields }) => this.state.set({ status: 'ready', fields }),
+        next: (fields) => this.state.set({ status: 'ready', fields }),
         error: (error: unknown) => {
           const status =
             error instanceof HttpErrorResponse ? error.status : undefined;

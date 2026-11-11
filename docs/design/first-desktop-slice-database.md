@@ -18,11 +18,11 @@
 
 - 提案使用 PostgreSQL。田區面積與座標採 `numeric`，由 C# `decimal` 對應。資料庫對名稱、面積和成對座標設約束，API 也驗證這些條件，以便 Angular 顯示對應欄位的提示。
 - 栽種日期使用資料庫 `date`，API 傳 `YYYY-MM-DD` 或 `null`。預定與實際栽種日分開保存，供後續管理切片使用。
-- 作物與品種先提案用文字欄位，作物清單來源仍待確認。田區與栽培紀錄的外鍵限制刪除，讓後續管理切片可以保留栽培歷史。
+- 首版的作物名稱與品種由使用者手動輸入，作物名稱必填，品種選填。田區與栽培紀錄的外鍵限制刪除，讓後續管理切片可以保留栽培歷史。
 
 ### PostgreSQL 資料表
 
-PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式的資料表一律以單欄 `id` 為主鍵，型別為 `uuid`。新 ID 由伺服器產生。指向這些主鍵的外鍵也使用 `uuid`。帳號相關資料表由 `DesktopAccountModel` migration 建立，田區資料表由 `CreateFields` migration 建立。栽培資料表仍在設計審查。API JSON 欄位採 OpenAPI 契約中的名稱，例如 `crop_name` 對應 `cropName`。
+PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式的資料表一律以單欄 `id` 為主鍵，型別為 `uuid`。新 ID 由伺服器產生。指向這些主鍵的外鍵也使用 `uuid`。帳號相關資料表由 `DesktopAccountModel` migration 建立，田區資料表由 `CreateFields` migration 建立。栽培資料表由 CreatePlantings migration 建立。API JSON 欄位採 OpenAPI 契約中的名稱，例如 `crop_name` 對應 `cropName`。
 
 #### main_account
 
@@ -123,11 +123,11 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `crop_name` | `varchar(120)` | NOT NULL，至少一個非空白字元 | 栽培的作物名稱。 |
 | `variety` | `varchar(120)` | 可為 NULL | 作物品種。 |
 | `planned_planting_date` | `date` | 可為 NULL | 預計開始栽種的日期。 |
-| `actual_planting_date` | `date` | `GROWING`、`HARVESTING` 或 `COMPLETED` 時必填，其餘可為 NULL | 實際開始栽種的日期。新增規劃中紀錄時留空。 |
+| `actual_planting_date` | `date` | `GROWING` 或 `COMPLETED` 時必填，其餘可為 NULL | 實際開始栽種的日期。規劃中的新增表單不提供此欄，API 仍接受日期或空值。補登採收中紀錄時，日期未知可留空。 |
 | `status` | `varchar(16)` | NOT NULL，預設 `PLANNED`，以 `CHECK` 限定 `PLANNED`、`GROWING`、`HARVESTING`、`COMPLETED` | 目前的栽培階段。 |
 | `description` | `varchar(1000)` | 可為 NULL | 這筆栽培紀錄的備註。 |
 
-田區與栽培的具名 `CHECK` 約束涵蓋非空白名稱、面積大於零且不超過 `9999999999.9999`、成對且在合法範圍內的座標，以及栽培狀態。座標條件明確要求兩欄皆為 NULL 或皆有值，避免 SQL 的 NULL 比較放過只填一欄的資料。栽培進入 `GROWING`、`HARVESTING` 或 `COMPLETED` 時須有實際栽種日。API 在儲存前檢查數值精度，超過欄位小數位數就回傳驗證錯誤。[PostgreSQL 約束](https://www.postgresql.org/docs/current/ddl-constraints.html)
+田區與栽培的具名 `CHECK` 約束涵蓋非空白名稱、面積大於零且不超過 `9999999999.9999`、成對且在合法範圍內的座標，以及栽培狀態。座標條件明確要求兩欄皆為 NULL 或皆有值，避免 SQL 的 NULL 比較放過只填一欄的資料。栽培狀態為 `GROWING` 或 `COMPLETED` 時，實際栽種日須有值。API 在儲存前檢查數值精度，超過欄位小數位數就回傳驗證錯誤。[PostgreSQL 約束](https://www.postgresql.org/docs/current/ddl-constraints.html)
 
 ### ERD 與外鍵審查
 

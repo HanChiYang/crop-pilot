@@ -33,7 +33,12 @@ import { AuthSession } from './auth-session';
             ariaCurrentWhenActive="page"
             >田區管理</a
           >
-          <span aria-disabled="true">作物栽培管理</span>
+          <a
+            routerLink="/dashboard/plantings"
+            routerLinkActive="active"
+            ariaCurrentWhenActive="page"
+            >作物栽培管理</a
+          >
         </nav>
         <div class="sidebar-account">
           <strong>農民帳號</strong>

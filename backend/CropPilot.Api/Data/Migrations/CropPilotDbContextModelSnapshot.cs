@@ -227,6 +227,65 @@ namespace CropPilot.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CropPilot.Api.Data.Planting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly?>("ActualPlantingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("actual_planting_date");
+
+                    b.Property<string>("CropName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("crop_name");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid>("FieldId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("field_id");
+
+                    b.Property<DateOnly?>("PlannedPlantingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("planned_planting_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("PLANNED")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Variety")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("variety");
+
+                    b.HasKey("Id")
+                        .HasName("pk_plantings");
+
+                    b.HasIndex("FieldId")
+                        .HasDatabaseName("ix_plantings_field_id");
+
+                    b.ToTable("plantings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_plantings_actual_planting_date", "status NOT IN ('GROWING', 'COMPLETED') OR actual_planting_date IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_plantings_crop_name", "btrim(crop_name, U&'\\0009\\000A\\000B\\000C\\000D\\0020\\0085\\00A0\\1680\\2000\\2001\\2002\\2003\\2004\\2005\\2006\\2007\\2008\\2009\\200A\\2028\\2029\\202F\\205F\\3000') <> ''");
+
+                            t.HasCheckConstraint("ck_plantings_status", "status IN ('PLANNED', 'GROWING', 'HARVESTING', 'COMPLETED')");
+                        });
+                });
+
             modelBuilder.Entity("CropPilot.Api.Data.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -344,6 +403,18 @@ namespace CropPilot.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_local_credentials_main_accounts_main_account_id");
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.Planting", b =>
+                {
+                    b.HasOne("CropPilot.Api.Data.Field", "Field")
+                        .WithMany()
+                        .HasForeignKey("FieldId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_plantings_fields_field_id");
+
+                    b.Navigation("Field");
                 });
 
             modelBuilder.Entity("CropPilot.Api.Data.UserProfile", b =>
