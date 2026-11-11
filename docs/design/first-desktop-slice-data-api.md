@@ -33,8 +33,10 @@ Angular 只在記憶體保存權杖，重新整理後用續期 Cookie 取得新�
 | 刪除單筆田區 | `DELETE /api/v1/fields/{fieldId}`，由路徑指定田區 | `204`，請求與成功回應皆無 body。 |
 | 批次刪除田區 | `DELETE /api/v1/fields/bulk-delete`，傳 `DeleteFieldRqDto` 的 `fieldIds` | `204`，成功回應無 body。 |
 | 新增栽培紀錄 | `POST /api/v1/fields/{fieldId}/plantings`，傳 `CreatePlantingRqDto` | `201`，回傳 `PlantingRsDto`，並以 `Location` 指向該紀錄的查詢端點。 |
-| 查詢田區的栽培列表 | `GET /api/v1/fields/{fieldId}/plantings` | `200`，回傳 `PlantingRsDto` 陣列。自己的田區沒有目前的紀錄時回傳 `[]`。 |
+| 查詢田區的栽培列表 | `GET /api/v1/fields/{fieldId}/plantings` | `200`，回傳 `FieldPlantingsRsDto`。自己的田區沒有目前的紀錄時，`plantings` 為空陣列。 |
 | 查詢栽培紀錄 | `GET /api/v1/fields/{fieldId}/plantings/{plantingId}` | `200`，回傳 `PlantingRsDto`。 |
+| 查詢栽培歷史清單 | `GET /api/v1/planting-history`，選用 `fieldId`、`cropName` | `200`，回傳 `PlantingHistoryItemDto` 陣列。 |
+| 查詢栽培歷史作物選項 | `GET /api/v1/planting-history/crops`，選用 `fieldId` | `200`，回傳去重後的作物名稱字串陣列。 |
 | 田區總覽 | `GET /api/v1/overview` | `200`，回傳自己的 `FieldOverviewRsDto` 陣列，每筆加上 `plantings`。田區沒有目前的栽培紀錄時，`plantings` 為空陣列。 |
 
 ### 新增時選擇栽培狀態
@@ -82,7 +84,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 管理頁在選取或切換田區時呼叫列表端點。成功新增後回到管理頁，沿用原田區選擇並重新讀取列表，顯示已儲存的紀錄。取消新增也回到原田區的列表。
 
-列表沿用總覽的目前栽培範圍，包含 `planned`、`growing` 與 `harvesting`。`completed` 保留供後續歷史列表使用。端點使用 Bearer 驗證並要求 `USER` 角色。無效的田區 ID 格式回 `400`，未登入回 `401`，缺少角色回 `403`，田區不存在或屬於其他帳號回 `404`。
+列表沿用總覽的目前栽培範圍，包含 `planned`、`growing` 與 `harvesting`。`completed` 由栽培歷史清單查詢。端點使用 Bearer 驗證並要求 `USER` 角色。無效的田區 ID 格式回 `400`，未登入回 `401`，缺少角色回 `403`，田區不存在或屬於其他帳號回 `404`。
 
 列表回傳 `areaSquareMeters`、`allocatedAreaSquareMeters`、`remainingAreaSquareMeters` 與 `plantings`。空田區仍有面積摘要，`plantings` 為空陣列。每筆紀錄的 `areaSquareMeters` 對應 `plantings.area_square_meters`。新增或更新超額時回傳 `409`，`errors.areaSquareMeters` 包含當下可分配面積，表單保留輸入。
 
@@ -110,6 +112,27 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 | 伺服器儲存失敗 | `500`，通用錯誤訊息。 | 留在表單並保留輸入，讓使用者重試。 |
 
 建立田區前，API 去除名稱頭尾空白，並保留大小寫。若寫入違反 `(main_account_id, name)` 唯一索引，即使兩筆請求同時送出，也應回傳 `409` 和 `errors.name`。
+
+### 栽培歷史
+
+進入頁面時，田區選單沿用 `GET /api/v1/fields`，包含登入者所有田區。初次載入與切換田區時呼叫 `GET /api/v1/planting-history/crops`，作物條件回到「全部作物」，並只採用最新田區所對應的選項回應。使用者按「查詢」才呼叫歷史清單。
+
+| 參數 | 約定 |
+| --- | --- |
+| `fieldId` | 選用 UUID。省略表示全部田區。傳入空值或格式錯誤回 `400`。指定田區不存在或屬於其他帳號回 `404`，使用相同的錯誤格式。 |
+| `cropName` | 歷史清單的選用參數。省略表示全部作物。傳作物選項回傳的完整名稱，依原字串區分大小寫比對。空字串、全空白或超過 120 字元回 `400`。有效名稱沒有匹配資料時回 `200 []`。 |
+
+兩個端點都使用 Bearer 驗證並要求 `USER` 角色。後端共用查詢條件，依已驗證的主帳號 ID、已結束狀態及選用的 `fieldId` 限定範圍。田區存在但沒有已結束紀錄時，兩端點都回 `200 []`。
+
+歷史清單在共用範圍內套用選用的 `cropName`。兩個參數同時提供時，紀錄須同時符合田區及作物。結果依實際栽種日由新到舊排列，同日按紀錄 ID 升冪。首版一次回傳所有符合條件的紀錄。
+
+作物下拉選項直接從共用範圍取出名稱，依完整名稱去重並按 PostgreSQL `C` 定序升冪。前端用回傳的名稱填入選單，使用者選定後可將原值送為歷史清單的 `cropName`。
+
+例如先送出 `GET /api/v1/planting-history/crops?fieldId=ad31b935-6b1c-4669-8c92-fb1c8489900f`，取得 `["番茄"]`，再以相同的 `fieldId` 和 `cropName=%E7%95%AA%E8%8C%84` 查詢清單。清單回傳 `id`、`fieldId`、`fieldName`、`cropName`、`variety`、`actualPlantingDate` 和 `areaSquareMeters`。其中田區名稱為查詢當下的名稱，實際栽種日必有值，占用面積取自該筆栽培紀錄。
+
+點開清單項目時，以該項目的 `fieldId` 和 `id` 呼叫既有單筆端點，取得 `PlantingRsDto` 的 `status: completed`、預定與實際栽種日、占用面積及備註等資料。田區名稱透過既有的 `GET /api/v1/fields/{fieldId}` 取得，直接開啟詳情連結時也能顯示。詳情為唯讀，返回時保留先前查詢的條件與清單。查詢失敗保留條件供重試，空陣列顯示查無結果。
+
+驗收涵蓋預設全部、田區及作物交集、選項去重、同日排序、空結果、參數錯誤及兩個帳號的隔離。也要確認同一筆栽培結束後會出現在歷史與單筆詳情，並從田區的目前栽培列表及總覽移除。
 
 ### 本地登入
 

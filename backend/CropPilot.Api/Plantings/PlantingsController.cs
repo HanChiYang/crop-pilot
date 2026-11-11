@@ -77,4 +77,44 @@ public sealed class PlantingsController(PlantingService plantings) : PlantingsAp
         var field = await plantings.ListFieldAsync(AccountId, fieldId, HttpContext.RequestAborted);
         return field is null ? NotFound() : Ok(PlantingDtoMapper.ToFieldPlantingsDto(field));
     }
+
+    /// <summary>依選用的田區及作物名稱回傳登入帳號的已結束紀錄。</summary>
+    public override async Task<IActionResult> ListPlantingHistory(Guid? fieldId, string? cropName)
+    {
+        ValidateHistoryFieldId(fieldId);
+        if (Request.Query.ContainsKey("cropName") && !PlantingService.IsHistoryCropNameValid(cropName))
+        {
+            ModelState.AddModelError("cropName", ErrorMessages.PlantingCropNameInvalid);
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var history = await plantings.ListHistoryAsync(AccountId, fieldId, cropName, HttpContext.RequestAborted);
+        return history is null ? NotFound() : Ok(history.ConvertAll(PlantingDtoMapper.ToHistoryDto));
+    }
+
+    /// <summary>回傳登入帳號在選用田區的已結束作物選項。</summary>
+    public override async Task<IActionResult> ListPlantingHistoryCrops(Guid? fieldId)
+    {
+        ValidateHistoryFieldId(fieldId);
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var crops = await plantings.ListHistoryCropsAsync(AccountId, fieldId, HttpContext.RequestAborted);
+        return crops is null ? NotFound() : Ok(crops);
+    }
+
+    /// <summary>辨識模型繫結會轉為 null 的空田區參數，並回報欄位錯誤。</summary>
+    private void ValidateHistoryFieldId(Guid? fieldId)
+    {
+        if (fieldId is null && Request.Query.ContainsKey("fieldId"))
+        {
+            ModelState.AddModelError("fieldId", ErrorMessages.PlantingHistoryFieldIdInvalid);
+        }
+    }
 }

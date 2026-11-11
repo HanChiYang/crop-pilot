@@ -132,6 +132,21 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 
 田區與栽培的具名 `CHECK` 約束涵蓋非空白名稱、面積大於零且不超過 `9999999999.9999`、成對且在合法範圍內的座標，以及栽培狀態。座標條件明確要求兩欄皆為 NULL 或皆有值，避免 SQL 的 NULL 比較放過只填一欄的資料。栽培狀態為 `GROWING` 或 `COMPLETED` 時，實際栽種日須有值。API 在儲存前檢查數值精度，超過欄位小數位數就回傳驗證錯誤。[PostgreSQL 約束](https://www.postgresql.org/docs/current/ddl-constraints.html)
 
+### 栽培歷史查詢
+
+歷史使用既有 `fields` 與 `plantings`。沿 `plantings.field_id = fields.id` 關聯，依登入主帳號限制 `fields.main_account_id`，查詢 `plantings.status = 'COMPLETED'` 的資料。清單與作物選項都使用同一擁有範圍及狀態條件。指定田區時加上 `fields.id` 篩選，指定作物時以 `C` 定序精確比對 `plantings.crop_name`，作物選項也依同一定序去重與排序。
+
+| API 欄位 | 來源 | 約束與顯示 |
+| --- | --- | --- |
+| `id`、`fieldId` | `plantings.id`、`plantings.field_id` | 單筆詳情以兩者查找。 |
+| `fieldName` | `fields.name` | 使用目前名稱，田區改名後會反映在後續查詢。 |
+| `cropName`、`variety` | `plantings.crop_name`、`plantings.variety` | 品種可為 NULL。 |
+| `actualPlantingDate` | `plantings.actual_planting_date` | 已結束紀錄依現有 CHECK 必有值。 |
+| `areaSquareMeters` | `plantings.area_square_meters` | 顯示結束時儲存於紀錄的占用面積，後續田區面積變動也能讀到原值。 |
+| `status`、`plannedPlantingDate`、`notes` | `plantings.status`、`plantings.planned_planting_date`、`plantings.description` | 單筆詳情回傳 `completed`，預定日期與備註可為 NULL。 |
+
+首版沿用 `fields(main_account_id, name)` 與 `plantings(field_id)` 索引及現有外鍵限制，資料模型沿用下列 ER 圖，因此無須 migration 或資料回填。
+
 ### ERD 與外鍵審查
 
 ```mermaid

@@ -13,6 +13,80 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
 {
     private const string FieldsUrl = "/api/v1/fields";
     private const string OverviewUrl = "/api/v1/overview";
+    private const string HistoryUrl = "/api/v1/planting-history";
+
+    /// <summary>驗證歷史清單、組合篩選、選項去重排序及帳號隔離。</summary>
+    [Fact]
+    public async Task ListsOnlyOwnedCompletedHistoryAndCropOptions()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        using var other = (await fixture.CreateAccountClientAsync()).Client;
+        using var admin = (await fixture.CreateAccountClientAsync(UserRole.Admin)).Client;
+        using var anonymous = fixture.CreateClient();
+        var north = await CreateFieldAsync(owner, "北側田");
+        var south = await CreateFieldAsync(owner, "南側田");
+        var empty = await CreateFieldAsync(owner, "空田");
+        var foreign = await CreateFieldAsync(other, "其他帳號");
+        var older = await fixture.AddCompletedPlantingAsync(north, "Tomato");
+        var recent = await fixture.AddCompletedPlantingAsync(north, "Tomato", new DateOnly(2026, 11, 2));
+        var sameDate = await fixture.AddCompletedPlantingAsync(north, "tomato");
+        var southRecord = await fixture.AddCompletedPlantingAsync(south, "Beans", new DateOnly(2026, 11, 3));
+        await fixture.AddCompletedPlantingAsync(foreign, "Private");
+        using var current = await owner.PostAsJsonAsync($"{FieldsUrl}/{north}/plantings",
+            new { cropName = "Current", areaSquareMeters = 25 });
+        Assert.Equal(HttpStatusCode.Created, current.StatusCode);
+
+        var all = (await owner.GetFromJsonAsync<PlantingHistoryItemDto[]>(HistoryUrl))!;
+        Assert.Equal(new[] { southRecord, recent }.Concat(new[] { older, sameDate }.Order()),
+            all.Select(row => row.Id));
+        var filtered = await owner.GetFromJsonAsync<JsonElement>($"{HistoryUrl}?fieldId={north}&cropName=Tomato");
+        Assert.Equal(new[] { recent, older }, filtered.EnumerateArray().Select(row => row.GetProperty("id").GetGuid()));
+        Assert.Equal("北側田", filtered[0].GetProperty("fieldName").GetString());
+        Assert.Equal("2026-11-02", filtered[0].GetProperty("actualPlantingDate").GetString());
+        Assert.Equal(25m, filtered[0].GetProperty("areaSquareMeters").GetDecimal());
+        Assert.Equal(JsonValueKind.Null, filtered[0].GetProperty("variety").ValueKind);
+        Assert.Equal(sameDate, Assert.Single((await owner.GetFromJsonAsync<PlantingHistoryItemDto[]>(
+            $"{HistoryUrl}?cropName=tomato"))!).Id);
+        Assert.Empty((await owner.GetFromJsonAsync<PlantingHistoryItemDto[]>(
+            $"{HistoryUrl}?fieldId={south}&cropName=Tomato"))!);
+
+        Assert.Equal(new[] { "Beans", "Tomato", "tomato" },
+            await owner.GetFromJsonAsync<string[]>($"{HistoryUrl}/crops"));
+        Assert.Equal(new[] { "Tomato", "tomato" },
+            await owner.GetFromJsonAsync<string[]>($"{HistoryUrl}/crops?fieldId={north}"));
+        Assert.Empty((await owner.GetFromJsonAsync<string[]>($"{HistoryUrl}/crops?fieldId={empty}"))!);
+        Assert.Empty((await owner.GetFromJsonAsync<PlantingHistoryItemDto[]>($"{HistoryUrl}?fieldId={empty}"))!);
+
+        foreach (var url in new[] { HistoryUrl, $"{HistoryUrl}/crops" })
+        {
+            Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(url)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await admin.GetAsync(url)).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"{url}?fieldId={foreign}")).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await owner.GetAsync($"{url}?fieldId=")).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await owner.GetAsync($"{url}?fieldId=invalid")).StatusCode);
+        }
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.GetAsync($"{HistoryUrl}?cropName=%20")).StatusCode);
+    }
+
+    /// <summary>驗證作物選項可直接用作查詢參數，且以 Unicode 碼點驗證字數。</summary>
+    [Fact]
+    public async Task FiltersByCropNamesContainingSupplementaryCharacters()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "北側田");
+        var cropName = string.Concat(Enumerable.Repeat("𠮷", 120));
+        var plantingId = await fixture.AddCompletedPlantingAsync(fieldId, cropName);
+
+        var options = (await owner.GetFromJsonAsync<string[]>($"{HistoryUrl}/crops?fieldId={fieldId}"))!;
+        var option = Assert.Single(options);
+        Assert.Equal(cropName, option);
+        var rows = (await owner.GetFromJsonAsync<PlantingHistoryItemDto[]>(
+            $"{HistoryUrl}?cropName={Uri.EscapeDataString(option)}"))!;
+        Assert.Equal(plantingId, Assert.Single(rows).Id);
+        using var tooLong = await owner.GetAsync($"{HistoryUrl}?cropName={Uri.EscapeDataString(option + "𠮷")}");
+        Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
+    }
 
     /// <summary>驗證三種初始狀態、可空日期及新增後的讀取路徑。</summary>
     [Theory]

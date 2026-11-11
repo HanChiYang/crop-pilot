@@ -10,6 +10,8 @@ import { FieldFormPage } from './field-form-page';
 import { FieldListPage } from './field-list-page';
 import { PlantingFormPage } from './planting-form-page';
 import { PlantingListPage } from './planting-list-page';
+import { PlantingHistoryPage } from './planting-history-page';
+import { PlantingHistoryDetailPage } from './planting-history-detail-page';
 
 const redirectSignedIn: CanActivateFn = () => {
   const auth = inject(AuthService);
@@ -53,6 +55,14 @@ export const routes: Routes = [
       { path: 'plantings', component: PlantingListPage, title: '作物栽培管理｜CropPilot' },
       { path: 'plantings/:fieldId/new', component: PlantingFormPage, title: '新增栽培紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/edit', component: PlantingFormPage, title: '編輯栽培紀錄｜CropPilot' },
+      {
+        path: 'planting-history',
+        component: PlantingHistoryPage,
+        title: '栽培歷史｜CropPilot',
+        children: [
+          { path: ':fieldId/:plantingId', component: PlantingHistoryDetailPage, title: '栽培紀錄詳情｜CropPilot' },
+        ],
+      },
     ],
   },
   { path: '**', redirectTo: '' },

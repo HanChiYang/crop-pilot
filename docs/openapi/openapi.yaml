@@ -514,6 +514,88 @@ paths:
                 $ref: '#/components/schemas/ApiProblemRsDto'
         '500':
           $ref: '#/components/responses/ServerError'
+  /api/v1/planting-history:
+    get:
+      tags: [Plantings]
+      operationId: listPlantingHistory
+      summary: 依田區及作物查詢已結束栽培紀錄
+      description: >-
+        需要 USER 角色。後端只查詢登入帳號擁有的已結束紀錄。
+        fieldId 和 cropName 可各自省略，同時提供時只回傳符合兩個條件的紀錄。
+        省略兩者表示自己的全部田區及作物。
+        結果按實際栽種日降冪、紀錄 ID 升冪排列。
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlantingHistoryFieldId'
+        - name: cropName
+          in: query
+          description: 選用。傳作物選項回傳的完整名稱，以 1 至 120 個 Unicode 碼點計算，區分大小寫比對。省略表示全部作物。空白或無效名稱回傳 400。
+          schema:
+            type: string
+            pattern: '^[\s\S]*\S[\s\S]*$'
+      responses:
+        '200':
+          description: 符合條件的已結束紀錄。查無資料時回傳空陣列。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlantingHistoryItemDto'
+              example:
+                - id: 9d2cf07b-d8d2-4308-9d36-f0ce10504731
+                  fieldId: ad31b935-6b1c-4669-8c92-fb1c8489900f
+                  fieldName: 北側田
+                  cropName: 番茄
+                  variety: 玉女
+                  actualPlantingDate: '2026-03-12'
+                  areaSquareMeters: 240
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/planting-history/crops:
+    get:
+      tags: [Plantings]
+      operationId: listPlantingHistoryCrops
+      summary: 載入栽培歷史的作物下拉選項
+      description: >-
+        需要 USER 角色。進入頁面或切換田區時使用。
+        後端依登入帳號、已結束狀態及選用的 fieldId 限定查詢範圍，
+        回傳其中的作物名稱，依完整名稱區分大小寫去重並以 PostgreSQL C 定序升冪排列。
+        回傳的名稱可作為歷史清單的 cropName 參數。
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlantingHistoryFieldId'
+      responses:
+        '200':
+          description: 作物名稱清單。沒有已結束紀錄時回傳空陣列。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  maxLength: 120
+              example: [玉米, 番茄]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
   /api/v1/overview:
     get:
       tags: [Overview]
@@ -555,6 +637,13 @@ components:
       name: X-XSRF-TOKEN
       description: Angular 從 XSRF-TOKEN Cookie 取得權杖，並在同源寫入請求帶上此標頭。
   parameters:
+    PlantingHistoryFieldId:
+      name: fieldId
+      in: query
+      description: 選用。省略表示自己的全部田區。空值或 UUID 格式錯誤回傳 400。指定的田區不存在或屬於其他帳號時回傳 404。
+      schema:
+        type: string
+        format: uuid
     FieldId:
       name: fieldId
       in: path
@@ -851,6 +940,31 @@ components:
         notes:
           type: [string, 'null']
           maxLength: 1000
+    PlantingHistoryItemDto:
+      type: object
+      required: [id, fieldId, fieldName, cropName, variety, actualPlantingDate, areaSquareMeters]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fieldId:
+          type: string
+          format: uuid
+        fieldName:
+          type: string
+          maxLength: 120
+          description: 查詢當下的田區名稱。
+        cropName:
+          type: string
+          maxLength: 120
+        variety:
+          type: [string, 'null']
+          maxLength: 120
+        actualPlantingDate:
+          type: string
+          format: date
+        areaSquareMeters:
+          $ref: '#/components/schemas/PlantingAreaSquareMeters'
     PlantingStatus:
       type: string
       enum: [planned, growing, harvesting, completed]

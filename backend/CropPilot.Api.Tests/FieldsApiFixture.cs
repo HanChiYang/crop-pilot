@@ -99,14 +99,15 @@ public sealed class FieldsApiFixture : IAsyncLifetime
     }
 
     /// <summary>加入一筆已結束的栽培紀錄，供查詢和刪除限制的測試使用。</summary>
-    internal async Task<Guid> AddCompletedPlantingAsync(Guid fieldId)
+    internal async Task<Guid> AddCompletedPlantingAsync(Guid fieldId, string cropName = "已結束作物",
+        DateOnly? actualPlantingDate = null)
     {
         await using var scope = app.Services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<CropPilotDbContext>();
         var plantingId = Guid.NewGuid();
         await database.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO plantings (id, field_id, crop_name, status, actual_planting_date, area_square_meters)
-            VALUES ({plantingId}, {fieldId}, '已結束作物', 'COMPLETED', DATE '2026-11-01', 25)
+            VALUES ({plantingId}, {fieldId}, {cropName}, 'COMPLETED', {actualPlantingDate ?? new DateOnly(2026, 11, 1)}, 25)
             """);
         return plantingId;
     }

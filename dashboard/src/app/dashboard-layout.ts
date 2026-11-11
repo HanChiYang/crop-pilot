@@ -39,6 +39,12 @@ import { AuthSession } from './auth-session';
             ariaCurrentWhenActive="page"
             >作物栽培管理</a
           >
+          <a
+            routerLink="/dashboard/planting-history"
+            routerLinkActive="active"
+            ariaCurrentWhenActive="page"
+            >栽培歷史</a
+          >
         </nav>
         <div class="sidebar-account">
           <strong>農民帳號</strong>

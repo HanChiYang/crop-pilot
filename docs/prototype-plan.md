@@ -2,6 +2,10 @@
 
 ## UX 草案審查記錄
 
+**2026-11-11 · 栽培歷史 · 已確認**
+
+首版可依田區及作物查詢已結束的栽培紀錄，支援全部田區及全部作物。原型以北側田的番茄示範篩選、單筆詳情及返回原列表，並附上查無結果與查詢失敗畫面。[可點選原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=145-3&page-id=145%3A2&starting-point-node-id=145%3A3&scaling=scale-down) · [需求與驗收條件](requirements/desktop-field-and-planting.md#栽培歷史)
+
 **2026-11-11 · 作物栽培管理整合稿 · 範圍已確認**
 
 本輪一併驗收占用面積、單筆編輯與狀態變更、規劃中刪除。已確認沒有既有栽培紀錄，無須設計補填流程。整合稿仍須走查超額提示及保留輸入。
