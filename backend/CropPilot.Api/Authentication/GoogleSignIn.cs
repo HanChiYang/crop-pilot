@@ -118,7 +118,7 @@ internal sealed class GoogleSignIn(
                     await CreateAccountAsync(subject, email, cancellationToken);
                 }
                 catch (DbUpdateException exception) when (exception.InnerException is PostgresException
-                    { SqlState: PostgresErrorCodes.UniqueViolation })
+                { SqlState: PostgresErrorCodes.UniqueViolation })
                 {
                     // A simultaneous callback can win the unique email or external login constraint.
                     database.ChangeTracker.Clear();
