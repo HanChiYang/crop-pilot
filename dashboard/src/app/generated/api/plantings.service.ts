@@ -17,13 +17,21 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
+import { ApiConflictRsDto } from '../model/apiConflictRsDto';
+// @ts-ignore
 import { ApiProblemRsDto } from '../model/apiProblemRsDto';
 // @ts-ignore
 import { ApiValidationProblemRsDto } from '../model/apiValidationProblemRsDto';
 // @ts-ignore
+import { CreateFertilizationRqDto } from '../model/createFertilizationRqDto';
+// @ts-ignore
 import { CreatePlantingRqDto } from '../model/createPlantingRqDto';
 // @ts-ignore
+import { EditFertilizationRqDto } from '../model/editFertilizationRqDto';
+// @ts-ignore
 import { EditPlantingRqDto } from '../model/editPlantingRqDto';
+// @ts-ignore
+import { FertilizationRsDto } from '../model/fertilizationRsDto';
 // @ts-ignore
 import { FieldPlantingsRsDto } from '../model/fieldPlantingsRsDto';
 // @ts-ignore
@@ -36,6 +44,14 @@ import { BASE_PATH, COLLECTION_FORMATS }                     from '../variables'
 import { Configuration }                                     from '../configuration';
 import { BaseService } from '../api.base.service';
 
+
+export interface CreateFertilizationRequestParams {
+    /** 田區的 UUID。 */
+    fieldId: string;
+    /** 指定田區下栽培紀錄的 UUID。 */
+    plantingId: string;
+    createFertilizationRqDto: CreateFertilizationRqDto;
+}
 
 export interface CreatePlantingRequestParams {
     /** 田區的 UUID。 */
@@ -50,6 +66,16 @@ export interface DeletePlantingRequestParams {
     plantingId: string;
 }
 
+export interface EditFertilizationRequestParams {
+    /** 田區的 UUID。 */
+    fieldId: string;
+    /** 指定田區下栽培紀錄的 UUID。 */
+    plantingId: string;
+    /** 指定栽培紀錄下施肥作業的 UUID。 */
+    fertilizationId: string;
+    editFertilizationRqDto: EditFertilizationRqDto;
+}
+
 export interface EditPlantingRequestParams {
     /** 田區的 UUID。 */
     fieldId: string;
@@ -59,6 +85,13 @@ export interface EditPlantingRequestParams {
 }
 
 export interface GetPlantingRequestParams {
+    /** 田區的 UUID。 */
+    fieldId: string;
+    /** 指定田區下栽培紀錄的 UUID。 */
+    plantingId: string;
+}
+
+export interface ListFertilizationsRequestParams {
     /** 田區的 UUID。 */
     fieldId: string;
     /** 指定田區下栽培紀錄的 UUID。 */
@@ -90,6 +123,86 @@ export class PlantingsService extends BaseService {
 
     constructor(protected httpClient: HttpClient, @Optional() @Inject(BASE_PATH) basePath: string|string[], @Optional() configuration?: Configuration) {
         super(basePath, configuration);
+    }
+
+    /**
+     * 新增施肥作業
+     * 栽培中、採收中及已結束的批次均可登記。實際施肥日不得早於所選庫存批次的生效日，也不得晚於台北當日。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
+     * @endpoint post /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public createFertilization(requestParameters: CreateFertilizationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<FertilizationRsDto>;
+    public createFertilization(requestParameters: CreateFertilizationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FertilizationRsDto>>;
+    public createFertilization(requestParameters: CreateFertilizationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FertilizationRsDto>>;
+    public createFertilization(requestParameters: CreateFertilizationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const fieldId = requestParameters?.fieldId;
+        if (fieldId === null || fieldId === undefined) {
+            throw new Error('Required parameter fieldId was null or undefined when calling createFertilization.');
+        }
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling createFertilization.');
+        }
+        const createFertilizationRqDto = requestParameters?.createFertilizationRqDto;
+        if (createFertilizationRqDto === null || createFertilizationRqDto === undefined) {
+            throw new Error('Required parameter createFertilizationRqDto was null or undefined when calling createFertilization.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<FertilizationRsDto>('post', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: createFertilizationRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
     }
 
     /**
@@ -222,6 +335,90 @@ export class PlantingsService extends BaseService {
         return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 編輯施肥作業
+     * 更新完整表單。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。可用量包含原作業已扣用量，超過時回傳 409。
+     * @endpoint put /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations/{fertilizationId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public editFertilization(requestParameters: EditFertilizationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<FertilizationRsDto>;
+    public editFertilization(requestParameters: EditFertilizationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FertilizationRsDto>>;
+    public editFertilization(requestParameters: EditFertilizationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FertilizationRsDto>>;
+    public editFertilization(requestParameters: EditFertilizationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const fieldId = requestParameters?.fieldId;
+        if (fieldId === null || fieldId === undefined) {
+            throw new Error('Required parameter fieldId was null or undefined when calling editFertilization.');
+        }
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling editFertilization.');
+        }
+        const fertilizationId = requestParameters?.fertilizationId;
+        if (fertilizationId === null || fertilizationId === undefined) {
+            throw new Error('Required parameter fertilizationId was null or undefined when calling editFertilization.');
+        }
+        const editFertilizationRqDto = requestParameters?.editFertilizationRqDto;
+        if (editFertilizationRqDto === null || editFertilizationRqDto === undefined) {
+            throw new Error('Required parameter editFertilizationRqDto was null or undefined when calling editFertilization.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations/${this.configuration.encodeParam({name: "fertilizationId", value: fertilizationId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<FertilizationRsDto>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: editFertilizationRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -366,6 +563,72 @@ export class PlantingsService extends BaseService {
         let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<PlantingRsDto>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 查詢單筆栽培的施肥清單
+     * 按實際施肥日期、建立時間與識別碼依序由大到小排列。所屬栽培沒有施肥作業時回傳空陣列。
+     * @endpoint get /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<Array<FertilizationRsDto>>;
+    public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<FertilizationRsDto>>>;
+    public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<FertilizationRsDto>>>;
+    public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const fieldId = requestParameters?.fieldId;
+        if (fieldId === null || fieldId === undefined) {
+            throw new Error('Required parameter fieldId was null or undefined when calling listFertilizations.');
+        }
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling listFertilizations.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<Array<FertilizationRsDto>>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,

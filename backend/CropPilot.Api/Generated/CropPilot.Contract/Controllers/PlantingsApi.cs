@@ -28,6 +28,34 @@ namespace CropPilot.Contract.Controllers
     public abstract class PlantingsApiController : ControllerBase
     { 
         /// <summary>
+        /// 新增施肥作業
+        /// </summary>
+        /// <remarks>栽培中、採收中及已結束的批次均可登記。實際施肥日不得早於所選庫存批次的生效日，也不得晚於台北當日。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。</remarks>
+        /// <param name="fieldId">田區的 UUID。</param>
+        /// <param name="plantingId">指定田區下栽培紀錄的 UUID。</param>
+        /// <param name="createFertilizationRqDto"></param>
+        /// <response code="201">已新增的施肥作業</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpPost]
+        [Route("/api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations")]
+        [Authorize]
+        [Consumes("application/json")]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 201, type: typeof(FertilizationRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> CreateFertilization([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromBody]CreateFertilizationRqDto createFertilizationRqDto);
+
+        /// <summary>
         /// 新增單筆栽培紀錄
         /// </summary>
         /// <remarks>省略狀態時預設為 planned。選 growing 時必須提供實際栽種日，否則回傳 400。補登 harvesting 時實際栽種日可留空。</remarks>
@@ -38,7 +66,7 @@ namespace CropPilot.Contract.Controllers
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
-        /// <response code="409">超過可分配面積或目前狀態不允許更新。errors 以 areaSquareMeters 或 status 標示欄位，超額訊息包含當下可分配面積。</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPost]
         [Route("/api/v1/fields/{fieldId}/plantings")]
@@ -50,7 +78,7 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
-        [ProducesResponseType(statusCode: 409, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> CreatePlanting([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromBody]CreatePlantingRqDto createPlantingRqDto);
 
@@ -79,6 +107,35 @@ namespace CropPilot.Contract.Controllers
         public abstract Task<IActionResult> DeletePlanting([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromRoute (Name = "plantingId")][Required]Guid plantingId);
 
         /// <summary>
+        /// 編輯施肥作業
+        /// </summary>
+        /// <remarks>更新完整表單。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。可用量包含原作業已扣用量，超過時回傳 409。</remarks>
+        /// <param name="fieldId">田區的 UUID。</param>
+        /// <param name="plantingId">指定田區下栽培紀錄的 UUID。</param>
+        /// <param name="fertilizationId">指定栽培紀錄下施肥作業的 UUID。</param>
+        /// <param name="editFertilizationRqDto"></param>
+        /// <response code="200">已更新的施肥作業</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpPut]
+        [Route("/api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations/{fertilizationId}")]
+        [Authorize]
+        [Consumes("application/json")]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(FertilizationRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> EditFertilization([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromRoute (Name = "fertilizationId")][Required]Guid fertilizationId, [FromBody]EditFertilizationRqDto editFertilizationRqDto);
+
+        /// <summary>
         /// 編輯單筆栽培紀錄
         /// </summary>
         /// <remarks>更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日。</remarks>
@@ -90,7 +147,7 @@ namespace CropPilot.Contract.Controllers
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
-        /// <response code="409">超過可分配面積或目前狀態不允許更新。errors 以 areaSquareMeters 或 status 標示欄位，超額訊息包含當下可分配面積。</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPut]
         [Route("/api/v1/fields/{fieldId}/plantings/{plantingId}")]
@@ -102,7 +159,7 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
-        [ProducesResponseType(statusCode: 409, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> EditPlanting([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromBody]EditPlantingRqDto editPlantingRqDto);
 
@@ -129,6 +186,30 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetPlanting([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromRoute (Name = "plantingId")][Required]Guid plantingId);
+
+        /// <summary>
+        /// 查詢單筆栽培的施肥清單
+        /// </summary>
+        /// <remarks>按實際施肥日期、建立時間與識別碼依序由大到小排列。所屬栽培沒有施肥作業時回傳空陣列。</remarks>
+        /// <param name="fieldId">田區的 UUID。</param>
+        /// <param name="plantingId">指定田區下栽培紀錄的 UUID。</param>
+        /// <response code="200">施肥作業及各筆肥料明細</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpGet]
+        [Route("/api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(List<FertilizationRsDto>))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> ListFertilizations([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromRoute (Name = "plantingId")][Required]Guid plantingId);
 
         /// <summary>
         /// 列出指定田區目前的栽培紀錄

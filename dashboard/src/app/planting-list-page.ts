@@ -177,6 +177,12 @@ type LoadState<T> =
                               m²
                             </td>
                             <td class="planting-actions">
+                              <details class="planting-operation-menu">
+                                <summary [attr.aria-label]="'田間作業 ' + planting.cropName">⋯</summary>
+                                <a [routerLink]="['/dashboard/plantings', planting.fieldId, planting.id, 'fertilizations']">
+                                  施肥紀錄
+                                </a>
+                              </details>
                               <a
                                 [routerLink]="[
                                   '/dashboard/plantings',
@@ -262,6 +268,13 @@ type LoadState<T> =
     .planting-actions {
       white-space: nowrap;
     }
+    .planting-operation-menu {
+      display: inline-block;
+      position: relative;
+      margin-inline-end: .5rem;
+    }
+    .planting-operation-menu summary { cursor: pointer; list-style: none; padding: .35rem; }
+    .planting-operation-menu a { display: block; white-space: nowrap; }
     .planting-actions button {
       margin-inline-start: 0.5rem;
     }

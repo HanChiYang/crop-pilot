@@ -43,6 +43,8 @@ type DetailState =
       }
       @case ('ready') {
         @let planting = detail.planting;
+        <p><a class="button button-outline"
+          [routerLink]="['/dashboard/planting-history', planting.fieldId, planting.id, 'fertilizations']">施肥紀錄</a></p>
         <section class="panel field-form" aria-label="栽培紀錄資料">
           <dl class="field-form-grid">
             <div><dt>田區</dt><dd>{{ detail.fieldName }}</dd></div>

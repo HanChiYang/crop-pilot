@@ -8,36 +8,39 @@ using CropPilot.Contract.Models;
 
 namespace CropPilot.Api.Fields;
 
-/// <summary>檢查田區與栽培寫入請求中數值的小數位數。</summary>
-internal sealed class FieldDecimalJsonConverter : JsonConverter<decimal>
+/// <summary>檢查寫入請求中數值的小數位數。</summary>
+internal sealed class FieldDecimalJsonConverter(int scale) : JsonConverter<decimal>
 {
-    /// <summary>為生成的新增及編輯請求註冊面積及座標轉換器。</summary>
+    /// <summary>為生成的田區、栽培及肥料寫入請求註冊精度檢查。</summary>
     internal static void ConfigureFieldSave(JsonTypeInfo type)
     {
-        if (type.Type != typeof(CreateFieldRqDto) && type.Type != typeof(EditFieldRqDto) &&
-            type.Type != typeof(CreatePlantingRqDto) && type.Type != typeof(EditPlantingRqDto))
-        {
+        var hasFertilizerQuantity = type.Type == typeof(CreateFertilizerLotRqDto)
+            || type.Type == typeof(EditFertilizerLotRqDto)
+            || type.Type == typeof(FertilizationDetailRqDto)
+            || type.Type == typeof(EditFertilizationDetailRqDto);
+        var hasArea = type.Type == typeof(CreateFieldRqDto) || type.Type == typeof(EditFieldRqDto)
+            || type.Type == typeof(CreatePlantingRqDto) || type.Type == typeof(EditPlantingRqDto);
+        if (!hasArea && !hasFertilizerQuantity)
             return;
-        }
 
         foreach (var property in type.Properties)
         {
             if (property.PropertyType == typeof(decimal))
             {
-                property.CustomConverter = new FieldDecimalJsonConverter();
+                property.CustomConverter = new FieldDecimalJsonConverter(hasArea ? 4 : 6);
             }
             else if (property.PropertyType == typeof(decimal?))
             {
-                property.CustomConverter = new CoordinateConverter();
+                property.CustomConverter = new NullableDecimalConverter();
             }
         }
     }
 
-    /// <summary>讀取最多四位小數的面積。</summary>
+    /// <summary>讀取數值並檢查允許的小數位數。</summary>
     public override decimal Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-        ReadNumber(ref reader, 4);
+        ReadNumber(ref reader, scale);
 
-    /// <summary>以 JSON 數值寫出面積。</summary>
+    /// <summary>以 JSON 數值寫出欄位。</summary>
     public override void Write(Utf8JsonWriter writer, decimal value, JsonSerializerOptions options) =>
         writer.WriteNumberValue(value);
 
@@ -76,14 +79,14 @@ internal sealed class FieldDecimalJsonConverter : JsonConverter<decimal>
         return value;
     }
 
-    /// <summary>檢查座標的小數位數，保留座標的空值。</summary>
-    private sealed class CoordinateConverter : JsonConverter<decimal?>
+    /// <summary>檢查選填數值的小數位數，並保留空值。</summary>
+    private sealed class NullableDecimalConverter : JsonConverter<decimal?>
     {
-        /// <summary>讀取空值或最多六位小數的 JSON 座標。</summary>
+        /// <summary>讀取空值或最多六位小數的 JSON 數值。</summary>
         public override decimal? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
             reader.TokenType == JsonTokenType.Null ? null : ReadNumber(ref reader, 6);
 
-        /// <summary>以 JSON 數值或空值寫出座標。</summary>
+        /// <summary>以 JSON 數值或空值寫出欄位。</summary>
         public override void Write(Utf8JsonWriter writer, decimal? value, JsonSerializerOptions options)
         {
             if (value is { } number)

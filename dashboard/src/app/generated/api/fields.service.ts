@@ -17,6 +17,8 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
+import { ApiConflictRsDto } from '../model/apiConflictRsDto';
+// @ts-ignore
 import { ApiProblemRsDto } from '../model/apiProblemRsDto';
 // @ts-ignore
 import { ApiValidationProblemRsDto } from '../model/apiValidationProblemRsDto';

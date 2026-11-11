@@ -22,6 +22,8 @@ tags:
     description: 新增和查詢登入帳號所擁有的田區。
   - name: Overview
     description: 查詢田區及各田區目前的栽培狀況。
+  - name: Materials
+    description: 肥料資材與庫存批次
   - name: Plantings
     description: 新增和查詢田區的栽培紀錄。
 security:
@@ -234,7 +236,8 @@ paths:
         '403':
           $ref: '#/components/responses/FieldAccessForbidden'
         '409':
-          $ref: '#/components/responses/FieldNameConflict'
+          $ref: '#/components/responses/Conflict'
+          description: 同帳號已有同名田區。errors.name 提供欄位提示。
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/fields/{fieldId}:
@@ -319,7 +322,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/FieldDeleteConflict'
+          $ref: '#/components/responses/Conflict'
+          description: 至少一塊指定田區已有栽培紀錄，刪除未執行。
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/fields/bulk-delete:
@@ -348,7 +352,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/FieldDeleteConflict'
+          $ref: '#/components/responses/Conflict'
+          description: 至少一塊指定田區已有栽培紀錄，刪除未執行。
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/fields/{fieldId}/plantings:
@@ -426,7 +431,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/PlantingConflict'
+          $ref: '#/components/responses/Conflict'
+          description: 超過可分配面積或目前狀態不允許更新。errors 以 areaSquareMeters 或 status 標示欄位，超額訊息包含當下可分配面積。
         '500':
           $ref: '#/components/responses/ServerError'
   /api/v1/fields/{fieldId}/plantings/{plantingId}:
@@ -486,7 +492,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/PlantingConflict'
+          $ref: '#/components/responses/Conflict'
+          description: 超過可分配面積或目前狀態不允許更新。errors 以 areaSquareMeters 或 status 標示欄位，超額訊息包含當下可分配面積。
         '500':
           $ref: '#/components/responses/ServerError'
     delete:
@@ -596,6 +603,342 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+  /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations:
+    parameters:
+      - $ref: '#/components/parameters/FieldId'
+      - $ref: '#/components/parameters/PlantingId'
+    get:
+      tags: [Plantings]
+      operationId: listFertilizations
+      summary: 查詢單筆栽培的施肥清單
+      security:
+        - BearerAuth: []
+      description: 按實際施肥日期、建立時間與識別碼依序由大到小排列。所屬栽培沒有施肥作業時回傳空陣列。
+      responses:
+        '200':
+          description: 施肥作業及各筆肥料明細
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FertilizationRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Plantings]
+      operationId: createFertilization
+      summary: 新增施肥作業
+      security:
+        - BearerAuth: []
+      description: 栽培中、採收中及已結束的批次均可登記。實際施肥日不得早於所選庫存批次的生效日，也不得晚於台北當日。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFertilizationRqDto'
+      responses:
+        '201':
+          description: 已新增的施肥作業
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FertilizationRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 所屬栽培為規劃中，或批次餘量不足。餘量錯誤以 errors 中的明細索引標示。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations/{fertilizationId}:
+    parameters:
+      - $ref: '#/components/parameters/FieldId'
+      - $ref: '#/components/parameters/PlantingId'
+      - $ref: '#/components/parameters/FertilizationId'
+    put:
+      tags: [Plantings]
+      operationId: editFertilization
+      summary: 編輯施肥作業
+      security:
+        - BearerAuth: []
+      description: 更新完整表單。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。可用量包含原作業已扣用量，超過時回傳 409。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditFertilizationRqDto'
+      responses:
+        '200':
+          description: 已更新的施肥作業
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FertilizationRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 所屬栽培為規劃中，或批次餘量不足。餘量錯誤以 errors 中的明細索引標示。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/fertilizers:
+    get:
+      tags: [Materials]
+      operationId: listFertilizerMaterials
+      summary: 查詢肥料資材
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 肥料資材
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FertilizerMaterialRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Materials]
+      operationId: createFertilizerMaterial
+      summary: 新增肥料資材
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFertilizerMaterialRqDto'
+      responses:
+        '201':
+          description: 肥料資材
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FertilizerMaterialRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 帳號已有同名肥料資材。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/fertilizers/{materialId}/lots:
+    parameters:
+      - $ref: '#/components/parameters/MaterialId'
+    get:
+      tags: [Materials]
+      operationId: listFertilizerLots
+      summary: 查詢肥料庫存批次
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 肥料庫存批次
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FertilizerLotRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Materials]
+      operationId: createFertilizerLot
+      summary: 新增肥料庫存批次
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFertilizerLotRqDto'
+      responses:
+        '201':
+          description: 肥料庫存批次
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FertilizerLotRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/fertilizers/{materialId}:
+    parameters:
+      - $ref: '#/components/parameters/MaterialId'
+    put:
+      tags: [Materials]
+      operationId: editFertilizerMaterial
+      summary: 編輯肥料資材
+      description: 更新名稱與庫存單位。已有批次的資材只可修改名稱。同帳號名稱重複回傳 409。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFertilizerMaterialRqDto'
+      responses:
+        '200':
+          description: 更新後的肥料資材
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FertilizerMaterialRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 資材名稱重複、庫存單位已固定、資材仍有批次、批次被施肥明細引用，或新登記量或生效日與既有施肥明細衝突。
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Materials]
+      operationId: deleteFertilizerMaterial
+      summary: 刪除肥料資材
+      description: 只允許刪除沒有庫存批次的資材。
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 已刪除
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 資材名稱重複、庫存單位已固定、資材仍有批次、批次被施肥明細引用，或新登記量或生效日與既有施肥明細衝突。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/fertilizers/{materialId}/lots/{lotId}:
+    parameters:
+      - $ref: '#/components/parameters/MaterialId'
+      - $ref: '#/components/parameters/LotId'
+    put:
+      tags: [Materials]
+      operationId: editFertilizerLot
+      summary: 編輯肥料庫存批次
+      description: 更新整份表單。來源固定。已用於施肥的批次可更正單價，登記量不得小於已用量，生效日不得晚於任一關聯施肥日。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditFertilizerLotRqDto'
+      responses:
+        '200':
+          description: 更新後的肥料庫存批次
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FertilizerLotRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 資材名稱重複、庫存單位已固定、資材仍有批次、批次被施肥明細引用，或新登記量或生效日與既有施肥明細衝突。
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Materials]
+      operationId: deleteFertilizerLot
+      summary: 刪除肥料庫存批次
+      description: 只允許刪除未被施肥明細引用的批次。
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 已刪除
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 資材名稱重複、庫存單位已固定、資材仍有批次、批次被施肥明細引用，或新登記量或生效日與既有施肥明細衝突。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /api/v1/overview:
     get:
       tags: [Overview]
@@ -660,27 +1003,37 @@ components:
       schema:
         type: string
         format: uuid
+    MaterialId:
+      name: materialId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LotId:
+      name: lotId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FertilizationId:
+      name: fertilizationId
+      in: path
+      description: 指定栽培紀錄下施肥作業的 UUID。
+      required: true
+      schema:
+        type: string
+        format: uuid
   responses:
-    PlantingConflict:
-      description: 超過可分配面積或目前狀態不允許更新。errors 以 areaSquareMeters 或 status 標示欄位，超額訊息包含當下可分配面積。
+    Conflict:
+      description: 請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ApiValidationProblemRsDto'
+            $ref: '#/components/schemas/ApiConflictRsDto'
     FieldAccessForbidden:
       description: 登入帳號沒有使用田區功能所需的 USER 角色。
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ApiProblemRsDto'
-    FieldNameConflict:
-      description: 同帳號已有同名田區。errors.name 提供欄位提示。
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ApiValidationProblemRsDto'
-    FieldDeleteConflict:
-      description: 至少一塊指定田區已有栽培紀錄，刪除未執行。
       content:
         application/problem+json:
           schema:
@@ -822,6 +1175,221 @@ components:
         notes:
           type: [string, 'null']
           maxLength: 1000
+    CreateFertilizerMaterialRqDto:
+      type: object
+      required: [name, stockUnit]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        stockUnit:
+          type: string
+          minLength: 1
+          maxLength: 20
+    FertilizerMaterialRsDto:
+      type: object
+      required: [id, name, stockUnit, remainingQuantity]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        stockUnit:
+          type: string
+          minLength: 1
+          maxLength: 20
+        remainingQuantity:
+          type: number
+          minimum: 0
+    CreateFertilizerLotRqDto:
+      type: object
+      description: 進貨必填 purchasedOn，availableFrom 由伺服器取購買日。期初可省略 purchasedOn，availableFrom 省略時取台北當日。
+      required: [source, receivedQuantity]
+      properties:
+        source:
+          type: string
+          enum: [purchase, openingStock]
+        receivedQuantity:
+          type: number
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1000000000
+          description: 最多六位小數。
+        unitPrice:
+          type: [number, 'null']
+          minimum: 0
+          exclusiveMaximum: 1000000000
+          description: 每一庫存單位的單價，最多六位小數。null 表示未知。
+        purchasedOn:
+          type: [string, 'null']
+          format: date
+        availableFrom:
+          type: string
+          format: date
+          description: 進貨採購買日。期初庫存採盤點日。
+    EditFertilizerLotRqDto:
+      type: object
+      description: 更新原批次。進貨必填 purchasedOn，availableFrom 採購買日。期初庫存省略 availableFrom 時沿用原生效日。省略單價或購買日等選填值時清空該值。
+      required: [receivedQuantity]
+      properties:
+        receivedQuantity:
+          type: number
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1000000000
+          description: 最多六位小數。
+        unitPrice:
+          type: [number, 'null']
+          minimum: 0
+          exclusiveMaximum: 1000000000
+          description: 最多六位小數。null 表示未知。
+        purchasedOn:
+          type: [string, 'null']
+          format: date
+        availableFrom:
+          type: string
+          format: date
+    FertilizerLotRsDto:
+      type: object
+      required: [id, materialId, source, purchasedOn, availableFrom, receivedQuantity, remainingQuantity, unitPrice, currencyCode]
+      properties:
+        id:
+          type: string
+          format: uuid
+        materialId:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [purchase, openingStock]
+        receivedQuantity:
+          type: number
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1000000000
+          description: 最多六位小數。
+        unitPrice:
+          type: [number, 'null']
+          minimum: 0
+          exclusiveMaximum: 1000000000
+          description: 每一庫存單位的單價，最多六位小數。null 表示未知。
+        purchasedOn:
+          type: [string, 'null']
+          format: date
+        availableFrom:
+          type: string
+          format: date
+          description: 進貨採購買日。期初庫存採盤點日。
+        remainingQuantity:
+          type: number
+          minimum: 0
+        currencyCode:
+          type: string
+          enum: [TWD]
+    CreateFertilizationRqDto:
+      type: object
+      required: [operationDate, details]
+      properties:
+        operationDate:
+          type: string
+          format: date
+          description: 實際施肥日期。寫入不得晚於台北當日。
+        details:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FertilizationDetailRqDto'
+    EditFertilizationRqDto:
+      type: object
+      required: [operationDate, details]
+      properties:
+        operationDate:
+          type: string
+          format: date
+          description: 實際施肥日期。寫入不得晚於台北當日。
+        details:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/EditFertilizationDetailRqDto'
+    FertilizationRsDto:
+      type: object
+      required: [id, operationDate, details]
+      properties:
+        id:
+          type: string
+          format: uuid
+        operationDate:
+          type: string
+          format: date
+          description: 實際施肥日期。寫入不得晚於台北當日。
+        details:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FertilizationDetailRsDto'
+    FertilizationDetailRqDto:
+      type: object
+      required: [materialPurchaseLotId, quantity]
+      properties:
+        materialPurchaseLotId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1000000000
+          description: 實際施用總量，最多六位小數。
+    EditFertilizationDetailRqDto:
+      type: object
+      required: [materialPurchaseLotId, quantity]
+      properties:
+        id:
+          type: string
+          format: uuid
+        materialPurchaseLotId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1000000000
+          description: 實際施用總量，最多六位小數。
+    FertilizationDetailRsDto:
+      type: object
+      required: [id, materialId, materialPurchaseLotId, fertilizerName, quantity, unit, unitPrice, currencyCode]
+      properties:
+        id:
+          type: string
+          format: uuid
+        materialId:
+          type: string
+          format: uuid
+        materialPurchaseLotId:
+          type: string
+          format: uuid
+        fertilizerName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1000000000
+          description: 實際施用總量，最多六位小數。
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 20
+        unitPrice:
+          type: [number, 'null']
+          minimum: 0
+          description: 作業採用的單價快照。null 表示成本待補。
+          exclusiveMaximum: 1000000000
+        currencyCode:
+          type: string
+          enum: [TWD]
     CreatePlantingRqDto:
       type: object
       required: [cropName, areaSquareMeters]
@@ -995,6 +1563,18 @@ components:
         instance:
           type: string
           format: uri-reference
+    ApiConflictRsDto:
+      allOf:
+        - $ref: '#/components/schemas/ApiProblemRsDto'
+        - type: object
+          properties:
+            errors:
+              type: object
+              description: 以 JSON 欄位名對應錯誤訊息陣列。
+              additionalProperties:
+                type: array
+                items:
+                  type: string
     ApiValidationProblemRsDto:
       allOf:
         - $ref: '#/components/schemas/ApiProblemRsDto'

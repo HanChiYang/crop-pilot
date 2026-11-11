@@ -26,6 +26,10 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 ## 目前進度
 
+施肥紀錄及肥料庫存已在 `feature/fertilization-inventory` 實作。作物栽培管理從列操作選單進入施肥紀錄，栽培歷史詳情也可補登及修正。一次作業支援多項肥料與不同批次。肥料庫存支援資材及進貨、期初批次的新增、編輯、刪除與餘量查詢。施肥與扣量同筆交易處理，修正批次單價後，原明細保留當時單價。[田間作業需求](requirements/field-operations.md) · [施肥 API 設計](design/first-desktop-slice-data-api.md#施肥紀錄)
+
+已核對 `AddFertilizationInventory` SQL 並套用至獨立 PostgreSQL 測試庫。63 個 API 整合測試通過，涵蓋跨帳號隔離、並行扣量、編輯退回用量及批次單價快照。Angular 正式建置與 8 個 Edge 瀏覽器測試通過，施肥及庫存案例以攔截回應驗證歷史補登、衝突保留輸入及期初庫存。
+
 「首頁 → 登入 → 田區總覽空畫面」已完成前後端串接。本機 Docker PostgreSQL 已套用帳號 migration，Angular 以登入 API 建立工作階段，再用 `GET /api/v1/auth/session` 保護總覽。用 Edge 實際驗證兩個首頁登入入口、帳密錯誤提示、登入、重新整理及登出。Google 首次與重複登入、取消與 Email 衝突已用模擬 OIDC 測試，真實 Google 帳號仍待設定 OAuth 用戶端後驗收。[前端操作說明](../dashboard/README.md) · [API 設計](design/first-desktop-slice-data-api.md)
 
 帳號 migration 已用舊版測試資料驗證升級，保留主帳號 UUID、密碼雜湊及 Google 綁定。帳號、登入方式、個人資料及角色分表，舊帳號遷移為 `ACTIVE` 並取得 `USER`。後臺授權的角色指派流程，以及本地帳號註冊與 Email OTP，待各自功能審查後實作。[資料表與 ER 圖](design/first-desktop-slice-database.md)
