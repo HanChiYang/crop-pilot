@@ -105,8 +105,8 @@ public sealed class FieldsApiFixture : IAsyncLifetime
         var database = scope.ServiceProvider.GetRequiredService<CropPilotDbContext>();
         var plantingId = Guid.NewGuid();
         await database.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO plantings (id, field_id, crop_name, status, actual_planting_date)
-            VALUES ({plantingId}, {fieldId}, '已結束作物', 'COMPLETED', DATE '2026-11-01')
+            INSERT INTO plantings (id, field_id, crop_name, status, actual_planting_date, area_square_meters)
+            VALUES ({plantingId}, {fieldId}, '已結束作物', 'COMPLETED', DATE '2026-11-01', 25)
             """);
         return plantingId;
     }

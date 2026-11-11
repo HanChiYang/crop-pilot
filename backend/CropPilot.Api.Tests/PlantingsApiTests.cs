@@ -16,16 +16,16 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
 
     /// <summary>驗證三種初始狀態、可空日期及新增後的讀取路徑。</summary>
     [Theory]
-    [InlineData("""{"cropName":" 番茄 "}""", "planned", null)]
-    [InlineData("""{"cropName":" 番茄 ","status":"harvesting","actualPlantingDate":null}""", "harvesting", null)]
-    [InlineData("""{"cropName":" 番茄 ","status":"growing","actualPlantingDate":"2026-11-01"}""", "growing", "2026-11-01")]
+    [InlineData("""{"areaSquareMeters":25,"cropName":" 番茄 "}""", "planned", null)]
+    [InlineData("""{"areaSquareMeters":25,"cropName":" 番茄 ","status":"harvesting","actualPlantingDate":null}""", "harvesting", null)]
+    [InlineData("""{"areaSquareMeters":25,"cropName":" 番茄 ","status":"growing","actualPlantingDate":"2026-11-01"}""", "growing", "2026-11-01")]
     public async Task CreatesPlantingAndReadsItFromLocationListAndOverview(string json, string status, string? date)
     {
         var (client, _) = await fixture.CreateAccountClientAsync();
         using var owner = client;
         var fieldId = await CreateFieldAsync(owner, "北側田");
         var url = $"{FieldsUrl}/{fieldId}/plantings";
-        Assert.Empty((await owner.GetFromJsonAsync<JsonElement>(url)).EnumerateArray());
+        Assert.Empty((await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("plantings").EnumerateArray());
         using var request = new StringContent(json, Encoding.UTF8, "application/json");
         using var response = await owner.PostAsync(url, request);
         Assert.True(response.StatusCode == HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
@@ -40,7 +40,7 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         Assert.Null(planting.GetProperty("notes").GetString());
         Assert.Equal($"{url}/{plantingId}", response.Headers.Location!.AbsolutePath);
         Assert.Equal(plantingId, (await owner.GetFromJsonAsync<JsonElement>(response.Headers.Location)).GetProperty("id").GetGuid());
-        Assert.Equal(plantingId, Assert.Single((await owner.GetFromJsonAsync<JsonElement>(url)).EnumerateArray()).GetProperty("id").GetGuid());
+        Assert.Equal(plantingId, Assert.Single((await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("plantings").EnumerateArray()).GetProperty("id").GetGuid());
         var overview = Assert.Single((await owner.GetFromJsonAsync<JsonElement>(OverviewUrl)).EnumerateArray());
         Assert.Equal(fieldId, overview.GetProperty("id").GetGuid());
         Assert.Equal(plantingId, Assert.Single(overview.GetProperty("plantings").EnumerateArray()).GetProperty("id").GetGuid());
@@ -48,11 +48,15 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
 
     /// <summary>驗證無效的狀態或日期回傳欄位錯誤且沒有新增資料。</summary>
     [Theory]
-    [InlineData("""{"cropName":"番茄","status":"growing"}""", "actualPlantingDate")]
-    [InlineData("""{"cropName":"番茄","status":"growing","actualPlantingDate":null}""", "actualPlantingDate")]
-    [InlineData("""{"cropName":"番茄","status":"completed"}""", "status")]
-    [InlineData("""{"cropName":"番茄","status":3}""", "status")]
-    [InlineData("""{"cropName":"番茄","status":null}""", "status")]
+    [InlineData("""{"areaSquareMeters":25,"cropName":"番茄","status":"growing"}""", "actualPlantingDate")]
+    [InlineData("""{"areaSquareMeters":25,"cropName":"番茄","status":"growing","actualPlantingDate":null}""", "actualPlantingDate")]
+    [InlineData("""{"areaSquareMeters":25,"cropName":"番茄","status":"completed"}""", "status")]
+    [InlineData("""{"areaSquareMeters":25,"cropName":"番茄","status":3}""", "status")]
+    [InlineData("""{"areaSquareMeters":25,"cropName":"番茄","status":null}""", "status")]
+    [InlineData("""{"cropName":"番茄"}""", "areaSquareMeters")]
+    [InlineData("""{"areaSquareMeters":null,"cropName":"番茄"}""", "areaSquareMeters")]
+    [InlineData("""{"areaSquareMeters":0,"cropName":"番茄"}""", "areaSquareMeters")]
+    [InlineData("""{"areaSquareMeters":0.00001,"cropName":"番茄"}""", "areaSquareMeters")]
     public async Task RejectsInvalidInitialStateWithoutSaving(string json, string field)
     {
         var (client, _) = await fixture.CreateAccountClientAsync();
@@ -64,7 +68,7 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(problem.GetProperty("errors").TryGetProperty(field, out _), problem.GetRawText());
-        Assert.Empty((await owner.GetFromJsonAsync<JsonElement>(url)).EnumerateArray());
+        Assert.Empty((await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("plantings").EnumerateArray());
     }
 
     /// <summary>驗證缺少角色與跨帳號存取的回應，以及單筆紀錄須屬於路徑指定的田區。</summary>
@@ -78,7 +82,7 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         var fieldId = await CreateFieldAsync(owner, "北側田");
         var secondField = await CreateFieldAsync(owner, "南側田");
         var url = $"{FieldsUrl}/{fieldId}/plantings";
-        var request = new { cropName = "番茄" };
+        var request = new { cropName = "番茄", areaSquareMeters = 25 };
         using var created = await owner.PostAsJsonAsync(url, request);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var plantingId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
@@ -89,9 +93,12 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         Assert.Equal(HttpStatusCode.NotFound, (await other.PostAsJsonAsync(url, request)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync(url)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync(created.Headers.Location)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.PutAsJsonAsync(created.Headers.Location,
+            new { cropName = "番茄", areaSquareMeters = 25, status = "planned" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync(created.Headers.Location)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"{FieldsUrl}/{secondField}/plantings/{plantingId}")).StatusCode);
         Assert.Empty((await other.GetFromJsonAsync<JsonElement>(OverviewUrl)).EnumerateArray());
-        Assert.Single((await owner.GetFromJsonAsync<JsonElement>(url)).EnumerateArray());
+        Assert.Single((await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("plantings").EnumerateArray());
     }
 
     /// <summary>驗證有栽培紀錄時單筆及批次刪除均被拒絕，包含只有已結束紀錄的田區。</summary>
@@ -109,14 +116,14 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
             var completedId = await fixture.AddCompletedPlantingAsync(protectedField);
             var detail = await owner.GetFromJsonAsync<JsonElement>($"{fieldUrl}/plantings/{completedId}");
             Assert.Equal("completed", detail.GetProperty("status").GetString());
-            Assert.Empty((await owner.GetFromJsonAsync<JsonElement>($"{fieldUrl}/plantings")).EnumerateArray());
+            Assert.Empty((await owner.GetFromJsonAsync<JsonElement>($"{fieldUrl}/plantings")).GetProperty("plantings").EnumerateArray());
             var overview = await owner.GetFromJsonAsync<JsonElement>(OverviewUrl);
             var field = Assert.Single(overview.EnumerateArray(), entry => entry.GetProperty("id").GetGuid() == protectedField);
             Assert.Empty(field.GetProperty("plantings").EnumerateArray());
         }
         else
         {
-            using var created = await owner.PostAsJsonAsync($"{fieldUrl}/plantings", new { cropName = "番茄" });
+            using var created = await owner.PostAsJsonAsync($"{fieldUrl}/plantings", new { cropName = "番茄", areaSquareMeters = 25 });
             Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         }
 
@@ -138,7 +145,7 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         using var owner = (await fixture.CreateAccountClientAsync()).Client;
         var fieldId = await CreateFieldAsync(owner, "北側田");
         var fieldUrl = $"{FieldsUrl}/{fieldId}";
-        var createTask = owner.PostAsJsonAsync($"{fieldUrl}/plantings", new { cropName = "番茄" });
+        var createTask = owner.PostAsJsonAsync($"{fieldUrl}/plantings", new { cropName = "番茄", areaSquareMeters = 25 });
         var deleteTask = owner.DeleteAsync(fieldUrl);
         await Task.WhenAll(createTask, deleteTask);
         using var created = await createTask;
@@ -147,7 +154,7 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         if (created.StatusCode == HttpStatusCode.Created)
         {
             Assert.Equal(HttpStatusCode.Conflict, deleted.StatusCode);
-            Assert.Single((await owner.GetFromJsonAsync<JsonElement>($"{fieldUrl}/plantings")).EnumerateArray());
+            Assert.Single((await owner.GetFromJsonAsync<JsonElement>($"{fieldUrl}/plantings")).GetProperty("plantings").EnumerateArray());
         }
         else
         {
@@ -155,6 +162,74 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
             Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
             Assert.Empty((await owner.GetFromJsonAsync<JsonElement>(OverviewUrl)).EnumerateArray());
         }
+    }
+
+    /// <summary>驗證占用上限、整筆編輯、狀態變更與刪除釋放面積。</summary>
+    [Fact]
+    public async Task EnforcesCapacityAndReleasesItWhenPlantingsAreCompletedOrDeleted()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "北側田");
+        var fieldUrl = $"{FieldsUrl}/{fieldId}";
+        var url = $"{fieldUrl}/plantings";
+        using var tomato = await owner.PostAsJsonAsync(url, new
+        {
+            cropName = "番茄", areaSquareMeters = 70, status = "growing", actualPlantingDate = "2026-11-01"
+        });
+        Assert.Equal(HttpStatusCode.Created, tomato.StatusCode);
+        using var overflow = await owner.PostAsJsonAsync(url, new { cropName = "小白菜", areaSquareMeters = 35 });
+        Assert.Equal(HttpStatusCode.Conflict, overflow.StatusCode);
+        Assert.Contains("30 m²", (await overflow.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("errors").GetProperty("areaSquareMeters")[0].GetString());
+        using var cabbage = await owner.PostAsJsonAsync(url, new { cropName = "小白菜", areaSquareMeters = 30 });
+        Assert.Equal(HttpStatusCode.Created, cabbage.StatusCode);
+
+        using var invalid = await owner.PutAsJsonAsync(cabbage.Headers.Location,
+            new { cropName = "改名", areaSquareMeters = 30, status = "growing" });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        var unchanged = await owner.GetFromJsonAsync<JsonElement>(cabbage.Headers.Location);
+        Assert.Equal("小白菜", unchanged.GetProperty("cropName").GetString());
+        var updatedCropName = string.Concat(Enumerable.Repeat("🌱", 61));
+        using var edited = await owner.PutAsJsonAsync(cabbage.Headers.Location,
+            new { cropName = updatedCropName, areaSquareMeters = 30, status = "planned", variety = "示意品種" });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        Assert.Equal(updatedCropName, (await edited.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("cropName").GetString());
+        using var tooSmall = await owner.PutAsJsonAsync(fieldUrl, new { name = "北側田", areaSquareMeters = 99 });
+        Assert.Equal(HttpStatusCode.Conflict, tooSmall.StatusCode);
+        Assert.Equal(100, (await owner.GetFromJsonAsync<JsonElement>(fieldUrl)).GetProperty("areaSquareMeters").GetDecimal());
+
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync(cabbage.Headers.Location)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await owner.DeleteAsync(tomato.Headers.Location)).StatusCode);
+        Assert.Equal(30, (await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("remainingAreaSquareMeters").GetDecimal());
+        using var completed = await owner.PutAsJsonAsync(tomato.Headers.Location, new
+        {
+            cropName = "番茄", areaSquareMeters = 70, status = "completed", actualPlantingDate = "2026-11-01"
+        });
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        Assert.Equal(100, (await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("remainingAreaSquareMeters").GetDecimal());
+        Assert.Equal("completed", (await owner.GetFromJsonAsync<JsonElement>(tomato.Headers.Location)).GetProperty("status").GetString());
+        var overview = Assert.Single((await owner.GetFromJsonAsync<JsonElement>(OverviewUrl)).EnumerateArray());
+        Assert.Empty(overview.GetProperty("plantings").EnumerateArray());
+    }
+
+    /// <summary>並行縮小田區及新增占用時，只有一筆寫入可成功。</summary>
+    [Fact]
+    public async Task ConcurrentResizeAndCreateCannotOverallocate()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "北側田");
+        var fieldUrl = $"{FieldsUrl}/{fieldId}";
+        var url = $"{fieldUrl}/plantings";
+        var resize = owner.PutAsJsonAsync(fieldUrl, new { name = "北側田", areaSquareMeters = 60 });
+        var create = owner.PostAsJsonAsync(url, new { cropName = "番茄", areaSquareMeters = 70 });
+        await Task.WhenAll(resize, create);
+        using var resized = await resize;
+        using var created = await create;
+        Assert.True((resized.StatusCode, created.StatusCode) is
+            (HttpStatusCode.OK, HttpStatusCode.Conflict) or (HttpStatusCode.Conflict, HttpStatusCode.Created));
+        var state = await owner.GetFromJsonAsync<JsonElement>(url);
+        Assert.InRange(state.GetProperty("allocatedAreaSquareMeters").GetDecimal(), 0,
+            state.GetProperty("areaSquareMeters").GetDecimal());
     }
 
     /// <summary>透過田區 API 建立測試用田區。</summary>
