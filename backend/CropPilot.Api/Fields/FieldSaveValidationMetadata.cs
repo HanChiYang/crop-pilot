@@ -12,7 +12,8 @@ internal sealed class FieldSaveValidationMetadata : IValidationMetadataProvider
     {
         if (context.Key.ContainerType != typeof(CreateFieldRqDto) &&
             context.Key.ContainerType != typeof(EditFieldRqDto) &&
-            context.Key.ContainerType != typeof(CreatePlantingRqDto))
+            context.Key.ContainerType != typeof(CreatePlantingRqDto) &&
+            context.Key.ContainerType != typeof(EditPlantingRqDto))
         {
             return;
         }

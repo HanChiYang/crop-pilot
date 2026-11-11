@@ -41,6 +41,14 @@ namespace CropPilot.Contract.Models
         public Guid FieldId { get; set; }
 
         /// <summary>
+        /// Gets or Sets AreaSquareMeters
+        /// </summary>
+        [Required]
+        [Range(0.00010, 9999999999.9999)]
+        [DataMember(Name="areaSquareMeters", EmitDefaultValue=true)]
+        public decimal AreaSquareMeters { get; set; }
+
+        /// <summary>
         /// Gets or Sets CropName
         /// </summary>
         [Required]
@@ -95,6 +103,7 @@ namespace CropPilot.Contract.Models
             sb.Append("class PlantingRsDto {\n");
             sb.Append("  Id: ").Append(Id).Append("\n");
             sb.Append("  FieldId: ").Append(FieldId).Append("\n");
+            sb.Append("  AreaSquareMeters: ").Append(AreaSquareMeters).Append("\n");
             sb.Append("  CropName: ").Append(CropName).Append("\n");
             sb.Append("  Variety: ").Append(Variety).Append("\n");
             sb.Append("  PlannedPlantingDate: ").Append(PlannedPlantingDate).Append("\n");
@@ -148,6 +157,11 @@ namespace CropPilot.Contract.Models
                     FieldId.Equals(other.FieldId)
                 ) && 
                 (
+                    AreaSquareMeters == other.AreaSquareMeters ||
+
+                    AreaSquareMeters.Equals(other.AreaSquareMeters)
+                ) &&
+                (
                     CropName == other.CropName ||
                     CropName != null &&
                     CropName.Equals(other.CropName)
@@ -193,6 +207,8 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + Id.GetHashCode();
                     
                     hashCode = hashCode * 59 + FieldId.GetHashCode();
+
+                    hashCode = hashCode * 59 + AreaSquareMeters.GetHashCode();
                     if (CropName != null)
                     hashCode = hashCode * 59 + CropName.GetHashCode();
                     if (Variety != null)

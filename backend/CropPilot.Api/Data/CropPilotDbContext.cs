@@ -54,10 +54,12 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
                     "status IN ('PLANNED', 'GROWING', 'HARVESTING', 'COMPLETED')");
                 table.HasCheckConstraint("ck_plantings_actual_planting_date",
                     "status NOT IN ('GROWING', 'COMPLETED') OR actual_planting_date IS NOT NULL");
+                table.HasCheckConstraint("ck_plantings_area_square_meters", "area_square_meters > 0");
             });
             planting.HasOne(value => value.Field).WithMany().HasForeignKey(value => value.FieldId)
                 .HasConstraintName(Planting.FieldForeignKey).OnDelete(DeleteBehavior.Restrict);
             planting.Property(value => value.CropName).HasMaxLength(120);
+            planting.Property(value => value.AreaSquareMeters).HasPrecision(14, 4);
             planting.Property(value => value.Variety).HasMaxLength(120);
             planting.Property(value => value.Status).HasMaxLength(16).HasDefaultValue(Planting.Planned);
             planting.Property(value => value.Description).HasMaxLength(1000);

@@ -74,7 +74,7 @@ public sealed class FieldsController(FieldService fields) : FieldsApiController
             ModelState.AddModelError(JsonNamingPolicy.CamelCase.ConvertName(property), message);
         }
 
-        return ValidationProblem(modelStateDictionary: ModelState, statusCode: result.Status == FieldWriteStatus.NameConflict
+        return ValidationProblem(modelStateDictionary: ModelState, statusCode: result.Status is FieldWriteStatus.NameConflict or FieldWriteStatus.AreaConflict
             ? StatusCodes.Status409Conflict
             : StatusCodes.Status400BadRequest);
     }

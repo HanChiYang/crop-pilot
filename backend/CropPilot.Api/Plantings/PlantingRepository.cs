@@ -1,35 +1,50 @@
 using CropPilot.Api.Data;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace CropPilot.Api.Plantings;
 
 /// <summary>依田區的擁有者帳號讀寫栽培紀錄。</summary>
 public sealed class PlantingRepository(CropPilotDbContext database)
 {
-    /// <summary>新增栽培紀錄。田區無法存取或已被刪除時回傳 false。</summary>
-    internal async Task<bool> TryAddAsync(Guid accountId, Planting planting, CancellationToken cancellationToken)
+    /// <summary>鎖定田區後取得目前紀錄與可分配面積。業務驗證成功時提交新增、編輯或刪除。</summary>
+    internal async Task<PlantingWriteResult> WriteAsync(Guid accountId, Guid fieldId, Guid? plantingId,
+        Func<Planting?, decimal, PlantingWriteResult> apply, CancellationToken cancellationToken)
     {
-        if (!await OwnedFields(accountId).AnyAsync(field => field.Id == planting.FieldId, cancellationToken))
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var area = await FieldAreaQueries.LockAsync(database, accountId, fieldId, cancellationToken);
+        if (area is null)
         {
-            return false;
+            return new(PlantingWriteStatus.NotFound);
         }
 
-        database.Plantings.Add(planting);
-        try
+        Planting? current = null;
+        if (plantingId is Guid id)
         {
-            await database.SaveChangesAsync(cancellationToken);
-            return true;
+            current = await database.Plantings.SingleOrDefaultAsync(
+                value => value.FieldId == fieldId && value.Id == id, cancellationToken);
+            if (current is null)
+            {
+                return new(PlantingWriteStatus.NotFound);
+            }
         }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+
+        var allocated = await FieldAreaQueries.AllocatedAsync(database, fieldId, plantingId, cancellationToken);
+        var result = apply(current, area.Value - allocated);
+        if (result.Status != PlantingWriteStatus.Success)
         {
-            SqlState: PostgresErrorCodes.ForeignKeyViolation,
-            ConstraintName: Planting.FieldForeignKey
-        })
-        {
-            database.Entry(planting).State = EntityState.Detached;
-            return false;
+            return result;
         }
+        if (current is null)
+        {
+            database.Plantings.Add(result.Planting!);
+        }
+        else if (result.Planting is null)
+        {
+            database.Plantings.Remove(current);
+        }
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return result;
     }
 
     /// <summary>以擁有者、田區及紀錄識別碼查詢一筆栽培紀錄。</summary>

@@ -72,13 +72,21 @@ OpenAPI 的 `operationId` 使用 lower camel case，由動詞加上資源名稱�
 
 API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例如 `planned` 對應 `PLANNED`。
 
+栽培占用面積切片沿用既有田區編輯端點。縮小田區時，新面積低於未結束紀錄的占用面積合計，回傳 `409` 並保留原值。新面積等於合計時可儲存。
+
+新增與編輯栽培紀錄皆要求 `areaSquareMeters` 為大於 0 的數值，最多四位小數。缺少、空值或格式不符時回傳 `400`，以 `areaSquareMeters` 標示欄位錯誤。
+
+栽培管理的單筆編輯使用同一個更新請求提交作物名稱、品種、狀態、預定栽種日、實際栽種日、占用面積與備註。伺服器依儲存前的狀態驗證允許的轉換，依儲存後的狀態與日期驗證必填條件，並以更新後的占用面積取代原紀錄在合計中的占用。整筆更新在同一交易完成。
+
 #### 田區栽培列表
 
 管理頁在選取或切換田區時呼叫列表端點。成功新增後回到管理頁，沿用原田區選擇並重新讀取列表，顯示已儲存的紀錄。取消新增也回到原田區的列表。
 
 列表沿用總覽的目前栽培範圍，包含 `planned`、`growing` 與 `harvesting`。`completed` 保留供後續歷史列表使用。端點使用 Bearer 驗證並要求 `USER` 角色。無效的田區 ID 格式回 `400`，未登入回 `401`，缺少角色回 `403`，田區不存在或屬於其他帳號回 `404`。
 
-列表驗收涵蓋自己的空田區回傳 `[]`、新增後查得到同一筆紀錄、其他田區的紀錄不混入、已結束的紀錄從目前列表收起，以及其他帳號查詢回傳 `404`。
+列表回傳 `areaSquareMeters`、`allocatedAreaSquareMeters`、`remainingAreaSquareMeters` 與 `plantings`。空田區仍有面積摘要，`plantings` 為空陣列。每筆紀錄的 `areaSquareMeters` 對應 `plantings.area_square_meters`。新增或更新超額時回傳 `409`，`errors.areaSquareMeters` 包含當下可分配面積，表單保留輸入。
+
+單筆編輯與刪除分別使用 `PUT` 與 `DELETE /api/v1/fields/{fieldId}/plantings/{plantingId}`。未結束紀錄可以保留原狀態或沿規劃、栽培、採收、結束的順序前進，栽培中也可直接結束。無法轉換時回傳 `409` 並提供 `errors.status`。只有規劃中可以刪除，成功回傳 `204`，其餘狀態回傳 `409`。
 
 只填必填欄位即可建立田區。以下請求送往 `POST /api/v1/fields`，兩個座標欄位會存為 `null`。
 

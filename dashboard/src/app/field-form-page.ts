@@ -331,7 +331,7 @@ export class FieldFormPage {
             errors[field] = messages[0];
           }
         }
-        if (error.status === 409 && !errors.name)
+        if (error.status === 409 && !Object.keys(errors).length)
           errors.name = '此田區名稱已存在。';
         if (Object.keys(errors).length) {
           this.errors.set(errors);

@@ -238,6 +238,11 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("actual_planting_date");
 
+                    b.Property<decimal>("AreaSquareMeters")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)")
+                        .HasColumnName("area_square_meters");
+
                     b.Property<string>("CropName")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -279,6 +284,8 @@ namespace CropPilot.Api.Data.Migrations
                     b.ToTable("plantings", null, t =>
                         {
                             t.HasCheckConstraint("ck_plantings_actual_planting_date", "status NOT IN ('GROWING', 'COMPLETED') OR actual_planting_date IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_plantings_area_square_meters", "area_square_meters > 0");
 
                             t.HasCheckConstraint("ck_plantings_crop_name", "btrim(crop_name, U&'\\0009\\000A\\000B\\000C\\000D\\0020\\0085\\00A0\\1680\\2000\\2001\\2002\\2003\\2004\\2005\\2006\\2007\\2008\\2009\\200A\\2028\\2029\\202F\\205F\\3000') <> ''");
 

@@ -23,6 +23,10 @@ import { ApiValidationProblemRsDto } from '../model/apiValidationProblemRsDto';
 // @ts-ignore
 import { CreatePlantingRqDto } from '../model/createPlantingRqDto';
 // @ts-ignore
+import { EditPlantingRqDto } from '../model/editPlantingRqDto';
+// @ts-ignore
+import { FieldPlantingsRsDto } from '../model/fieldPlantingsRsDto';
+// @ts-ignore
 import { PlantingRsDto } from '../model/plantingRsDto';
 
 // @ts-ignore
@@ -35,6 +39,21 @@ export interface CreatePlantingRequestParams {
     /** 田區的 UUID。 */
     fieldId: string;
     createPlantingRqDto: CreatePlantingRqDto;
+}
+
+export interface DeletePlantingRequestParams {
+    /** 田區的 UUID。 */
+    fieldId: string;
+    /** 指定田區下栽培紀錄的 UUID。 */
+    plantingId: string;
+}
+
+export interface EditPlantingRequestParams {
+    /** 田區的 UUID。 */
+    fieldId: string;
+    /** 指定田區下栽培紀錄的 UUID。 */
+    plantingId: string;
+    editPlantingRqDto: EditPlantingRqDto;
 }
 
 export interface GetPlantingRequestParams {
@@ -136,6 +155,150 @@ export class PlantingsService extends BaseService {
     }
 
     /**
+     * 刪除單筆規劃中栽培紀錄
+     * @endpoint delete /api/v1/fields/{fieldId}/plantings/{plantingId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public deletePlanting(requestParameters: DeletePlantingRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
+    public deletePlanting(requestParameters: DeletePlantingRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
+    public deletePlanting(requestParameters: DeletePlantingRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
+    public deletePlanting(requestParameters: DeletePlantingRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const fieldId = requestParameters?.fieldId;
+        if (fieldId === null || fieldId === undefined) {
+            throw new Error('Required parameter fieldId was null or undefined when calling deletePlanting.');
+        }
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling deletePlanting.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 編輯單筆栽培紀錄
+     * 更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日。
+     * @endpoint put /api/v1/fields/{fieldId}/plantings/{plantingId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public editPlanting(requestParameters: EditPlantingRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<PlantingRsDto>;
+    public editPlanting(requestParameters: EditPlantingRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<PlantingRsDto>>;
+    public editPlanting(requestParameters: EditPlantingRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<PlantingRsDto>>;
+    public editPlanting(requestParameters: EditPlantingRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const fieldId = requestParameters?.fieldId;
+        if (fieldId === null || fieldId === undefined) {
+            throw new Error('Required parameter fieldId was null or undefined when calling editPlanting.');
+        }
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling editPlanting.');
+        }
+        const editPlantingRqDto = requestParameters?.editPlantingRqDto;
+        if (editPlantingRqDto === null || editPlantingRqDto === undefined) {
+            throw new Error('Required parameter editPlantingRqDto was null or undefined when calling editPlanting.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<PlantingRsDto>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: editPlantingRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
      * 列出自己的栽培紀錄詳細資料
      * 依田區和栽培紀錄識別碼查詢。田區或紀錄不存在、兩者不相符，或田區屬於其他帳號時回傳 404。
      * @endpoint get /api/v1/fields/{fieldId}/plantings/{plantingId}
@@ -203,16 +366,16 @@ export class PlantingsService extends BaseService {
 
     /**
      * 列出指定田區目前的栽培紀錄
-     * 需要 USER 角色。回傳規劃中、栽培中與採收中的紀錄。自己的田區沒有目前紀錄時回傳空陣列。田區不存在或屬於其他帳號時回傳 404。
+     * 需要 USER 角色。回傳田區面積摘要及規劃中、栽培中與採收中的紀錄。空田區仍回傳面積摘要。田區不存在或屬於其他帳號時回傳 404。
      * @endpoint get /api/v1/fields/{fieldId}/plantings
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public listFieldPlantings(requestParameters: ListFieldPlantingsRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<Array<PlantingRsDto>>;
-    public listFieldPlantings(requestParameters: ListFieldPlantingsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<PlantingRsDto>>>;
-    public listFieldPlantings(requestParameters: ListFieldPlantingsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<PlantingRsDto>>>;
+    public listFieldPlantings(requestParameters: ListFieldPlantingsRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<FieldPlantingsRsDto>;
+    public listFieldPlantings(requestParameters: ListFieldPlantingsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FieldPlantingsRsDto>>;
+    public listFieldPlantings(requestParameters: ListFieldPlantingsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FieldPlantingsRsDto>>;
     public listFieldPlantings(requestParameters: ListFieldPlantingsRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
         const fieldId = requestParameters?.fieldId;
         if (fieldId === null || fieldId === undefined) {
@@ -250,7 +413,7 @@ export class PlantingsService extends BaseService {
 
         let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings`;
         const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<Array<PlantingRsDto>>('get', `${basePath}${localVarPath}`,
+        return this.httpClient.request<FieldPlantingsRsDto>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,

@@ -1,4 +1,5 @@
 using CropPilot.Api.Authentication;
+using CropPilot.Api.Constants;
 using CropPilot.Api.Data;
 using CropPilot.Contract.Controllers;
 using CropPilot.Contract.Models;
@@ -8,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CropPilot.Api.Plantings;
 
-/// <summary>讓具備 USER 角色的帳號新增及查詢自己田區的栽培紀錄。</summary>
+/// <summary>讓具備 USER 角色的帳號管理自己田區的栽培紀錄。</summary>
 [Authorize(Roles = UserRole.User)]
 public sealed class PlantingsController(PlantingService plantings) : PlantingsApiController
 {
@@ -24,16 +25,43 @@ public sealed class PlantingsController(PlantingService plantings) : PlantingsAp
                 PlantingDtoMapper.ToDto(planting));
         }
 
-        if (result.Errors.Count == 0)
+        return WriteProblem(result);
+    }
+
+    /// <summary>更新栽培紀錄並回傳新值，或依驗證結果回傳問題。</summary>
+    public override async Task<IActionResult> EditPlanting(Guid fieldId, Guid plantingId, EditPlantingRqDto request)
+    {
+        var result = await plantings.EditAsync(AccountId, fieldId, plantingId, request, HttpContext.RequestAborted);
+        return result.Planting is { } planting ? Ok(PlantingDtoMapper.ToDto(planting)) : WriteProblem(result);
+    }
+
+    /// <summary>刪除規劃中的紀錄，成功時回傳 HTTP 204。</summary>
+    public override async Task<IActionResult> DeletePlanting(Guid fieldId, Guid plantingId)
+    {
+        var result = await plantings.DeleteAsync(AccountId, fieldId, plantingId, HttpContext.RequestAborted);
+        return result.Status switch
+        {
+            PlantingWriteStatus.Success => NoContent(),
+            PlantingWriteStatus.NotFound => NotFound(),
+            _ => Problem(statusCode: StatusCodes.Status409Conflict, detail: ErrorMessages.PlantingDeleteInvalid)
+        };
+    }
+
+    /// <summary>將寫入失敗轉換成找不到紀錄或指定欄位的錯誤回應。</summary>
+    private IActionResult WriteProblem(PlantingWriteResult result)
+    {
+        if (result.Status == PlantingWriteStatus.NotFound)
         {
             return NotFound();
         }
 
-        foreach (var (property, message) in result.Errors)
+        foreach (var (property, message) in result.Errors!)
         {
             ModelState.AddModelError(property, message);
         }
-        return ValidationProblem(ModelState);
+        return ValidationProblem(modelStateDictionary: ModelState, statusCode: result.Status == PlantingWriteStatus.Conflict
+            ? StatusCodes.Status409Conflict
+            : StatusCodes.Status400BadRequest);
     }
 
     /// <summary>回傳指定田區的單筆栽培紀錄，查無可存取的紀錄時回傳 HTTP 404。</summary>
@@ -47,6 +75,6 @@ public sealed class PlantingsController(PlantingService plantings) : PlantingsAp
     public override async Task<IActionResult> ListFieldPlantings(Guid fieldId)
     {
         var field = await plantings.ListFieldAsync(AccountId, fieldId, HttpContext.RequestAborted);
-        return field is null ? NotFound() : Ok(field.Plantings.ConvertAll(PlantingDtoMapper.ToDto));
+        return field is null ? NotFound() : Ok(PlantingDtoMapper.ToFieldPlantingsDto(field));
     }
 }

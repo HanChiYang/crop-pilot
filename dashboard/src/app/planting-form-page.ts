@@ -1,24 +1,26 @@
-import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { finalize } from 'rxjs';
-import { FieldsService } from './generated/api/fields.service';
-import { PlantingsService } from './generated/api/plantings.service';
-import { CreatePlantingRqDto } from './generated/model/createPlantingRqDto';
-import { FieldDto } from './generated/model/fieldDto';
-import { plantingStatusLabel } from './planting-display';
+import { HttpErrorResponse } from "@angular/common/http";
+import { Component, DestroyRef, computed, inject, signal } from "@angular/core";
+import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
+import { FormBuilder, ReactiveFormsModule } from "@angular/forms";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { finalize, forkJoin, of } from "rxjs";
+import { FieldsService } from "./generated/api/fields.service";
+import { PlantingsService } from "./generated/api/plantings.service";
+import { CreatePlantingRqDto } from "./generated/model/createPlantingRqDto";
+import { FieldDto } from "./generated/model/fieldDto";
+import { EditPlantingRqDto } from "./generated/model/editPlantingRqDto";
+import { PlantingStatus } from "./generated/model/plantingStatus";
+import { plantingStatusLabel } from "./planting-display";
 
-type PlantingErrors = Partial<Record<keyof CreatePlantingRqDto, string[]>>;
+type PlantingErrors = Partial<Record<keyof EditPlantingRqDto, string[]>>;
 
 @Component({
-  selector: 'app-planting-form-page',
+  selector: "app-planting-form-page",
   imports: [ReactiveFormsModule, RouterLink],
   template: `
     <header class="page-heading">
       <div>
-        <h1>新增栽培紀錄</h1>
+        <h1>{{ plantingId ? "編輯栽培紀錄" : "新增栽培紀錄" }}</h1>
         @if (field(); as selected) {
           <p>田區　{{ selected.name }}</p>
         }
@@ -66,7 +68,7 @@ type PlantingErrors = Partial<Record<keyof CreatePlantingRqDto, string[]>>;
                 formControlName="status"
                 aria-describedby="planting-status-error"
               >
-                @for (status of statuses; track status) {
+                @for (status of statuses(); track status) {
                   <option [value]="status">{{ statusLabel[status] }}</option>
                 }
               </select>
@@ -89,18 +91,18 @@ type PlantingErrors = Partial<Record<keyof CreatePlantingRqDto, string[]>>;
                 {{ errors().plannedPlantingDate?.[0] }}
               </p>
             </div>
-            @if (status() !== 'planned') {
+            @if (plantingId || status() !== "planned") {
               <div class="field-control">
                 <label for="actual-date"
                   >實際栽種日（{{
-                    status() === 'growing' ? '必填' : '選填'
+                    requiresActualDate() ? "必填" : "選填"
                   }}）</label
                 >
                 <input
                   id="actual-date"
                   type="date"
                   formControlName="actualPlantingDate"
-                  [required]="status() === 'growing'"
+                  [required]="requiresActualDate()"
                   [attr.aria-invalid]="
                     errors().actualPlantingDate ? 'true' : null
                   "
@@ -111,6 +113,20 @@ type PlantingErrors = Partial<Record<keyof CreatePlantingRqDto, string[]>>;
                 </p>
               </div>
             }
+            <div class="field-control">
+              <label for="planting-area">占用面積（m²，必填）</label>
+              <input
+                id="planting-area"
+                inputmode="decimal"
+                required
+                formControlName="areaSquareMeters"
+                [attr.aria-invalid]="errors().areaSquareMeters ? 'true' : null"
+                aria-describedby="planting-area-error"
+              />
+              <p class="error" id="planting-area-error">
+                {{ errors().areaSquareMeters?.[0] }}
+              </p>
+            </div>
           </div>
           <div class="field-control planting-form-notes">
             <label for="planting-notes">備註（選填）</label>
@@ -127,7 +143,7 @@ type PlantingErrors = Partial<Record<keyof CreatePlantingRqDto, string[]>>;
           </div>
           <div class="field-form-actions">
             <button class="button" type="submit">
-              {{ saving() ? '儲存中…' : '儲存' }}
+              {{ saving() ? "儲存中…" : "儲存" }}
             </button>
             <button
               class="button button-outline"
@@ -157,7 +173,9 @@ type PlantingErrors = Partial<Record<keyof CreatePlantingRqDto, string[]>>;
         >
           重新載入
         </button>
-        <a routerLink="/dashboard/plantings">返回作物栽培管理</a>
+        <a routerLink="/dashboard/plantings" [queryParams]="{ fieldId }"
+          >返回作物栽培管理</a
+        >
       </section>
     } @else {
       <p class="panel empty-state" role="status">正在載入田區…</p>
@@ -169,75 +187,139 @@ export class PlantingFormPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly fields = inject(FieldsService);
   private readonly plantings = inject(PlantingsService);
-  protected readonly fieldId =
-    inject(ActivatedRoute).snapshot.paramMap.get('fieldId')!;
+  private readonly params = inject(ActivatedRoute).snapshot.paramMap;
+  protected readonly fieldId = this.params.get("fieldId")!;
+  protected readonly plantingId = this.params.get("plantingId");
   protected readonly field = signal<FieldDto | null>(null);
   protected readonly saving = signal(false);
   protected readonly saved = signal(false);
   protected readonly errors = signal<PlantingErrors>({});
-  protected readonly message = signal('');
-  protected readonly statuses = Object.values(CreatePlantingRqDto.StatusEnum);
+  protected readonly message = signal("");
+  private readonly originalStatus = signal<PlantingStatus | null>(null);
+  protected readonly statuses = computed<PlantingStatus[]>(() => {
+    switch (this.originalStatus()) {
+      case "planned":
+        return ["planned", "growing"];
+      case "growing":
+        return ["growing", "harvesting", "completed"];
+      case "harvesting":
+        return ["harvesting", "completed"];
+      default:
+        return ["planned", "growing", "harvesting"];
+    }
+  });
   protected readonly statusLabel = plantingStatusLabel;
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    cropName: '',
-    variety: '',
-    status: 'planned' as CreatePlantingRqDto.StatusEnum,
-    plannedPlantingDate: '',
-    actualPlantingDate: '',
-    notes: '',
+    cropName: "",
+    variety: "",
+    status: "planned" as PlantingStatus,
+    areaSquareMeters: "",
+    plannedPlantingDate: "",
+    actualPlantingDate: "",
+    notes: "",
   });
   protected readonly status = toSignal(this.form.controls.status.valueChanges, {
-    initialValue: 'planned',
+    initialValue: "planned",
   });
+  protected readonly requiresActualDate = computed(
+    () => this.status() === "growing" || this.status() === "completed",
+  );
 
   ngOnInit(): void {
     this.loadField();
   }
 
   protected loadField(): void {
-    this.message.set('');
-    this.fields
-      .getField({ fieldId: this.fieldId })
+    this.message.set("");
+    forkJoin({
+      field: this.fields.getField({ fieldId: this.fieldId }),
+      planting: this.plantingId
+        ? this.plantings.getPlanting({
+            fieldId: this.fieldId,
+            plantingId: this.plantingId,
+          })
+        : of(null),
+    })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (field) => this.field.set(field),
+        next: ({ field, planting }) => {
+          if (planting?.status === "completed") {
+            this.message.set("已結束的栽培紀錄無法編輯。");
+            return;
+          }
+          if (planting) {
+            this.originalStatus.set(planting.status);
+            this.form.setValue({
+              cropName: planting.cropName,
+              variety: planting.variety ?? "",
+              status: planting.status,
+              plannedPlantingDate: planting.plannedPlantingDate ?? "",
+              actualPlantingDate: planting.actualPlantingDate ?? "",
+              areaSquareMeters: String(planting.areaSquareMeters),
+              notes: planting.notes ?? "",
+            });
+          }
+          this.field.set(field);
+        },
         error: (error: unknown) =>
-          this.showFailure(error, '目前無法載入田區，請再試一次。'),
+          this.showFailure(error, "目前無法載入田區，請再試一次。"),
       });
   }
 
   protected save(): void {
     if (this.saving() || this.saved() || !this.field()) return;
-    this.message.set('');
+    this.message.set("");
     const values = this.form.getRawValue();
     const cropName = values.cropName.trim();
     const errors: PlantingErrors = {};
-    if (!cropName) errors.cropName = ['請輸入作物名稱。'];
-    if (values.status === 'growing' && !values.actualPlantingDate) {
-      errors.actualPlantingDate = ['請填寫實際栽種日。'];
+    if (!cropName) errors.cropName = ["請輸入作物名稱。"];
+    const area = values.areaSquareMeters.trim();
+    const areaSquareMeters = Number(area);
+    if (!area) {
+      errors.areaSquareMeters = ["請填寫占用面積。"];
+    } else if (
+      !/^(?:\d+(?:\.\d{1,4})?|\.\d{1,4})$/.test(area) ||
+      areaSquareMeters <= 0 ||
+      areaSquareMeters > 9999999999.9999
+    ) {
+      errors.areaSquareMeters = ["請輸入大於 0、最多四位小數的面積。"];
+    }
+    if (this.requiresActualDate() && !values.actualPlantingDate) {
+      errors.actualPlantingDate = ["請填寫實際栽種日。"];
     }
     this.errors.set(errors);
     if (Object.keys(errors).length > 0) {
-      this.message.set('請檢查標示的欄位。');
+      this.message.set("請檢查標示的欄位。");
       return;
     }
 
     this.saving.set(true);
-    this.plantings
-      .createPlanting({
-        fieldId: this.fieldId,
-        createPlantingRqDto: {
-          cropName,
-          variety: values.variety.trim() || null,
-          status: values.status,
-          plannedPlantingDate: values.plannedPlantingDate || null,
-          actualPlantingDate:
-            values.status === 'planned'
-              ? null
-              : values.actualPlantingDate || null,
-          notes: values.notes.trim() || null,
-        },
-      })
+    const request: EditPlantingRqDto = {
+      cropName,
+      variety: values.variety.trim() || null,
+      status: values.status,
+      plannedPlantingDate: values.plannedPlantingDate || null,
+      actualPlantingDate:
+        !this.plantingId && values.status === "planned"
+          ? null
+          : values.actualPlantingDate || null,
+      areaSquareMeters,
+      notes: values.notes.trim() || null,
+    };
+    const save = this.plantingId
+      ? this.plantings.editPlanting({
+          fieldId: this.fieldId,
+          plantingId: this.plantingId,
+          editPlantingRqDto: request,
+        })
+      : this.plantings.createPlanting({
+          fieldId: this.fieldId,
+          createPlantingRqDto: {
+            ...request,
+            status: values.status as CreatePlantingRqDto.StatusEnum,
+          },
+        });
+    save
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.saving.set(false)),
@@ -250,32 +332,36 @@ export class PlantingFormPage {
         error: (error: unknown) => {
           if (
             error instanceof HttpErrorResponse &&
-            error.status === 400 &&
+            (error.status === 400 || error.status === 409) &&
             error.error?.errors
           ) {
             this.errors.set(error.error.errors);
-            this.message.set('請檢查標示的欄位。');
+            this.message.set("請檢查標示的欄位。");
           } else {
-            this.showFailure(error, '目前無法儲存栽培紀錄，請再試一次。');
+            this.showFailure(error, "目前無法儲存栽培紀錄，請再試一次。");
           }
         },
       });
   }
 
   protected back(saved = false): void {
-    void this.router.navigate(['/dashboard/plantings'], {
+    void this.router.navigate(["/dashboard/plantings"], {
       queryParams: { fieldId: this.fieldId },
-      info: saved ? this.fieldId : undefined,
+      info: saved
+        ? { fieldId: this.fieldId, edited: !!this.plantingId }
+        : undefined,
     });
   }
 
   private showFailure(error: unknown, message: string): void {
     if (error instanceof HttpErrorResponse && error.status === 401) {
-      void this.router.navigateByUrl('/login', { replaceUrl: true });
+      void this.router.navigateByUrl("/login", { replaceUrl: true });
     } else {
       this.message.set(
         error instanceof HttpErrorResponse && error.status === 404
-          ? '找不到可存取的田區。'
+          ? this.plantingId
+            ? "找不到可存取的栽培紀錄。"
+            : "找不到可存取的田區。"
           : message,
       );
     }

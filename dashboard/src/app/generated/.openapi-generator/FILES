@@ -15,8 +15,10 @@ model/createFieldRqDto.ts
 model/createPlantingRqDto.ts
 model/deleteFieldRqDto.ts
 model/editFieldRqDto.ts
+model/editPlantingRqDto.ts
 model/fieldDto.ts
 model/fieldOverviewRsDto.ts
+model/fieldPlantingsRsDto.ts
 model/fieldRsDto.ts
 model/loginRqDto.ts
 model/logoutRqDto.ts

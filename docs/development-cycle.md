@@ -34,11 +34,13 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 田區編輯及刪除已經 PR #13 合併至 `develop`。編輯沿用新增表單並載入既有資料，刪除前顯示田區名稱供確認。批次刪除由 API 提供，任一田區不存在、不屬於登入帳號或有栽培紀錄時，整批保留。[田區與栽培資料](design/first-desktop-slice-data-api.md#田區與栽培資料)
 
-作物栽培新增與查詢已在 `feature/crop-planting` 串接後端與 Angular。管理頁先選田區，再手動輸入作物名稱與選填品種。新增預設為「規劃中」，可改為「栽培中」或「採收中」。栽培中必填實際栽種日，採收中可留空。儲存或取消都保留田區選擇，田區總覽顯示各田區目前的作物、狀態及日期。[桌機畫面及 Figma 原型](ui/first-desktop-slice/README.md) · [桌機版需求](requirements/desktop-field-and-planting.md#驗收切片)
+作物栽培新增與查詢已經 [PR #14](https://github.com/HanChiYang/crop-pilot/pull/14) 合併至 `develop`。管理頁先選田區，再手動輸入作物名稱與選填品種。新增預設為「規劃中」，可改為「栽培中」或「採收中」。栽培中必填實際栽種日，採收中可留空。儲存或取消都保留田區選擇，田區總覽顯示各田區目前的作物、狀態及日期。[桌機畫面及 Figma 原型](ui/first-desktop-slice/README.md) · [桌機版需求](requirements/desktop-field-and-planting.md#驗收切片)
 
 Angular 正式建置及 5 個 Edge 瀏覽器測試通過。栽培流程驗證初次進入、選田區、空列表、取消、新增後重新整理，以及總覽同時顯示「規劃中」「採收中」與「尚未設定」。列表和儲存失敗以攔截回應模擬，分別驗證保留田區並重試、留在表單並保留輸入。
 
 OpenAPI 契約已通過 OpenAPI Generator 7.27.0 驗證，Controller、DTO 和 Angular client 由同一契約生成。`CreatePlantings` migration 的 SQL 已核對並套用至獨立 PostgreSQL 測試庫，52 個 API 整合測試通過，包含跨帳號隔離、日期驗證、已結束紀錄保留、單筆與批次刪除 `409`，以及並行新增與刪除的一致性。後續切片處理栽培紀錄編輯、刪除與狀態變更。[OpenAPI 契約](openapi/openapi.yaml) · [資料庫設計](design/first-desktop-slice-database.md)
+
+占用面積、栽培編輯與狀態變更、規劃中刪除已在 `feature/planting-area-management` 實作。核對 `AddPlantingArea` SQL 後已套用到獨立 PostgreSQL 測試庫。58 個 API 整合測試、5 個 Edge 瀏覽器測試及 Angular 正式建置通過，驗證超額保留輸入、刪除與結束釋放面積，以及並行縮小田區與新增栽培不會超額。獨立審查發現的隱藏日期與 Unicode 字數問題已修正並複核。[本輪需求](requirements/desktop-field-and-planting.md#栽培占用面積)
 
 後端 API 分層、DTO、錯誤處理、Bearer 擁有權驗證及 XML 註解慣例已整理至 `AGENTS.md`，並經 PR #11 合併至 `develop`。[協作指引](../AGENTS.md#後端-api-實作慣例) · [慣例更新 PR](https://github.com/HanChiYang/crop-pilot/pull/11)
 
