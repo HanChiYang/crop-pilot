@@ -1,6 +1,6 @@
 # CropPilot｜首個桌機切片 UI 草案 v0.1
 
-2026-11-09 確認田區名稱和面積必填，座標選填，Figma 已同步更新。登入頁已新增「以 Google 帳號登入」，新增流程待審查。
+2026-11-09 確認田區名稱和面積必填，座標選填，Figma 已同步更新。首個桌機切片的 UI／UX 已確認，新增田區、新增栽培及返回總覽的原型動線已走查。登入頁與登入失敗頁的「以 Google 帳號登入」皆已在播放模式驗證可進入田區總覽。實作進度見[功能開發週期](../../development-cycle.md#目前進度)。
 
 - [Figma 設計稿 v0.1](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot%EF%BD%9C%E9%A6%96%E5%80%8B%E6%A1%8C%E6%A9%9F%E5%88%87%E7%89%87-v0.1?node-id=0-1)
 - [可點選原型，從首頁開始](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot-%E9%A6%96%E5%80%8B%E6%A1%8C%E6%A9%9F%E5%88%87%E7%89%87-v0.1?node-id=8-217&scaling=min-zoom&content-scaling=fixed&starting-point-node-id=8%3A217)
