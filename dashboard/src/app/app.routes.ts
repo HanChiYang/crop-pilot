@@ -5,7 +5,9 @@ import { catchError, map, of, timeout } from 'rxjs';
 import { AuthService } from './generated/api/auth.service';
 import { LandingPage } from './landing-page';
 import { LoginPage } from './login-page';
-import { OverviewPage } from './overview-page';
+import { DashboardLayout } from './dashboard-layout';
+import { FieldCreatePage } from './field-create-page';
+import { FieldListPage } from './field-list-page';
 
 const redirectSignedIn: CanActivateFn = () => {
   const auth = inject(AuthService);
@@ -23,6 +25,7 @@ const requireSession: CanActivateFn = () => {
   const router = inject(Router);
 
   return auth.getSession().pipe(
+    timeout(5_000),
     map(() => true),
     catchError((error: unknown) => {
       const expired = error instanceof HttpErrorResponse && error.status === 401;
@@ -36,6 +39,15 @@ const requireSession: CanActivateFn = () => {
 export const routes: Routes = [
   { path: '', component: LandingPage, canActivate: [redirectSignedIn], title: 'CropPilot' },
   { path: 'login', component: LoginPage, title: '登入 CropPilot' },
-  { path: 'dashboard', component: OverviewPage, canActivate: [requireSession], title: '田區總覽｜CropPilot' },
+  {
+    path: 'dashboard',
+    component: DashboardLayout,
+    canActivateChild: [requireSession],
+    children: [
+      { path: '', component: FieldListPage, data: { overview: true }, title: '田區總覽｜CropPilot' },
+      { path: 'fields', component: FieldListPage, title: '田區管理｜CropPilot' },
+      { path: 'fields/new', component: FieldCreatePage, title: '新增田區｜CropPilot' },
+    ],
+  },
   { path: '**', redirectTo: '' },
 ];
