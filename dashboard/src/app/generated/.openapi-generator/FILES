@@ -23,6 +23,7 @@ model/fieldRsDto.ts
 model/loginRqDto.ts
 model/logoutRqDto.ts
 model/models.ts
+model/plantingHistoryItemDto.ts
 model/plantingRsDto.ts
 model/plantingStatus.ts
 param.ts

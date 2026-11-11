@@ -6,6 +6,18 @@ namespace CropPilot.Api.Plantings;
 /// <summary>將資料庫的栽培紀錄與田區轉成 API 回應。</summary>
 internal static class PlantingDtoMapper
 {
+    /// <summary>轉換歷史清單摘要並保留原紀錄的品種與占用面積。</summary>
+    internal static PlantingHistoryItemDto ToHistoryDto(PlantingHistoryEntry entry) => new()
+    {
+        Id = entry.Id,
+        FieldId = entry.FieldId,
+        FieldName = entry.FieldName,
+        CropName = entry.CropName,
+        Variety = entry.Variety!,
+        ActualPlantingDate = entry.ActualPlantingDate,
+        AreaSquareMeters = entry.AreaSquareMeters
+    };
+
     /// <summary>轉換栽培紀錄，保留選填欄位空值並轉換資料庫狀態。</summary>
     internal static PlantingRsDto ToDto(Planting planting) => new()
     {

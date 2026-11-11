@@ -152,5 +152,52 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> ListFieldPlantings([FromRoute (Name = "fieldId")][Required]Guid fieldId);
+
+        /// <summary>
+        /// 依田區及作物查詢已結束栽培紀錄
+        /// </summary>
+        /// <remarks>需要 USER 角色。後端只查詢登入帳號擁有的已結束紀錄。 fieldId 和 cropName 可各自省略，同時提供時只回傳符合兩個條件的紀錄。 省略兩者表示自己的全部田區及作物。 結果按實際栽種日降冪、紀錄 ID 升冪排列。</remarks>
+        /// <param name="fieldId">選用。省略表示自己的全部田區。空值或 UUID 格式錯誤回傳 400。指定的田區不存在或屬於其他帳號時回傳 404。</param>
+        /// <param name="cropName">選用。傳作物選項回傳的完整名稱，以 1 至 120 個 Unicode 碼點計算，區分大小寫比對。省略表示全部作物。空白或無效名稱回傳 400。</param>
+        /// <response code="200">符合條件的已結束紀錄。查無資料時回傳空陣列。</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpGet]
+        [Route("/api/v1/planting-history")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(List<PlantingHistoryItemDto>))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> ListPlantingHistory([FromQuery (Name = "fieldId")]Guid? fieldId, [FromQuery (Name = "cropName")][RegularExpression("^[\\s\\S]*\\S[\\s\\S]*$")]string cropName);
+
+        /// <summary>
+        /// 載入栽培歷史的作物下拉選項
+        /// </summary>
+        /// <remarks>需要 USER 角色。進入頁面或切換田區時使用。 後端依登入帳號、已結束狀態及選用的 fieldId 限定查詢範圍， 回傳其中的作物名稱，依完整名稱區分大小寫去重並以 PostgreSQL C 定序升冪排列。 回傳的名稱可作為歷史清單的 cropName 參數。</remarks>
+        /// <param name="fieldId">選用。省略表示自己的全部田區。空值或 UUID 格式錯誤回傳 400。指定的田區不存在或屬於其他帳號時回傳 404。</param>
+        /// <response code="200">作物名稱清單。沒有已結束紀錄時回傳空陣列。</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpGet]
+        [Route("/api/v1/planting-history/crops")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(List<string>))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> ListPlantingHistoryCrops([FromQuery (Name = "fieldId")]Guid? fieldId);
     }
 }

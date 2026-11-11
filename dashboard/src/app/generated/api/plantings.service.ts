@@ -27,6 +27,8 @@ import { EditPlantingRqDto } from '../model/editPlantingRqDto';
 // @ts-ignore
 import { FieldPlantingsRsDto } from '../model/fieldPlantingsRsDto';
 // @ts-ignore
+import { PlantingHistoryItemDto } from '../model/plantingHistoryItemDto';
+// @ts-ignore
 import { PlantingRsDto } from '../model/plantingRsDto';
 
 // @ts-ignore
@@ -66,6 +68,18 @@ export interface GetPlantingRequestParams {
 export interface ListFieldPlantingsRequestParams {
     /** 田區的 UUID。 */
     fieldId: string;
+}
+
+export interface ListPlantingHistoryRequestParams {
+    /** 選用。省略表示自己的全部田區。空值或 UUID 格式錯誤回傳 400。指定的田區不存在或屬於其他帳號時回傳 404。 */
+    fieldId?: string;
+    /** 選用。傳作物選項回傳的完整名稱，以 1 至 120 個 Unicode 碼點計算，區分大小寫比對。省略表示全部作物。空白或無效名稱回傳 400。 */
+    cropName?: string;
+}
+
+export interface ListPlantingHistoryCropsRequestParams {
+    /** 選用。省略表示自己的全部田區。空值或 UUID 格式錯誤回傳 400。指定的田區不存在或屬於其他帳號時回傳 404。 */
+    fieldId?: string;
 }
 
 
@@ -416,6 +430,158 @@ export class PlantingsService extends BaseService {
         return this.httpClient.request<FieldPlantingsRsDto>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 依田區及作物查詢已結束栽培紀錄
+     * 需要 USER 角色。後端只查詢登入帳號擁有的已結束紀錄。 fieldId 和 cropName 可各自省略，同時提供時只回傳符合兩個條件的紀錄。 省略兩者表示自己的全部田區及作物。 結果按實際栽種日降冪、紀錄 ID 升冪排列。
+     * @endpoint get /api/v1/planting-history
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public listPlantingHistory(requestParameters?: ListPlantingHistoryRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<Array<PlantingHistoryItemDto>>;
+    public listPlantingHistory(requestParameters?: ListPlantingHistoryRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<PlantingHistoryItemDto>>>;
+    public listPlantingHistory(requestParameters?: ListPlantingHistoryRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<PlantingHistoryItemDto>>>;
+    public listPlantingHistory(requestParameters?: ListPlantingHistoryRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const fieldId = requestParameters?.fieldId;
+        const cropName = requestParameters?.cropName;
+
+        let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'fieldId',
+            <any>fieldId,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'cropName',
+            <any>cropName,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/planting-history`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<Array<PlantingHistoryItemDto>>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                params: localVarQueryParameters.toHttpParams(),
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 載入栽培歷史的作物下拉選項
+     * 需要 USER 角色。進入頁面或切換田區時使用。 後端依登入帳號、已結束狀態及選用的 fieldId 限定查詢範圍， 回傳其中的作物名稱，依完整名稱區分大小寫去重並以 PostgreSQL C 定序升冪排列。 回傳的名稱可作為歷史清單的 cropName 參數。
+     * @endpoint get /api/v1/planting-history/crops
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public listPlantingHistoryCrops(requestParameters?: ListPlantingHistoryCropsRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<Array<string>>;
+    public listPlantingHistoryCrops(requestParameters?: ListPlantingHistoryCropsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<string>>>;
+    public listPlantingHistoryCrops(requestParameters?: ListPlantingHistoryCropsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<string>>>;
+    public listPlantingHistoryCrops(requestParameters?: ListPlantingHistoryCropsRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const fieldId = requestParameters?.fieldId;
+
+        let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'fieldId',
+            <any>fieldId,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/planting-history/crops`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<Array<string>>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                params: localVarQueryParameters.toHttpParams(),
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,

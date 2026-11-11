@@ -12,5 +12,6 @@ export * from './fieldPlantingsRsDto';
 export * from './fieldRsDto';
 export * from './loginRqDto';
 export * from './logoutRqDto';
+export * from './plantingHistoryItemDto';
 export * from './plantingRsDto';
 export * from './plantingStatus';

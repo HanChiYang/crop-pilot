@@ -153,6 +153,34 @@ public sealed class PlantingService(PlantingRepository repository)
     internal Task<List<FieldPlantings>> ListOverviewAsync(Guid accountId, CancellationToken cancellationToken) =>
         repository.ListOverviewAsync(accountId, cancellationToken);
 
+    /// <summary>驗證明確提供的作物篩選名稱，允許至多 120 個 Unicode 碼點。</summary>
+    internal static bool IsHistoryCropNameValid(string? cropName) =>
+        !string.IsNullOrWhiteSpace(cropName) && !InvalidText(cropName, 120);
+
+    /// <summary>查詢已結束的紀錄。指定田區無法存取時回傳 null。</summary>
+    internal async Task<List<PlantingHistoryEntry>?> ListHistoryAsync(
+        Guid accountId, Guid? fieldId, string? cropName, CancellationToken cancellationToken)
+    {
+        if (fieldId is Guid id && !await repository.OwnsFieldAsync(accountId, id, cancellationToken))
+        {
+            return null;
+        }
+
+        return await repository.ListHistoryAsync(accountId, fieldId, cropName, cancellationToken);
+    }
+
+    /// <summary>查詢已結束紀錄的作物名稱。指定田區無法存取時回傳 null。</summary>
+    internal async Task<List<string>?> ListHistoryCropsAsync(
+        Guid accountId, Guid? fieldId, CancellationToken cancellationToken)
+    {
+        if (fieldId is Guid id && !await repository.OwnsFieldAsync(accountId, id, cancellationToken))
+        {
+            return null;
+        }
+
+        return await repository.ListHistoryCropsAsync(accountId, fieldId, cancellationToken);
+    }
+
     /// <summary>檢查文字是否超過 Unicode 碼點上限或含 PostgreSQL 不支援的空字元。</summary>
     private static bool InvalidText(string? value, int maxLength) =>
         value is not null && (value.Contains('\0') || value.EnumerateRunes().Count() > maxLength);
