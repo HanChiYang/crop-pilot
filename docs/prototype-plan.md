@@ -2,6 +2,32 @@
 
 ## UX 草案審查記錄
 
+**2026-11-11 · 肥料庫存、灌溉與農藥管理 · 待審查**
+
+作物栽培管理的列操作選單包含施肥、灌溉與用藥紀錄。肥料新增資材有獨立播放入口。施肥清單可查看多批庫存，編輯示範將已用的 3 公斤改為 2 公斤、退回 1 公斤，並可試走超過批次可用量的提示。[三類作業原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=182-141&starting-point-node-id=182%3A141&scaling=scale-down) · [新增肥料資材](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=182-306&starting-point-node-id=182%3A306&scaling=scale-down)
+
+已走查灌溉新增和編輯。草案欄位包含實際灌溉日期、灌溉方式、選填用水量及備註。農藥管理以示例資材走查用藥新增、編輯、庫存不足後修正、查批次餘量及登記進貨。灌溉與農藥屬後續功能的 UX 草案。原型使用預填範例，灌溉與用藥的歷史補登、農藥主檔建立及期初庫存登記仍待接線。
+
+**2026-11-11 · 肥料資材庫存與施肥扣量 · 待審查**
+
+新增「資材庫存｜肥料」桌機頁面。庫存清單顯示資材的總剩餘量、各批登記量與剩餘量，以及已知單價。已在播放模式走查登記進貨 10 公斤與每公斤 NT$20，以及登記期初庫存 8 公斤、選該批施肥 3 公斤、回查剩 5 公斤。期初庫存範例省略購買日期與單價，施肥紀錄顯示成本待補。[庫存可點選原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=174-27&starting-point-node-id=174%3A27&scaling=scale-down)
+
+此稿以已有「有機肥」資材為起點。新增資材、同時有多批庫存、編輯施肥及庫存不足的互動分支待補。施肥表單使用預填範例示範選批次與扣量。
+
+**2026-11-11 · 施肥新增與編輯 · 待審查**
+
+從北側田番茄的施肥清單走查兩條路徑。新增從一項肥料開始，可點「新增肥料」查看兩項明細，再儲存回清單。編輯從第一筆作業帶入實際施肥日期、肥料、總量和單位，儲存後示範更新用量。原型使用預填範例模擬輸入。[可點選原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=152-124&starting-point-node-id=152%3A124&scaling=scale-down)
+
+**2026-11-11 · 作物栽培管理的施肥入口 · 待審查**
+
+桌機原型以北側田的番茄示範從清單的「⋯」展開操作選單，選「施肥紀錄」進入該筆栽培的施肥列表，再返回清單。已在播放模式走查。此版以整張畫框接收點擊，示範上述路徑。[可點選原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=152-124&starting-point-node-id=152%3A124&scaling=scale-down)
+
+**2026-11-11 · 施肥用量驗證與歷史補登 · 待審查**
+
+用量為零時，儲存會顯示欄位錯誤並保留日期與兩項明細。點選錯誤欄位可試走修正，再儲存回清單。[用量驗證原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=168-191&starting-point-node-id=168%3A191&scaling=scale-down)
+
+從栽培歷史的番茄批次進入詳情，補登 10 月 5 日施用的有機肥。儲存後回到清單，批次仍顯示「已結束」。[歷史補登原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=168-21&starting-point-node-id=168%3A21&scaling=scale-down)
+
 **2026-11-11 · 栽培歷史 · 已確認**
 
 首版可依田區及作物查詢已結束的栽培紀錄，支援全部田區及全部作物。原型以北側田的番茄示範篩選、單筆詳情及返回原列表，並附上查無結果與查詢失敗畫面。[可點選原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=145-3&page-id=145%3A2&starting-point-node-id=145%3A3&scaling=scale-down) · [需求與驗收條件](requirements/desktop-field-and-planting.md#栽培歷史)
@@ -15,10 +41,6 @@
 整合稿補上規劃中紀錄的刪除分支。已在播放模式確認取消會保留小白菜，確認刪除後同一田區的剩餘面積從 0 m² 增至 300 m²。[從規劃中紀錄試走刪除](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=87-2173&page-id=87%3A1916&starting-point-node-id=87%3A2173&scaling=scale-down)
 
 單筆栽培改從列表的「編輯」開啟完整表單，載入作物名稱、品種、狀態、預定與實際栽種日、占用面積和備註。播放模式已走查小白菜維持規劃中儲存，以及在表單內改為栽培中、補填必填日期後儲存。其他欄位目前呈現於原型表單，逐欄輸入與儲存結果依需求驗收。[編輯表單原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=103-2&page-id=87%3A1916&starting-point-node-id=87%3A2173&scaling=scale-down)
-
-**2026-11-11 · 栽培占用面積 · 舊稿**
-
-桌機原型以 1,000 m² 的北側田示範先補填番茄 700 m²，再新增小白菜規劃 300 m²。另一條流程示範輸入 350 m² 時保留輸入並提示剩餘面積，修正後可儲存。已在播放模式走查兩條流程。[流程圖](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=83-1874) · [可點選原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=83-1484&page-id=83%3A1483&starting-point-node-id=83%3A1484&scaling=scale-down&show-proto-sidebar=1) · [占用面積需求](requirements/desktop-field-and-planting.md#栽培占用面積)
 
 **v0.1 · 2026-11-09 · 初步檢視**
 

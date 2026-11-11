@@ -45,6 +45,7 @@ import { AuthSession } from './auth-session';
             ariaCurrentWhenActive="page"
             >栽培歷史</a
           >
+          <a routerLink="/dashboard/fertilizers" routerLinkActive="active" ariaCurrentWhenActive="page">肥料庫存</a>
         </nav>
         <div class="sidebar-account">
           <strong>農民帳號</strong>
