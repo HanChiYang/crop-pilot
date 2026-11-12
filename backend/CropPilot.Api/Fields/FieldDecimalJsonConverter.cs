@@ -16,8 +16,11 @@ internal sealed class FieldDecimalJsonConverter(int scale) : JsonConverter<decim
     {
         var hasFertilizerQuantity = type.Type == typeof(CreateFertilizerLotRqDto)
             || type.Type == typeof(EditFertilizerLotRqDto)
-            || type.Type == typeof(FertilizationDetailRqDto)
-            || type.Type == typeof(EditFertilizationDetailRqDto);
+            || type.Type == typeof(MaterialApplicationDetailRqDto)
+            || type.Type == typeof(EditMaterialApplicationDetailRqDto)
+            || type.Type == typeof(CreateMaterialApplicationRqDto)
+            || type.Type == typeof(EditMaterialApplicationRqDto)
+            || type.Type == typeof(CreatePesticideLotRqDto);
         var hasArea = type.Type == typeof(CreateFieldRqDto) || type.Type == typeof(EditFieldRqDto)
             || type.Type == typeof(CreatePlantingRqDto) || type.Type == typeof(EditPlantingRqDto);
         if (!hasArea && !hasFertilizerQuantity)

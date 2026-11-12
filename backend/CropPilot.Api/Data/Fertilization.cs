@@ -4,6 +4,7 @@ namespace CropPilot.Api.Data;
 internal sealed class AgriculturalMaterial
 {
     internal const string Fertilizer = "FERTILIZER";
+    internal const string Pesticide = "PESTICIDE";
 
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid MainAccountId { get; init; }
@@ -35,30 +36,41 @@ internal sealed class MaterialPurchaseLot
 /// <summary>保存一次田間作業所屬的栽培紀錄及實際作業日。</summary>
 internal sealed class FieldOperation
 {
-    internal const string Fertilization = "FERTILIZATION";
+    internal const string MaterialApplication = "MATERIAL_APPLICATION";
     internal const string Irrigation = "IRRIGATION";
 
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid PlantingId { get; init; }
     public Planting Planting { get; init; } = null!;
-    public string OperationType { get; init; } = Fertilization;
+    public string OperationType { get; init; } = MaterialApplication;
     public DateOnly OperationDate { get; set; }
     public string? Description { get; set; }
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset UpdatedAt { get; set; }
-    public List<FertilizationDetail> Details { get; } = [];
+    public MaterialApplication? Application { get; set; }
     public IrrigationDetail? IrrigationDetail { get; set; }
 }
 
-/// <summary>保存一次施肥中的批次扣用量及當時的名稱、單位與單價。</summary>
-internal sealed class FertilizationDetail
+/// <summary>保存一次資材施用共用的噴施水量。</summary>
+internal sealed class MaterialApplication
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid FieldOperationId { get; init; }
     public FieldOperation FieldOperation { get; init; } = null!;
+    public decimal? SprayWaterVolumeLiters { get; set; }
+    public List<MaterialApplicationDetail> Details { get; } = [];
+}
+
+/// <summary>保存一次資材施用的批次用量與資材快照。</summary>
+internal sealed class MaterialApplicationDetail
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid MaterialApplicationId { get; init; }
+    public MaterialApplication Application { get; init; } = null!;
     public Guid MaterialPurchaseLotId { get; set; }
     public MaterialPurchaseLot Lot { get; set; } = null!;
-    public required string FertilizerName { get; set; }
+    public required string MaterialName { get; set; }
+    public required string ApplicationMethod { get; set; }
     public decimal Quantity { get; set; }
     public required string Unit { get; set; }
     public decimal? UnitPrice { get; set; }

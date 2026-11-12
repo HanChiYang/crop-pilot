@@ -26,6 +26,8 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 ## 目前進度
 
+資材施用已接上共用的 OpenAPI、EF Core migration 和桌機表單，可在同一筆作業選擇農藥與肥料批次，記錄施用方式及噴施總水量。農藥主檔及批次可透過 API 建立和查詢。67 個 API 整合測試、11 個 Edge 瀏覽器測試及 Angular 正式建置通過。升版與降版 SQL 已核對，並以隔離資料庫驗證。[UX 審查記錄](prototype-plan.md#ux-草案審查記錄) · [資料庫設計](design/first-desktop-slice-database.md#material_applications) · [API 設計](design/first-desktop-slice-data-api.md#資材施用)
+
 灌溉 API 已在 `feature/irrigation-records` 實作查詢、新增、編輯及刪除，支援已結束栽培補登與選填公升用水量。已生成 C# 契約及 Angular client，核對 `AddIrrigationRecords` 升降版 SQL，並在隔離的 PostgreSQL 測試庫確認降版清除灌溉資料並保留施肥資料。66 個 API 整合測試及 Angular 正式建置通過。Angular 已從作物栽培管理的田間作業選單及栽培歷史詳情接上灌溉清單與表單。11 個 Edge 瀏覽器測試通過，其中 3 個灌溉案例以模擬 API 驗證兩個入口、歷史補登、跨午夜日期、用水量精度與清空、刪除確認，以及規劃中栽培的新增限制。[灌溉 API 設計](design/first-desktop-slice-data-api.md#灌溉紀錄) · [資料表設計](design/first-desktop-slice-database.md#irrigation_details) · [OpenAPI 契約](openapi/openapi.yaml)
 
 施肥紀錄及肥料庫存已在 `feature/fertilization-inventory` 實作。作物栽培管理從列操作選單進入施肥紀錄，栽培歷史詳情也可補登及修正。一次作業支援多項肥料與不同批次。肥料庫存支援資材及進貨、期初批次的新增、編輯、刪除與餘量查詢。施肥與扣量同筆交易處理，修正批次單價後，原明細保留當時單價。[田間作業需求](requirements/field-operations.md) · [施肥 API 設計](design/first-desktop-slice-data-api.md#施肥紀錄)

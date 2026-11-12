@@ -15,9 +15,9 @@ internal static class FertilizationModel
         {
             material.ToTable("agricultural_materials", table =>
             {
-                table.HasCheckConstraint("ck_agricultural_materials_type", "material_type = 'FERTILIZER'");
+                table.HasCheckConstraint("ck_agricultural_materials_type", "material_type IN ('FERTILIZER', 'PESTICIDE')");
                 table.HasCheckConstraint("ck_agricultural_materials_name", "btrim(name) <> ''");
-                table.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> ''");
+                table.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> '' AND (material_type <> 'PESTICIDE' OR stock_unit IN ('公升', '毫升', '公斤', '公克'))");
             });
             material.HasOne<MainAccount>().WithMany().HasForeignKey(value => value.MainAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -56,7 +56,7 @@ internal static class FertilizationModel
         builder.Entity<FieldOperation>(operation =>
         {
             operation.ToTable("field_operations", table =>
-                table.HasCheckConstraint("ck_field_operations_type", "operation_type IN ('FERTILIZATION', 'IRRIGATION')"));
+                table.HasCheckConstraint("ck_field_operations_type", "operation_type IN ('MATERIAL_APPLICATION', 'IRRIGATION')"));
             operation.HasOne(value => value.Planting).WithMany().HasForeignKey(value => value.PlantingId)
                 .OnDelete(DeleteBehavior.Restrict);
             operation.Property(value => value.OperationType).HasMaxLength(24);
@@ -69,27 +69,39 @@ internal static class FertilizationModel
             }).IsDescending(false, false, true, true, true);
         });
 
-        builder.Entity<FertilizationDetail>(detail =>
+        builder.Entity<MaterialApplication>(application =>
         {
-            detail.ToTable("fertilization_details", table =>
+            application.ToTable("material_applications", table =>
+                table.HasCheckConstraint("ck_material_applications_water",
+                    "spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999"));
+            application.HasOne(value => value.FieldOperation).WithOne(value => value.Application)
+                .HasForeignKey<MaterialApplication>(value => value.FieldOperationId).OnDelete(DeleteBehavior.Cascade);
+            application.Property(value => value.SprayWaterVolumeLiters).HasPrecision(15, 6);
+        });
+
+        builder.Entity<MaterialApplicationDetail>(detail =>
+        {
+            detail.ToTable("material_application_details", table =>
             {
-                table.HasCheckConstraint("ck_fertilization_details_quantity",
+                table.HasCheckConstraint("ck_material_application_details_quantity",
                     "quantity BETWEEN 0.000001 AND 999999999.999999");
-                table.HasCheckConstraint("ck_fertilization_details_price",
+                table.HasCheckConstraint("ck_material_application_details_price",
                     "unit_price BETWEEN 0 AND 999999999.999999");
-                table.HasCheckConstraint("ck_fertilization_details_currency", "currency_code = 'TWD'");
-                table.HasCheckConstraint("ck_fertilization_details_sort_order", "sort_order >= 0");
+                table.HasCheckConstraint("ck_material_application_details_currency", "currency_code = 'TWD'");
+                table.HasCheckConstraint("ck_material_application_details_method", "application_method IN ('spray', 'broadcast')");
+                table.HasCheckConstraint("ck_material_application_details_sort_order", "sort_order >= 0");
             });
-            detail.HasOne(value => value.FieldOperation).WithMany(value => value.Details)
-                .HasForeignKey(value => value.FieldOperationId).OnDelete(DeleteBehavior.Cascade);
+            detail.HasOne(value => value.Application).WithMany(value => value.Details)
+                .HasForeignKey(value => value.MaterialApplicationId).OnDelete(DeleteBehavior.Cascade);
             detail.HasOne(value => value.Lot).WithMany().HasForeignKey(value => value.MaterialPurchaseLotId)
                 .OnDelete(DeleteBehavior.Restrict);
-            detail.Property(value => value.FertilizerName).HasMaxLength(100);
+            detail.Property(value => value.MaterialName).HasMaxLength(100);
+            detail.Property(value => value.ApplicationMethod).HasMaxLength(24);
             detail.Property(value => value.Quantity).HasPrecision(15, 6);
             detail.Property(value => value.Unit).HasMaxLength(20);
             detail.Property(value => value.UnitPrice).HasPrecision(15, 6);
             detail.Property(value => value.CurrencyCode).HasColumnType("char(3)");
-            detail.HasIndex(value => new { value.FieldOperationId, value.SortOrder });
+            detail.HasIndex(value => new { value.MaterialApplicationId, value.SortOrder });
         });
     }
 }

@@ -121,23 +121,28 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
         }
     }
 
-    /// <summary>回傳指定栽培的施肥清單。</summary>
-    public override async Task<IActionResult> ListFertilizations(Guid plantingId)
+    /// <summary>回傳指定栽培的資材施用清單。</summary>
+    public override async Task<IActionResult> ListMaterialApplications(Guid plantingId)
     {
         var operations = await fertilizers.ListOperationsAsync(AccountId, plantingId, HttpContext.RequestAborted);
         return operations is null ? NotFound() : Ok(operations.ConvertAll(FertilizerDtoMapper.ToDto));
     }
 
-    /// <summary>新增施肥作業及其批次扣用明細。</summary>
-    public override async Task<IActionResult> CreateFertilization(Guid plantingId, CreateFertilizationRqDto request) =>
+    /// <summary>新增資材施用作業及其批次扣用明細。</summary>
+    public override async Task<IActionResult> CreateMaterialApplication(Guid plantingId, CreateMaterialApplicationRqDto request) =>
         this.ToResponse(await fertilizers.CreateOperationAsync(AccountId, plantingId, request, HttpContext.RequestAborted),
             FertilizerDtoMapper.ToDto);
 
-    /// <summary>更新既有施肥作業及其完整明細。</summary>
-    public override async Task<IActionResult> EditFertilization(Guid fertilizationId,
-        EditFertilizationRqDto request) =>
-        this.ToResponse(await fertilizers.EditOperationAsync(AccountId, fertilizationId, request,
+    /// <summary>更新資材施用作業及其完整明細。</summary>
+    public override async Task<IActionResult> EditMaterialApplication(Guid materialApplicationId,
+        EditMaterialApplicationRqDto request) =>
+        this.ToResponse(await fertilizers.EditOperationAsync(AccountId, materialApplicationId, request,
             HttpContext.RequestAborted), FertilizerDtoMapper.ToDto);
+
+    /// <summary>刪除指定施用作業並退回庫存用量。</summary>
+    public override async Task<IActionResult> DeleteMaterialApplication(Guid materialApplicationId) =>
+        this.ToResponse(await fertilizers.DeleteOperationAsync(AccountId, materialApplicationId,
+            HttpContext.RequestAborted), value => value.Id);
 
     /// <summary>回傳指定栽培的灌溉清單，無法存取栽培時回傳 404。</summary>
     public override async Task<IActionResult> ListIrrigations(Guid plantingId)

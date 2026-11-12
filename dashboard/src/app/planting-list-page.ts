@@ -180,7 +180,7 @@ type LoadState<T> =
                               <details class="planting-operation-menu">
                                 <summary [attr.aria-label]="'田間作業 ' + planting.cropName">⋯</summary>
                                 <a [routerLink]="['/dashboard/plantings', planting.fieldId, planting.id, 'fertilizations']">
-                                  施肥紀錄
+                                  資材施用紀錄
                                 </a>
                                 <a [routerLink]="['/dashboard/plantings', planting.fieldId, planting.id, 'irrigations']">
                                   灌溉紀錄

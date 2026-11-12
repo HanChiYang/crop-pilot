@@ -38,8 +38,12 @@ internal static class ErrorMessages
     internal const string FertilizerQuantityBelowUsed = "批次數量不得低於已施用量。";
     internal const string FertilizerLotDateInUse = "批次生效日不得晚於最早的施肥日期。";
     internal const string FertilizerPlantingPlanned = "規劃中的栽培無法登記施肥。";
-    internal const string FertilizerDetailsRequired = "請至少填寫一項肥料明細。";
-    internal const string FertilizerDetailInvalid = "施肥明細不存在或重複。";
+    internal const string FertilizerDetailsRequired = "請至少填寫一項資材明細。";
+    internal const string FertilizerDetailInvalid = "資材施用明細不存在或重複。";
+    internal const string MaterialApplicationMethodInvalid = "請選擇噴施或撒施。";
+    internal const string MaterialApplicationWaterInvalid = "噴施總水量須大於零、小於 10 億且最多六位小數，並至少有一項噴施明細。";
+    internal const string PesticideUnitInvalid = "農藥庫存單位須為公升、毫升、公斤或公克。";
+    internal const string MaterialTypeInvalid = "資材類別須為農藥或肥料。";
     internal const string FertilizerSourceInvalid = "請選擇進貨或期初庫存。";
     internal const string FertilizerCurrencyInvalid = "首版肥料庫存僅支援新臺幣。";
     internal const string IrrigationMethodInvalid = "請選擇灌溉方式。";

@@ -24,22 +24,30 @@ namespace CropPilot.Contract.Models
     /// 
     /// </summary>
     [DataContract]
-    public class EditFertilizationRqDto : IEquatable<EditFertilizationRqDto>
+    public class MaterialApplicationDetailRqDto : IEquatable<MaterialApplicationDetailRqDto>
     {
         /// <summary>
-        /// 實際施肥日期。寫入不得晚於台北當日。
+        /// Gets or Sets MaterialPurchaseLotId
         /// </summary>
-        /// <value>實際施肥日期。寫入不得晚於台北當日。</value>
         [Required]
-        [DataMember(Name="operationDate", EmitDefaultValue=true)]
-        public DateOnly OperationDate { get; set; }
+        [DataMember(Name="materialPurchaseLotId", EmitDefaultValue=true)]
+        public Guid MaterialPurchaseLotId { get; set; }
 
         /// <summary>
-        /// Gets or Sets Details
+        /// Gets or Sets ApplicationMethod
         /// </summary>
         [Required]
-        [DataMember(Name="details", EmitDefaultValue=false)]
-        public List<EditFertilizationDetailRqDto> Details { get; set; }
+        [DataMember(Name="applicationMethod", EmitDefaultValue=true)]
+        public MaterialApplicationMethod ApplicationMethod { get; set; }
+
+        /// <summary>
+        /// 依批次庫存單位填寫實際施用的資材用量，最多六位小數。
+        /// </summary>
+        /// <value>依批次庫存單位填寫實際施用的資材用量，最多六位小數。</value>
+        [Required]
+        [Range(0, 1000000000)]
+        [DataMember(Name="quantity", EmitDefaultValue=true)]
+        public decimal Quantity { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -48,9 +56,10 @@ namespace CropPilot.Contract.Models
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.Append("class EditFertilizationRqDto {\n");
-            sb.Append("  OperationDate: ").Append(OperationDate).Append("\n");
-            sb.Append("  Details: ").Append(Details).Append("\n");
+            sb.Append("class MaterialApplicationDetailRqDto {\n");
+            sb.Append("  MaterialPurchaseLotId: ").Append(MaterialPurchaseLotId).Append("\n");
+            sb.Append("  ApplicationMethod: ").Append(ApplicationMethod).Append("\n");
+            sb.Append("  Quantity: ").Append(Quantity).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -73,30 +82,34 @@ namespace CropPilot.Contract.Models
         {
             if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            return obj.GetType() == GetType() && Equals((EditFertilizationRqDto)obj);
+            return obj.GetType() == GetType() && Equals((MaterialApplicationDetailRqDto)obj);
         }
 
         /// <summary>
-        /// Returns true if EditFertilizationRqDto instances are equal
+        /// Returns true if MaterialApplicationDetailRqDto instances are equal
         /// </summary>
-        /// <param name="other">Instance of EditFertilizationRqDto to be compared</param>
+        /// <param name="other">Instance of MaterialApplicationDetailRqDto to be compared</param>
         /// <returns>Boolean</returns>
-        public bool Equals(EditFertilizationRqDto other)
+        public bool Equals(MaterialApplicationDetailRqDto other)
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
 
             return 
                 (
-                    OperationDate == other.OperationDate ||
+                    MaterialPurchaseLotId == other.MaterialPurchaseLotId ||
                     
-                    OperationDate.Equals(other.OperationDate)
+                    MaterialPurchaseLotId.Equals(other.MaterialPurchaseLotId)
                 ) && 
                 (
-                    Details == other.Details ||
-                    Details != null &&
-                    other.Details != null &&
-                    Details.SequenceEqual(other.Details)
+                    ApplicationMethod == other.ApplicationMethod ||
+                    
+                    ApplicationMethod.Equals(other.ApplicationMethod)
+                ) && 
+                (
+                    Quantity == other.Quantity ||
+                    
+                    Quantity.Equals(other.Quantity)
                 );
         }
 
@@ -111,9 +124,11 @@ namespace CropPilot.Contract.Models
                 var hashCode = 41;
                 // Suitable nullity checks etc, of course :)
                     
-                    hashCode = hashCode * 59 + OperationDate.GetHashCode();
-                    if (Details != null)
-                    hashCode = hashCode * 59 + Details.GetHashCode();
+                    hashCode = hashCode * 59 + MaterialPurchaseLotId.GetHashCode();
+                    
+                    hashCode = hashCode * 59 + ApplicationMethod.GetHashCode();
+                    
+                    hashCode = hashCode * 59 + Quantity.GetHashCode();
                 return hashCode;
             }
         }
@@ -121,12 +136,12 @@ namespace CropPilot.Contract.Models
         #region Operators
         #pragma warning disable 1591
 
-        public static bool operator ==(EditFertilizationRqDto left, EditFertilizationRqDto right)
+        public static bool operator ==(MaterialApplicationDetailRqDto left, MaterialApplicationDetailRqDto right)
         {
             return Equals(left, right);
         }
 
-        public static bool operator !=(EditFertilizationRqDto left, EditFertilizationRqDto right)
+        public static bool operator !=(MaterialApplicationDetailRqDto left, MaterialApplicationDetailRqDto right)
         {
             return !Equals(left, right);
         }

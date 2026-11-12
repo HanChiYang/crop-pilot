@@ -16,7 +16,7 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
     internal DbSet<AgriculturalMaterial> AgriculturalMaterials => Set<AgriculturalMaterial>();
     internal DbSet<MaterialPurchaseLot> MaterialPurchaseLots => Set<MaterialPurchaseLot>();
     internal DbSet<FieldOperation> FieldOperations => Set<FieldOperation>();
-    internal DbSet<FertilizationDetail> FertilizationDetails => Set<FertilizationDetail>();
+    internal DbSet<MaterialApplicationDetail> MaterialApplicationDetails => Set<MaterialApplicationDetail>();
 
     /// <summary>設定資料表、欄位及資料完整性約束。</summary>
     protected override void OnModelCreating(ModelBuilder builder)

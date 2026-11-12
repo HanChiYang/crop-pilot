@@ -33,21 +33,59 @@ internal static class FertilizerDtoMapper
     };
 
     /// <summary>依表單順序回傳作業明細及當時的價格。</summary>
-    internal static FertilizationRsDto ToDto(FieldOperation operation) => new()
+    internal static MaterialApplicationRsDto ToDto(FieldOperation operation) => new()
     {
         Id = operation.Id,
         OperationDate = operation.OperationDate,
-        Details = operation.Details.OrderBy(x => x.SortOrder).Select(x => new FertilizationDetailRsDto
+        SprayWaterVolumeLiters = operation.Application!.SprayWaterVolumeLiters,
+        Details = operation.Application.Details.OrderBy(x => x.SortOrder).Select(x => new MaterialApplicationDetailRsDto
         {
             Id = x.Id,
             MaterialId = x.Lot.MaterialId,
             MaterialPurchaseLotId = x.MaterialPurchaseLotId,
-            FertilizerName = x.FertilizerName,
+            MaterialName = x.MaterialName,
+            MaterialType = x.Lot.Material.MaterialType == AgriculturalMaterial.Pesticide
+                ? MaterialApplicationDetailRsDto.MaterialTypeEnum.PesticideEnum
+                : MaterialApplicationDetailRsDto.MaterialTypeEnum.FertilizerEnum,
+            ApplicationMethod = x.ApplicationMethod == "spray"
+                ? MaterialApplicationMethod.SprayEnum : MaterialApplicationMethod.BroadcastEnum,
             Quantity = x.Quantity,
             Unit = x.Unit,
             UnitPrice = x.UnitPrice,
-            CurrencyCode = FertilizationDetailRsDto.CurrencyCodeEnum.TWDEnum
+            CurrencyCode = MaterialApplicationDetailRsDto.CurrencyCodeEnum.TWDEnum
         }).ToList()
+    };
+
+    /// <summary>回傳農藥主檔、契約庫存單位及合計餘量。</summary>
+    internal static PesticideMaterialRsDto ToPesticideDto(MaterialStock stock) => new()
+    {
+        Id = stock.Material.Id,
+        Name = stock.Material.Name,
+        StockUnit = stock.Material.StockUnit switch
+        {
+            "公升" => PesticideStockUnit.LiterEnum,
+            "毫升" => PesticideStockUnit.MilliliterEnum,
+            "公斤" => PesticideStockUnit.KilogramEnum,
+            "公克" => PesticideStockUnit.GramEnum,
+            _ => throw new InvalidOperationException()
+        },
+        RemainingQuantity = stock.Remaining
+    };
+
+    /// <summary>回傳農藥批次、剩餘量及可計算的整批成本。</summary>
+    internal static PesticideLotRsDto ToPesticideDto(LotStock stock) => new()
+    {
+        Id = stock.Lot.Id,
+        MaterialId = stock.Lot.MaterialId,
+        Source = stock.Lot.Source == MaterialPurchaseLot.Purchase
+            ? PesticideLotRsDto.SourceEnum.PurchaseEnum : PesticideLotRsDto.SourceEnum.OpeningStockEnum,
+        ReceivedQuantity = stock.Lot.ReceivedQuantity,
+        PurchasedOn = stock.Lot.PurchasedOn,
+        AvailableFrom = stock.Lot.AvailableFrom,
+        UnitPrice = stock.Lot.UnitPrice,
+        TotalCost = stock.Lot.UnitPrice * stock.Lot.ReceivedQuantity,
+        RemainingQuantity = stock.Remaining,
+        CurrencyCode = PesticideLotRsDto.CurrencyCodeEnum.TWDEnum
     };
 
     /// <summary>將服務結果轉換為契約的成功回應或共用問題格式。</summary>

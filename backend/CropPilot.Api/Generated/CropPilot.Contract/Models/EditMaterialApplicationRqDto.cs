@@ -24,22 +24,30 @@ namespace CropPilot.Contract.Models
     /// 
     /// </summary>
     [DataContract]
-    public class CreateFertilizationRqDto : IEquatable<CreateFertilizationRqDto>
+    public class EditMaterialApplicationRqDto : IEquatable<EditMaterialApplicationRqDto>
     {
         /// <summary>
-        /// 實際施肥日期。寫入不得晚於台北當日。
+        /// 實際施用日期。寫入不得晚於台北當日。
         /// </summary>
-        /// <value>實際施肥日期。寫入不得晚於台北當日。</value>
+        /// <value>實際施用日期。寫入不得晚於台北當日。</value>
         [Required]
         [DataMember(Name="operationDate", EmitDefaultValue=true)]
         public DateOnly OperationDate { get; set; }
+
+        /// <summary>
+        /// 本次噴施明細共用的總水量，單位為公升。至少有一筆噴施明細時才可填寫。null 表示未記錄或無噴施。
+        /// </summary>
+        /// <value>本次噴施明細共用的總水量，單位為公升。至少有一筆噴施明細時才可填寫。null 表示未記錄或無噴施。</value>
+        [Range(0, 1000000000)]
+        [DataMember(Name="sprayWaterVolumeLiters", EmitDefaultValue=true)]
+        public decimal? SprayWaterVolumeLiters { get; set; }
 
         /// <summary>
         /// Gets or Sets Details
         /// </summary>
         [Required]
         [DataMember(Name="details", EmitDefaultValue=false)]
-        public List<FertilizationDetailRqDto> Details { get; set; }
+        public List<EditMaterialApplicationDetailRqDto> Details { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -48,8 +56,9 @@ namespace CropPilot.Contract.Models
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.Append("class CreateFertilizationRqDto {\n");
+            sb.Append("class EditMaterialApplicationRqDto {\n");
             sb.Append("  OperationDate: ").Append(OperationDate).Append("\n");
+            sb.Append("  SprayWaterVolumeLiters: ").Append(SprayWaterVolumeLiters).Append("\n");
             sb.Append("  Details: ").Append(Details).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -73,15 +82,15 @@ namespace CropPilot.Contract.Models
         {
             if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            return obj.GetType() == GetType() && Equals((CreateFertilizationRqDto)obj);
+            return obj.GetType() == GetType() && Equals((EditMaterialApplicationRqDto)obj);
         }
 
         /// <summary>
-        /// Returns true if CreateFertilizationRqDto instances are equal
+        /// Returns true if EditMaterialApplicationRqDto instances are equal
         /// </summary>
-        /// <param name="other">Instance of CreateFertilizationRqDto to be compared</param>
+        /// <param name="other">Instance of EditMaterialApplicationRqDto to be compared</param>
         /// <returns>Boolean</returns>
-        public bool Equals(CreateFertilizationRqDto other)
+        public bool Equals(EditMaterialApplicationRqDto other)
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -91,6 +100,11 @@ namespace CropPilot.Contract.Models
                     OperationDate == other.OperationDate ||
                     
                     OperationDate.Equals(other.OperationDate)
+                ) && 
+                (
+                    SprayWaterVolumeLiters == other.SprayWaterVolumeLiters ||
+                    SprayWaterVolumeLiters != null &&
+                    SprayWaterVolumeLiters.Equals(other.SprayWaterVolumeLiters)
                 ) && 
                 (
                     Details == other.Details ||
@@ -112,6 +126,8 @@ namespace CropPilot.Contract.Models
                 // Suitable nullity checks etc, of course :)
                     
                     hashCode = hashCode * 59 + OperationDate.GetHashCode();
+                    if (SprayWaterVolumeLiters != null)
+                    hashCode = hashCode * 59 + SprayWaterVolumeLiters.GetHashCode();
                     if (Details != null)
                     hashCode = hashCode * 59 + Details.GetHashCode();
                 return hashCode;
@@ -121,12 +137,12 @@ namespace CropPilot.Contract.Models
         #region Operators
         #pragma warning disable 1591
 
-        public static bool operator ==(CreateFertilizationRqDto left, CreateFertilizationRqDto right)
+        public static bool operator ==(EditMaterialApplicationRqDto left, EditMaterialApplicationRqDto right)
         {
             return Equals(left, right);
         }
 
-        public static bool operator !=(CreateFertilizationRqDto left, CreateFertilizationRqDto right)
+        public static bool operator !=(EditMaterialApplicationRqDto left, EditMaterialApplicationRqDto right)
         {
             return !Equals(left, right);
         }

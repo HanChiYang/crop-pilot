@@ -7,13 +7,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { PesticideStockUnit } from './pesticideStockUnit';
 
 
-export interface FertilizationDetailRqDto { 
-    materialPurchaseLotId: string;
-    /**
-     * 實際施用總量，最多六位小數。
-     */
-    quantity: number;
+export interface CreatePesticideMaterialRqDto { 
+    name: string;
+    stockUnit: PesticideStockUnit;
 }
+export namespace CreatePesticideMaterialRqDto {
+}
+
 

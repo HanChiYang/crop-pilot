@@ -12,7 +12,7 @@ internal sealed class FertilizationDetailIdJsonConverter : JsonConverter<Guid>
     /// <summary>只對編輯施肥明細的選填識別碼套用驗證。</summary>
     internal static void Configure(JsonTypeInfo type)
     {
-        if (type.Type == typeof(EditFertilizationDetailRqDto))
+        if (type.Type == typeof(EditMaterialApplicationDetailRqDto))
         {
             type.Properties.Single(property => property.Name == "id").CustomConverter =
                 new FertilizationDetailIdJsonConverter();
