@@ -10,7 +10,7 @@ import { FertilizationRsDto } from './generated/model/fertilizationRsDto';
 import { FertilizerLotRsDto } from './generated/model/fertilizerLotRsDto';
 import { FertilizerMaterialRsDto } from './generated/model/fertilizerMaterialRsDto';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
-import { fertilizerError, parseFertilizerDecimal, taipeiToday } from './fertilizer-display';
+import { operationError, parseOperationDecimal, taipeiToday } from './operation-form';
 
 interface DetailInput {
   id?: string;
@@ -258,7 +258,7 @@ export class FertilizationPage {
     }
     const details = [];
     for (const row of this.rows()) {
-      const quantity = parseFertilizerDecimal(row.quantity);
+      const quantity = parseOperationDecimal(row.quantity);
       if (!this.availableLotIds().has(row.lotId) || quantity === null || quantity <= 0) {
         this.message.set('請選擇可用的肥料批次。用量須大於零、小於 10 億，且最多六位小數。');
         return;
@@ -278,7 +278,7 @@ export class FertilizationPage {
       this.editorOpen.set(false);
       await this.load();
     } catch (error) {
-      if (ids === this.ids()) this.message.set(fertilizerError(error, '無法儲存施肥紀錄，請再試一次。'));
+      if (ids === this.ids()) this.message.set(operationError(error, '無法儲存施肥紀錄，請再試一次。'));
     } finally {
       this.busy.set(false);
     }

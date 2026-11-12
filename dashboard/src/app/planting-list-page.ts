@@ -182,6 +182,9 @@ type LoadState<T> =
                                 <a [routerLink]="['/dashboard/plantings', planting.fieldId, planting.id, 'fertilizations']">
                                   施肥紀錄
                                 </a>
+                                <a [routerLink]="['/dashboard/plantings', planting.fieldId, planting.id, 'irrigations']">
+                                  灌溉紀錄
+                                </a>
                               </details>
                               <a
                                 [routerLink]="[

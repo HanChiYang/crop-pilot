@@ -13,6 +13,7 @@ import { PlantingListPage } from './planting-list-page';
 import { PlantingHistoryPage } from './planting-history-page';
 import { PlantingHistoryDetailPage } from './planting-history-detail-page';
 import { FertilizationPage } from './fertilization-page';
+import { IrrigationPage } from './irrigation-page';
 import { FertilizerInventoryPage } from './fertilizer-inventory-page';
 
 const redirectSignedIn: CanActivateFn = () => {
@@ -58,6 +59,7 @@ export const routes: Routes = [
       { path: 'plantings/:fieldId/new', component: PlantingFormPage, title: '新增栽培紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/edit', component: PlantingFormPage, title: '編輯栽培紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/fertilizations', component: FertilizationPage, title: '施肥紀錄｜CropPilot' },
+      { path: 'plantings/:fieldId/:plantingId/irrigations', component: IrrigationPage, title: '灌溉紀錄｜CropPilot' },
       { path: 'fertilizers', component: FertilizerInventoryPage, title: '肥料庫存｜CropPilot' },
       {
         path: 'planting-history',
@@ -70,6 +72,12 @@ export const routes: Routes = [
             component: FertilizationPage,
             data: { fromHistory: true },
             title: '施肥紀錄｜CropPilot',
+          },
+          {
+            path: ':fieldId/:plantingId/irrigations',
+            component: IrrigationPage,
+            data: { fromHistory: true },
+            title: '灌溉紀錄｜CropPilot',
           },
         ],
       },

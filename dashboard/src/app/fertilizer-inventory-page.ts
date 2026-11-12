@@ -6,7 +6,7 @@ import { firstValueFrom, Observable } from 'rxjs';
 import { MaterialsService } from './generated/api/materials.service';
 import { FertilizerLotRsDto } from './generated/model/fertilizerLotRsDto';
 import { FertilizerMaterialRsDto } from './generated/model/fertilizerMaterialRsDto';
-import { fertilizerError, parseFertilizerDecimal, taipeiToday } from './fertilizer-display';
+import { operationError, parseOperationDecimal, taipeiToday } from './operation-form';
 
 type Editor = { kind: 'material'; id?: string } |
   { kind: 'lot'; materialId: string; id?: string };
@@ -249,8 +249,8 @@ export class FertilizerInventoryPage {
           : this.api.createFertilizerMaterial({ createFertilizerMaterialRqDto }));
         this.selectedId.set(material.id);
       } else {
-        const receivedQuantity = parseFertilizerDecimal(this.receivedQuantity);
-        const unitPrice = parseFertilizerDecimal(this.unitPrice);
+        const receivedQuantity = parseOperationDecimal(this.receivedQuantity);
+        const unitPrice = parseOperationDecimal(this.unitPrice);
         if (receivedQuantity === null || receivedQuantity <= 0 || (unitPrice === null && this.unitPrice.trim())) {
           this.message.set('數量須大於零，單價可為零。兩者須小於 10 億，且最多六位小數。');
           return;
@@ -272,7 +272,7 @@ export class FertilizerInventoryPage {
       this.closeEditor();
       await this.load();
     } catch (error) {
-      this.message.set(fertilizerError(error, '無法儲存庫存資料，請再試一次。'));
+      this.message.set(operationError(error, '無法儲存庫存資料，請再試一次。'));
     } finally {
       this.busy.set(false);
     }
@@ -296,7 +296,7 @@ export class FertilizerInventoryPage {
       this.deletion.set(null);
       await this.load();
     } catch (error) {
-      this.message.set(fertilizerError(error, '無法刪除庫存資料，請再試一次。'));
+      this.message.set(operationError(error, '無法刪除庫存資料，請再試一次。'));
     } finally {
       this.busy.set(false);
     }
