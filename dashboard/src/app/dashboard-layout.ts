@@ -40,12 +40,17 @@ import { AuthSession } from './auth-session';
             >作物栽培管理</a
           >
           <a
+            routerLink="/dashboard/materials"
+            routerLinkActive="active"
+            ariaCurrentWhenActive="page"
+            >資材管理</a
+          >
+          <a
             routerLink="/dashboard/planting-history"
             routerLinkActive="active"
             ariaCurrentWhenActive="page"
             >栽培歷史</a
           >
-          <a routerLink="/dashboard/fertilizers" routerLinkActive="active" ariaCurrentWhenActive="page">肥料庫存</a>
         </nav>
         <div class="sidebar-account">
           <strong>農民帳號</strong>
