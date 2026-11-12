@@ -43,7 +43,7 @@ public sealed class PlantingService(PlantingRepository repository)
     }
 
     /// <summary>在田區鎖定後核對狀態轉換及可分配面積，再一起更新整份表單。</summary>
-    internal Task<PlantingWriteResult> EditAsync(Guid accountId, Guid fieldId, Guid plantingId,
+    internal Task<PlantingWriteResult> EditAsync(Guid accountId, Guid plantingId,
         EditPlantingRqDto request, CancellationToken cancellationToken)
     {
         if (!Enum.IsDefined(request.Status))
@@ -66,7 +66,7 @@ public sealed class PlantingService(PlantingRepository repository)
             return Task.FromResult(new PlantingWriteResult(PlantingWriteStatus.InvalidInput, Errors: errors));
         }
 
-        return repository.WriteAsync(accountId, fieldId, plantingId, (current, available) =>
+        return repository.WriteAsync(accountId, null, plantingId, (current, available) =>
         {
             var planting = current!;
             if (!CanTransition(planting.Status, status))
@@ -90,9 +90,9 @@ public sealed class PlantingService(PlantingRepository repository)
     }
 
     /// <summary>只刪除儲存當下仍為規劃中的紀錄。</summary>
-    internal Task<PlantingWriteResult> DeleteAsync(Guid accountId, Guid fieldId, Guid plantingId,
+    internal Task<PlantingWriteResult> DeleteAsync(Guid accountId, Guid plantingId,
         CancellationToken cancellationToken) =>
-        repository.WriteAsync(accountId, fieldId, plantingId, (current, _) =>
+        repository.WriteAsync(accountId, null, plantingId, (current, _) =>
             new(current!.Status == Planting.Planned ? PlantingWriteStatus.Success : PlantingWriteStatus.Conflict),
             cancellationToken);
 
@@ -141,9 +141,9 @@ public sealed class PlantingService(PlantingRepository repository)
         return errors;
     }
 
-    /// <summary>查詢指定田區中的單筆紀錄。</summary>
-    internal Task<Planting?> FindAsync(Guid accountId, Guid fieldId, Guid plantingId, CancellationToken cancellationToken) =>
-        repository.FindAsync(accountId, fieldId, plantingId, cancellationToken);
+    /// <summary>依栽培 ID 查詢登入帳號的單筆栽培紀錄。</summary>
+    internal Task<Planting?> FindAsync(Guid accountId, Guid plantingId, CancellationToken cancellationToken) =>
+        repository.FindAsync(accountId, plantingId, cancellationToken);
 
     /// <summary>查詢指定田區目前的紀錄。</summary>
     internal Task<FieldPlantings?> ListFieldAsync(Guid accountId, Guid fieldId, CancellationToken cancellationToken) =>

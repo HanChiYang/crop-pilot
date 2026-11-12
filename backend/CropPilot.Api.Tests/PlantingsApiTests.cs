@@ -112,7 +112,7 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         Assert.Null(planting.GetProperty("plannedPlantingDate").GetString());
         Assert.Null(planting.GetProperty("variety").GetString());
         Assert.Null(planting.GetProperty("notes").GetString());
-        Assert.Equal($"{url}/{plantingId}", response.Headers.Location!.AbsolutePath);
+        Assert.Equal($"/api/v1/plantings/{plantingId}", response.Headers.Location!.AbsolutePath);
         Assert.Equal(plantingId, (await owner.GetFromJsonAsync<JsonElement>(response.Headers.Location)).GetProperty("id").GetGuid());
         Assert.Equal(plantingId, Assert.Single((await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("plantings").EnumerateArray()).GetProperty("id").GetGuid());
         var overview = Assert.Single((await owner.GetFromJsonAsync<JsonElement>(OverviewUrl)).EnumerateArray());
@@ -154,12 +154,10 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         using var owner = (await fixture.CreateAccountClientAsync()).Client;
         using var other = (await fixture.CreateAccountClientAsync()).Client;
         var fieldId = await CreateFieldAsync(owner, "北側田");
-        var secondField = await CreateFieldAsync(owner, "南側田");
         var url = $"{FieldsUrl}/{fieldId}/plantings";
         var request = new { cropName = "番茄", areaSquareMeters = 25 };
         using var created = await owner.PostAsJsonAsync(url, request);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var plantingId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(url)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await admin.GetAsync(OverviewUrl)).StatusCode);
@@ -170,7 +168,7 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         Assert.Equal(HttpStatusCode.NotFound, (await other.PutAsJsonAsync(created.Headers.Location,
             new { cropName = "番茄", areaSquareMeters = 25, status = "planned" })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync(created.Headers.Location)).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"{FieldsUrl}/{secondField}/plantings/{plantingId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/v1/plantings/{Guid.NewGuid()}")).StatusCode);
         Assert.Empty((await other.GetFromJsonAsync<JsonElement>(OverviewUrl)).EnumerateArray());
         Assert.Single((await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("plantings").EnumerateArray());
     }
@@ -188,7 +186,7 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         if (completed)
         {
             var completedId = await fixture.AddCompletedPlantingAsync(protectedField);
-            var detail = await owner.GetFromJsonAsync<JsonElement>($"{fieldUrl}/plantings/{completedId}");
+            var detail = await owner.GetFromJsonAsync<JsonElement>($"/api/v1/plantings/{completedId}");
             Assert.Equal("completed", detail.GetProperty("status").GetString());
             Assert.Empty((await owner.GetFromJsonAsync<JsonElement>($"{fieldUrl}/plantings")).GetProperty("plantings").EnumerateArray());
             var overview = await owner.GetFromJsonAsync<JsonElement>(OverviewUrl);

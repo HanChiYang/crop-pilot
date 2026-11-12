@@ -43,10 +43,10 @@ public sealed class MaterialsController(FertilizerService service) : MaterialsAp
         this.ToResponse(await service.CreateLotAsync(AccountId, materialId, request, Aborted), FertilizerDtoMapper.ToDto);
 
     /// <summary>修正指定批次的日期、數量及價格。</summary>
-    public override async Task<IActionResult> EditFertilizerLot(Guid materialId, Guid lotId, EditFertilizerLotRqDto request) =>
-        this.ToResponse(await service.EditLotAsync(AccountId, materialId, lotId, request, Aborted), FertilizerDtoMapper.ToDto);
+    public override async Task<IActionResult> EditFertilizerLot(Guid lotId, EditFertilizerLotRqDto request) =>
+        this.ToResponse(await service.EditLotAsync(AccountId, lotId, request, Aborted), FertilizerDtoMapper.ToDto);
 
     /// <summary>刪除沒有施肥明細引用的庫存批次。</summary>
-    public override async Task<IActionResult> DeleteFertilizerLot(Guid materialId, Guid lotId) =>
-        this.ToResponse(await service.DeleteLotAsync(AccountId, materialId, lotId, Aborted), FertilizerDtoMapper.ToDto);
+    public override async Task<IActionResult> DeleteFertilizerLot(Guid lotId) =>
+        this.ToResponse(await service.DeleteLotAsync(AccountId, lotId, Aborted), FertilizerDtoMapper.ToDto);
 }

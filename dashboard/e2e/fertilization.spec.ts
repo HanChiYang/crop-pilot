@@ -13,7 +13,7 @@ const material = { id: materialId, name: '有機肥', stockUnit: '公斤', remai
 const lot = { id: lotId, materialId, source: 'openingStock', purchasedOn: null, availableFrom: '2026-01-01',
   receivedQuantity: 8, remainingQuantity: 8, unitPrice: null, currencyCode: 'TWD' };
 const historyPath = '/dashboard/planting-history/' + fieldId + '/' + plantingId;
-const plantingApi = '/api/v1/fields/' + fieldId + '/plantings/' + plantingId;
+const plantingApi = '/api/v1/plantings/' + plantingId;
 const materialsApi = '/api/v1/fertilizers';
 
 test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細', async ({ page }) => {
@@ -44,7 +44,7 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
         return route.fulfill({ json: [{ ...lot, remainingQuantity: remaining, unitPrice: operations.length ? 20 : null },
           { ...lot, id: depletedId, availableFrom: '2026-01-02', remainingQuantity: 0 }] });
       case plantingApi + '/fertilizations':
-      case plantingApi + '/fertilizations/' + operationId: {
+      case '/api/v1/fertilizations/' + operationId: {
         if (request.method() === 'GET') return route.fulfill({ json: operations });
         const { operationDate, details } = request.postDataJSON();
         if (conflict) {

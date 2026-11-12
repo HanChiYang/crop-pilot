@@ -50,15 +50,13 @@ import { BaseService } from '../api.base.service';
 
 
 export interface CreateFertilizationRequestParams {
-    /** 田區的 UUID。 */
-    fieldId: string;
-    /** 指定田區下栽培紀錄的 UUID。 */
+    /** 栽培紀錄的 UUID。 */
     plantingId: string;
     createFertilizationRqDto: CreateFertilizationRqDto;
 }
 
 export interface CreateIrrigationRequestParams {
-    /** 指定田區下栽培紀錄的 UUID。 */
+    /** 栽培紀錄的 UUID。 */
     plantingId: string;
     saveIrrigationRqDto: SaveIrrigationRqDto;
 }
@@ -75,17 +73,11 @@ export interface DeleteIrrigationRequestParams {
 }
 
 export interface DeletePlantingRequestParams {
-    /** 田區的 UUID。 */
-    fieldId: string;
-    /** 指定田區下栽培紀錄的 UUID。 */
+    /** 栽培紀錄的 UUID。 */
     plantingId: string;
 }
 
 export interface EditFertilizationRequestParams {
-    /** 田區的 UUID。 */
-    fieldId: string;
-    /** 指定田區下栽培紀錄的 UUID。 */
-    plantingId: string;
     /** 指定栽培紀錄下施肥作業的 UUID。 */
     fertilizationId: string;
     editFertilizationRqDto: EditFertilizationRqDto;
@@ -98,24 +90,18 @@ export interface EditIrrigationRequestParams {
 }
 
 export interface EditPlantingRequestParams {
-    /** 田區的 UUID。 */
-    fieldId: string;
-    /** 指定田區下栽培紀錄的 UUID。 */
+    /** 栽培紀錄的 UUID。 */
     plantingId: string;
     editPlantingRqDto: EditPlantingRqDto;
 }
 
 export interface GetPlantingRequestParams {
-    /** 田區的 UUID。 */
-    fieldId: string;
-    /** 指定田區下栽培紀錄的 UUID。 */
+    /** 栽培紀錄的 UUID。 */
     plantingId: string;
 }
 
 export interface ListFertilizationsRequestParams {
-    /** 田區的 UUID。 */
-    fieldId: string;
-    /** 指定田區下栽培紀錄的 UUID。 */
+    /** 栽培紀錄的 UUID。 */
     plantingId: string;
 }
 
@@ -125,7 +111,7 @@ export interface ListFieldPlantingsRequestParams {
 }
 
 export interface ListIrrigationsRequestParams {
-    /** 指定田區下栽培紀錄的 UUID。 */
+    /** 栽培紀錄的 UUID。 */
     plantingId: string;
 }
 
@@ -154,7 +140,7 @@ export class PlantingsService extends BaseService {
     /**
      * 新增施肥作業
      * 栽培中、採收中及已結束的批次均可登記。實際施肥日不得早於所選庫存批次的生效日，也不得晚於台北當日。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
-     * @endpoint post /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations
+     * @endpoint post /api/v1/plantings/{plantingId}/fertilizations
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -164,10 +150,6 @@ export class PlantingsService extends BaseService {
     public createFertilization(requestParameters: CreateFertilizationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FertilizationRsDto>>;
     public createFertilization(requestParameters: CreateFertilizationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FertilizationRsDto>>;
     public createFertilization(requestParameters: CreateFertilizationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const fieldId = requestParameters?.fieldId;
-        if (fieldId === null || fieldId === undefined) {
-            throw new Error('Required parameter fieldId was null or undefined when calling createFertilization.');
-        }
         const plantingId = requestParameters?.plantingId;
         if (plantingId === null || plantingId === undefined) {
             throw new Error('Required parameter plantingId was null or undefined when calling createFertilization.');
@@ -215,7 +197,7 @@ export class PlantingsService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations`;
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<FertilizationRsDto>('post', `${basePath}${localVarPath}`,
             {
@@ -447,7 +429,7 @@ export class PlantingsService extends BaseService {
     /**
      * 刪除單筆規劃中栽培紀錄
      * 刪除登入帳號所屬田區的一筆規劃中栽培紀錄，並釋放該筆紀錄占用的面積。
-     * @endpoint delete /api/v1/fields/{fieldId}/plantings/{plantingId}
+     * @endpoint delete /api/v1/plantings/{plantingId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -457,10 +439,6 @@ export class PlantingsService extends BaseService {
     public deletePlanting(requestParameters: DeletePlantingRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
     public deletePlanting(requestParameters: DeletePlantingRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
     public deletePlanting(requestParameters: DeletePlantingRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const fieldId = requestParameters?.fieldId;
-        if (fieldId === null || fieldId === undefined) {
-            throw new Error('Required parameter fieldId was null or undefined when calling deletePlanting.');
-        }
         const plantingId = requestParameters?.plantingId;
         if (plantingId === null || plantingId === undefined) {
             throw new Error('Required parameter plantingId was null or undefined when calling deletePlanting.');
@@ -494,7 +472,7 @@ export class PlantingsService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
             {
@@ -512,7 +490,7 @@ export class PlantingsService extends BaseService {
     /**
      * 編輯施肥作業
      * 更新完整表單。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。可用量包含原作業已扣用量，超過時回傳 409。
-     * @endpoint put /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations/{fertilizationId}
+     * @endpoint put /api/v1/fertilizations/{fertilizationId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -522,14 +500,6 @@ export class PlantingsService extends BaseService {
     public editFertilization(requestParameters: EditFertilizationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FertilizationRsDto>>;
     public editFertilization(requestParameters: EditFertilizationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FertilizationRsDto>>;
     public editFertilization(requestParameters: EditFertilizationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const fieldId = requestParameters?.fieldId;
-        if (fieldId === null || fieldId === undefined) {
-            throw new Error('Required parameter fieldId was null or undefined when calling editFertilization.');
-        }
-        const plantingId = requestParameters?.plantingId;
-        if (plantingId === null || plantingId === undefined) {
-            throw new Error('Required parameter plantingId was null or undefined when calling editFertilization.');
-        }
         const fertilizationId = requestParameters?.fertilizationId;
         if (fertilizationId === null || fertilizationId === undefined) {
             throw new Error('Required parameter fertilizationId was null or undefined when calling editFertilization.');
@@ -577,7 +547,7 @@ export class PlantingsService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations/${this.configuration.encodeParam({name: "fertilizationId", value: fertilizationId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        let localVarPath = `/api/v1/fertilizations/${this.configuration.encodeParam({name: "fertilizationId", value: fertilizationId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<FertilizationRsDto>('put', `${basePath}${localVarPath}`,
             {
@@ -672,7 +642,7 @@ export class PlantingsService extends BaseService {
     /**
      * 編輯單筆栽培紀錄
      * 更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日。
-     * @endpoint put /api/v1/fields/{fieldId}/plantings/{plantingId}
+     * @endpoint put /api/v1/plantings/{plantingId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -682,10 +652,6 @@ export class PlantingsService extends BaseService {
     public editPlanting(requestParameters: EditPlantingRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<PlantingRsDto>>;
     public editPlanting(requestParameters: EditPlantingRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<PlantingRsDto>>;
     public editPlanting(requestParameters: EditPlantingRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const fieldId = requestParameters?.fieldId;
-        if (fieldId === null || fieldId === undefined) {
-            throw new Error('Required parameter fieldId was null or undefined when calling editPlanting.');
-        }
         const plantingId = requestParameters?.plantingId;
         if (plantingId === null || plantingId === undefined) {
             throw new Error('Required parameter plantingId was null or undefined when calling editPlanting.');
@@ -733,7 +699,7 @@ export class PlantingsService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<PlantingRsDto>('put', `${basePath}${localVarPath}`,
             {
@@ -751,8 +717,8 @@ export class PlantingsService extends BaseService {
 
     /**
      * 列出自己的栽培紀錄詳細資料
-     * 依田區和栽培紀錄識別碼查詢。田區或紀錄不存在、兩者不相符，或田區屬於其他帳號時回傳 404。
-     * @endpoint get /api/v1/fields/{fieldId}/plantings/{plantingId}
+     * 依栽培紀錄識別碼查詢。紀錄不存在或所屬田區屬於其他帳號時回傳 404。
+     * @endpoint get /api/v1/plantings/{plantingId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -762,10 +728,6 @@ export class PlantingsService extends BaseService {
     public getPlanting(requestParameters: GetPlantingRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<PlantingRsDto>>;
     public getPlanting(requestParameters: GetPlantingRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<PlantingRsDto>>;
     public getPlanting(requestParameters: GetPlantingRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const fieldId = requestParameters?.fieldId;
-        if (fieldId === null || fieldId === undefined) {
-            throw new Error('Required parameter fieldId was null or undefined when calling getPlanting.');
-        }
         const plantingId = requestParameters?.plantingId;
         if (plantingId === null || plantingId === undefined) {
             throw new Error('Required parameter plantingId was null or undefined when calling getPlanting.');
@@ -800,7 +762,7 @@ export class PlantingsService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<PlantingRsDto>('get', `${basePath}${localVarPath}`,
             {
@@ -818,7 +780,7 @@ export class PlantingsService extends BaseService {
     /**
      * 查詢單筆栽培的施肥清單
      * 按實際施肥日期、建立時間與識別碼依序由大到小排列。所屬栽培沒有施肥作業時回傳空陣列。
-     * @endpoint get /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations
+     * @endpoint get /api/v1/plantings/{plantingId}/fertilizations
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -828,10 +790,6 @@ export class PlantingsService extends BaseService {
     public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<FertilizationRsDto>>>;
     public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<FertilizationRsDto>>>;
     public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const fieldId = requestParameters?.fieldId;
-        if (fieldId === null || fieldId === undefined) {
-            throw new Error('Required parameter fieldId was null or undefined when calling listFertilizations.');
-        }
         const plantingId = requestParameters?.plantingId;
         if (plantingId === null || plantingId === undefined) {
             throw new Error('Required parameter plantingId was null or undefined when calling listFertilizations.');
@@ -866,7 +824,7 @@ export class PlantingsService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations`;
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<Array<FertilizationRsDto>>('get', `${basePath}${localVarPath}`,
             {

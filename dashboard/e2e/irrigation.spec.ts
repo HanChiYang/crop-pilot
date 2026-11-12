@@ -35,7 +35,7 @@ async function mockApi(page: Page, status: 'completed' | 'growing' | 'planned') 
           areaSquareMeters: 1000, allocatedAreaSquareMeters: 240, remainingAreaSquareMeters: 760,
           plantings: [record],
         } });
-      case fieldApi + '/plantings/' + plantingId:
+      case '/api/v1/plantings/' + plantingId:
         return route.fulfill({ json: record });
       case '/api/v1/planting-history/crops':
         return route.fulfill({ json: ['番茄'] });

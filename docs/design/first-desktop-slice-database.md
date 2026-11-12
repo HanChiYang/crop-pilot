@@ -140,7 +140,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 
 | API 欄位 | 來源 | 約束與顯示 |
 | --- | --- | --- |
-| `id`、`fieldId` | `plantings.id`、`plantings.field_id` | 單筆詳情以兩者查找。 |
+| `id`、`fieldId` | `plantings.id`、`plantings.field_id` | 單筆詳情以栽培 ID 查找，並透過所屬田區核對登入帳號。 |
 | `fieldName` | `fields.name` | 使用目前名稱，田區改名後會反映在後續查詢。 |
 | `cropName`、`variety` | `plantings.crop_name`、`plantings.variety` | 品種可為 NULL。 |
 | `actualPlantingDate` | `plantings.actual_planting_date` | 已結束紀錄依現有 CHECK 必有值。 |

@@ -192,10 +192,14 @@ export class IrrigationPage {
     this.loadError.set('');
     try {
       const data = await firstValueFrom(forkJoin({
-        planting: this.plantings.getPlanting(ids),
+        planting: this.plantings.getPlanting({ plantingId: ids.plantingId }),
         operations: this.plantings.listIrrigations({ plantingId: ids.plantingId }),
       }).pipe(takeUntilDestroyed(this.destroyRef)));
       if (ids !== this.ids()) return;
+      if (data.planting.fieldId !== ids.fieldId.toLowerCase()) {
+        this.loadError.set('找不到這筆栽培紀錄。');
+        return;
+      }
       if (this.fromHistory && data.planting.status !== 'completed') {
         this.loadError.set('找不到這筆已結束的栽培紀錄。');
         return;

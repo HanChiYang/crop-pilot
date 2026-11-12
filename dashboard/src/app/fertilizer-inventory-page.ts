@@ -266,7 +266,7 @@ export class FertilizerInventoryPage {
           unitPrice,
         };
         await this.read(form.id
-          ? this.api.editFertilizerLot({ materialId: form.materialId, lotId: form.id, editFertilizerLotRqDto: lot })
+          ? this.api.editFertilizerLot({ lotId: form.id, editFertilizerLotRqDto: lot })
           : this.api.createFertilizerLot({ materialId: form.materialId, createFertilizerLotRqDto: { ...lot, source: this.source } }));
       }
       this.closeEditor();
@@ -290,7 +290,7 @@ export class FertilizerInventoryPage {
     this.message.set('');
     try {
       await this.read(target.lotId
-        ? this.api.deleteFertilizerLot({ materialId: target.materialId, lotId: target.lotId })
+        ? this.api.deleteFertilizerLot({ lotId: target.lotId })
         : this.api.deleteFertilizerMaterial({ materialId: target.materialId }));
       if (!target.lotId) this.selectedId.set('');
       this.deletion.set(null);

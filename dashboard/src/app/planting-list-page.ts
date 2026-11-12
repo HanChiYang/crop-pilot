@@ -402,7 +402,7 @@ export class PlantingListPage {
     this.deleting.set(true);
     this.deleteError.set("");
     this.plantings
-      .deletePlanting({ fieldId: planting.fieldId, plantingId: planting.id })
+      .deletePlanting({ plantingId: planting.id })
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.deleting.set(false)),

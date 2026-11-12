@@ -7,10 +7,18 @@ namespace CropPilot.Api.Plantings;
 public sealed class PlantingRepository(CropPilotDbContext database)
 {
     /// <summary>鎖定田區後取得目前紀錄與可分配面積。業務驗證成功時提交新增、編輯或刪除。</summary>
-    internal async Task<PlantingWriteResult> WriteAsync(Guid accountId, Guid fieldId, Guid? plantingId,
+    internal async Task<PlantingWriteResult> WriteAsync(Guid accountId, Guid? requestedFieldId, Guid? plantingId,
         Func<Planting?, decimal, PlantingWriteResult> apply, CancellationToken cancellationToken)
     {
         await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var resolvedFieldId = requestedFieldId ?? await OwnedPlantings(accountId)
+            .Where(planting => planting.Id == plantingId)
+            .Select(planting => (Guid?)planting.FieldId).SingleOrDefaultAsync(cancellationToken);
+        if (resolvedFieldId is not Guid fieldId)
+        {
+            return new(PlantingWriteStatus.NotFound);
+        }
+
         var area = await FieldAreaQueries.LockAsync(database, accountId, fieldId, cancellationToken);
         if (area is null)
         {
@@ -47,11 +55,14 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         return result;
     }
 
-    /// <summary>以擁有者、田區及紀錄識別碼查詢一筆栽培紀錄。</summary>
-    internal Task<Planting?> FindAsync(Guid accountId, Guid fieldId, Guid plantingId, CancellationToken cancellationToken) =>
-        database.Plantings.AsNoTracking().SingleOrDefaultAsync(planting =>
-            planting.Id == plantingId && planting.FieldId == fieldId &&
-            planting.Field.MainAccountId == accountId, cancellationToken);
+    /// <summary>依栽培識別碼查詢一筆登入帳號的栽培紀錄。</summary>
+    internal Task<Planting?> FindAsync(Guid accountId, Guid plantingId, CancellationToken cancellationToken) =>
+        OwnedPlantings(accountId).AsNoTracking().SingleOrDefaultAsync(planting =>
+            planting.Id == plantingId, cancellationToken);
+
+    /// <summary>依栽培所屬田區篩選登入帳號擁有的栽培。</summary>
+    private IQueryable<Planting> OwnedPlantings(Guid accountId) =>
+        database.Plantings.Where(planting => planting.Field.MainAccountId == accountId);
 
     /// <summary>列出指定田區目前的栽培紀錄。田區無法存取時回傳 null。</summary>
     internal Task<FieldPlantings?> ListFieldAsync(Guid accountId, Guid fieldId, CancellationToken cancellationToken) =>

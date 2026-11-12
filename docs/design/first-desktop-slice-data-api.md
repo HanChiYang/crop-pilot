@@ -34,7 +34,7 @@ Angular 只在記憶體保存權杖，重新整理後用續期 Cookie 取得新�
 | 批次刪除田區 | `DELETE /api/v1/fields/bulk-delete`，傳 `DeleteFieldRqDto` 的 `fieldIds` | `204`，成功回應無 body。 |
 | 新增栽培紀錄 | `POST /api/v1/fields/{fieldId}/plantings`，傳 `CreatePlantingRqDto` | `201`，回傳 `PlantingRsDto`，並以 `Location` 指向該紀錄的查詢端點。 |
 | 查詢田區的栽培列表 | `GET /api/v1/fields/{fieldId}/plantings` | `200`，回傳 `FieldPlantingsRsDto`。自己的田區沒有目前的紀錄時，`plantings` 為空陣列。 |
-| 查詢栽培紀錄 | `GET /api/v1/fields/{fieldId}/plantings/{plantingId}` | `200`，回傳 `PlantingRsDto`。 |
+| 查詢栽培紀錄 | `GET /api/v1/plantings/{plantingId}` | `200`，回傳 `PlantingRsDto`。 |
 | 查詢栽培歷史清單 | `GET /api/v1/planting-history`，選用 `fieldId`、`cropName` | `200`，回傳 `PlantingHistoryItemDto` 陣列。 |
 | 查詢栽培歷史作物選項 | `GET /api/v1/planting-history/crops`，選用 `fieldId` | `200`，回傳去重後的作物名稱字串陣列。 |
 | 田區總覽 | `GET /api/v1/overview` | `200`，回傳自己的 `FieldOverviewRsDto` 陣列，每筆加上 `plantings`。田區沒有目前的栽培紀錄時，`plantings` 為空陣列。 |
@@ -90,7 +90,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 列表回傳 `areaSquareMeters`、`allocatedAreaSquareMeters`、`remainingAreaSquareMeters` 與 `plantings`。空田區仍有面積摘要，`plantings` 為空陣列。每筆紀錄的 `areaSquareMeters` 對應 `plantings.area_square_meters`。新增或更新超額時回傳 `409`，`errors.areaSquareMeters` 包含當下可分配面積，表單保留輸入。
 
-單筆編輯與刪除分別使用 `PUT` 與 `DELETE /api/v1/fields/{fieldId}/plantings/{plantingId}`。未結束紀錄可以保留原狀態或沿規劃、栽培、採收、結束的順序前進，栽培中也可直接結束。無法轉換時回傳 `409` 並提供 `errors.status`。只有規劃中可以刪除，成功回傳 `204`，其餘狀態回傳 `409`。
+單筆操作透過栽培紀錄的所屬田區核對登入帳號。單筆編輯與刪除分別使用 `PUT` 與 `DELETE /api/v1/plantings/{plantingId}`。未結束紀錄可以保留原狀態或沿規劃、栽培、採收、結束的順序前進，栽培中也可直接結束。無法轉換時回傳 `409` 並提供 `errors.status`。只有規劃中可以刪除，成功回傳 `204`，其餘狀態回傳 `409`。
 
 只填必填欄位即可建立田區。以下請求送往 `POST /api/v1/fields`，兩個座標欄位會存為 `null`。
 
@@ -132,21 +132,21 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 例如先送出 `GET /api/v1/planting-history/crops?fieldId=ad31b935-6b1c-4669-8c92-fb1c8489900f`，取得 `["番茄"]`，再以相同的 `fieldId` 和 `cropName=%E7%95%AA%E8%8C%84` 查詢清單。清單回傳 `id`、`fieldId`、`fieldName`、`cropName`、`variety`、`actualPlantingDate` 和 `areaSquareMeters`。其中田區名稱為查詢當下的名稱，實際栽種日必有值，占用面積取自該筆栽培紀錄。
 
-點開清單項目時，以該項目的 `fieldId` 和 `id` 呼叫既有單筆端點，取得 `PlantingRsDto` 的 `status: completed`、預定與實際栽種日、占用面積及備註等資料。田區名稱透過既有的 `GET /api/v1/fields/{fieldId}` 取得，直接開啟詳情連結時也能顯示。詳情為唯讀，返回時保留先前查詢的條件與清單。查詢失敗保留條件供重試，空陣列顯示查無結果。
+點開清單項目時，以該項目的 `id` 呼叫單筆栽培端點，取得 `PlantingRsDto` 的 `status: completed`、預定與實際栽種日、占用面積及備註等資料。田區名稱使用 `fieldId` 透過既有的 `GET /api/v1/fields/{fieldId}` 取得，直接開啟詳情連結時也能顯示。詳情為唯讀，返回時保留先前查詢的條件與清單。查詢失敗保留條件供重試，空陣列顯示查無結果。
 
 驗收涵蓋預設全部、田區及作物交集、選項去重、同日排序、空結果、參數錯誤及兩個帳號的隔離。也要確認同一筆栽培結束後會出現在歷史與單筆詳情，並從田區的目前栽培列表及總覽移除。
 
 ### 施肥紀錄
 
-以下路徑以 `/api/v1/fields/{fieldId}/plantings/{plantingId}` 為前綴。栽培管理和栽培歷史使用同一組端點。清單已包含完整明細，編輯表單直接帶入選取的作業。
+清單與新增以栽培 ID 指定所屬栽培，編輯以施肥 ID 指定作業。栽培管理和栽培歷史使用同一組端點。清單已包含完整明細，編輯表單直接帶入選取的作業。
 
 | 方法與路徑 | 成功回應 | 行為 |
 | --- | --- | --- |
-| `GET /fertilizations` | `200`，施肥作業陣列 | 依實際作業日、建立時間及識別碼由大到小排列。查無作業回傳 `[]`。 |
-| `POST /fertilizations` | `201`，新增的施肥作業 | 建立作業及一項或多項明細。 |
-| `PUT /fertilizations/{fertilizationId}` | `200`，更新的施肥作業 | 保留作業 ID，依完整表單同步明細。 |
+| `GET /api/v1/plantings/{plantingId}/fertilizations` | `200`，施肥作業陣列 | 依實際作業日、建立時間及識別碼由大到小排列。查無作業回傳 `[]`。 |
+| `POST /api/v1/plantings/{plantingId}/fertilizations` | `201`，新增的施肥作業 | 建立作業及一項或多項明細。 |
+| `PUT /api/v1/fertilizations/{fertilizationId}` | `200`，更新的施肥作業 | 保留作業 ID，依完整表單同步明細。 |
 
-沿用田區端點的 Bearer 與 `USER` 角色。依登入主帳號、田區、栽培、施肥作業逐層核對歸屬。新增時由後端設定作業類型為 `FERTILIZATION`，查詢與編輯時也以此類型篩選。識別碼格式錯誤回傳 `400`。資源不存在、類型不符、不屬於該帳號或路徑中的父子關係不符時，統一回傳 `404`。
+沿用田區端點的 Bearer 與 `USER` 角色。清單和新增透過栽培查所屬田區。編輯先依施肥作業 ID 定位，再透過該筆作業的栽培查所屬田區。各端點都核對田區是否屬於登入主帳號。新增時由後端設定作業類型為 `FERTILIZATION`，查詢與編輯時也以此類型篩選。識別碼格式錯誤回傳 `400`。資源不存在、類型不符或不屬於該帳號時，統一回傳 `404`。
 
 首版寫入設計允許栽培中、採收中與已結束。規劃中回傳 `409`。實際施肥日最晚為台北當日，可早於實際栽種日。已結束批次可依實際日期補登，施肥日期須在所選庫存批次的生效日當天或之後。以目前餘量驗證扣量，補登時也採同一規則。
 
@@ -230,8 +230,8 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 | `DELETE /api/v1/fertilizers/{materialId}` | `204` | 刪除沒有任何批次的資材。仍有批次回傳 `409`。 |
 | `GET /api/v1/fertilizers/{materialId}/lots` | `200` | 查該肥料所有批次與餘量，包含用完的批次。 |
 | `POST /api/v1/fertilizers/{materialId}/lots` | `201` | 登記進貨或期初庫存。 |
-| `PUT /api/v1/fertilizers/{materialId}/lots/{lotId}` | `200` | 更正登記量、日期或單價。批次來源沿用原值。 |
-| `DELETE /api/v1/fertilizers/{materialId}/lots/{lotId}` | `204` | 刪除尚未被施肥明細引用的批次。已有引用回傳 `409`。 |
+| `PUT /api/v1/fertilizer-lots/{lotId}` | `200` | 更正登記量、日期或單價。批次來源沿用原值。 |
+| `DELETE /api/v1/fertilizer-lots/{lotId}` | `204` | 刪除尚未被施肥明細引用的批次。已有引用回傳 `409`。 |
 
 肥料資材端點沿用 Bearer 與 `USER` 角色，依登入主帳號限制資材和批次。新施肥選單只列出於作業日已生效且有餘量的批次。編輯時，以原明細及目前餘量計算可用量，因此原先用完的批次仍可顯示。伺服器在交易內重新驗證。
 
@@ -239,7 +239,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 `receivedQuantity` 對應 `received_quantity`，`purchasedOn` 對應 `purchased_on`，`availableFrom` 對應 `available_from`。`remainingQuantity` 由批次登記量與施肥用量即時計算。批次登記量須大於零，單價可為零。兩者以 JSON 數值傳輸，須小於 10 億且最多六位小數。首版使用 `TWD`，每庫存單位的價格以 `unitPrice` 傳入。未知價格省略或傳 `null`，免費取得傳 `0`。
 
-編輯或刪除時，以路徑中的資材、批次和登入帳號一起查找，資源不存在或歸屬不符時回傳 `404`。批次更正後的登記量須大於 0 且至少等於已用量，生效日須早於或等於所有關聯施肥日期，與既有用量或日期衝突時回傳 `409`。更正進貨單價只影響之後採用該批次價格的新明細，既有施肥成本仍使用當次快照。
+編輯或刪除時，以批次 ID 定位，並核對所屬資材為登入帳號的肥料。批次不存在、資材類型不符或歸屬不符時回傳 `404`。批次更正後的登記量須大於 0 且至少等於已用量，生效日須早於或等於所有關聯施肥日期，與既有用量或日期衝突時回傳 `409`。更正進貨單價只影響之後採用該批次價格的新明細，既有施肥成本仍使用當次快照。
 
 ```json
 {

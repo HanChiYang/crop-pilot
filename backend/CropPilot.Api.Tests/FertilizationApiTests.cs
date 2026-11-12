@@ -22,7 +22,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var otherMaterial = await CreateMaterialAsync(client, "複合肥");
         var lot = await CreateLotAsync(client, material, 10, 20);
         var otherLot = await CreateLotAsync(client, otherMaterial, 2, null);
-        var lotUrl = $"{MaterialsUrl}/{material}/lots/{lot}";
+        var lotUrl = $"/api/v1/fertilizer-lots/{lot}";
 
         using var created = await client.PostAsJsonAsync(operationsUrl, new
         {
@@ -44,14 +44,14 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
 
         var operationId = operation.GetProperty("id").GetGuid();
         var detailId = details[0].GetProperty("id").GetGuid();
-        using var invalidDetail = await client.PutAsJsonAsync($"{operationsUrl}/{operationId}", new
+        using var invalidDetail = await client.PutAsJsonAsync($"/api/v1/fertilizations/{operationId}", new
         {
             operationDate = Today,
             details = new[] { new { id = Guid.Empty, materialPurchaseLotId = lot, quantity = 1m } }
         });
         Assert.Equal(HttpStatusCode.BadRequest, invalidDetail.StatusCode);
 
-        using var edited = await client.PutAsJsonAsync($"{operationsUrl}/{operationId}", new
+        using var edited = await client.PutAsJsonAsync($"/api/v1/fertilizations/{operationId}", new
         {
             operationDate = Today,
             details = new object[] { new { id = detailId, materialPurchaseLotId = lot, quantity = 7m },
@@ -67,7 +67,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         Assert.All(inventory.EnumerateArray(), stock => Assert.Equal(2m, stock.GetProperty("remainingQuantity").GetDecimal()));
         var history = await client.GetFromJsonAsync<JsonElement>(operationsUrl);
         Assert.Equal(operationId, history.EnumerateArray().Single().GetProperty("id").GetGuid());
-        using var canDelete = await client.DeleteAsync($"{MaterialsUrl}/{otherMaterial}/lots/{otherLot}");
+        using var canDelete = await client.DeleteAsync($"/api/v1/fertilizer-lots/{otherLot}");
         Assert.Equal(HttpStatusCode.NoContent, canDelete.StatusCode);
     }
 
@@ -95,12 +95,31 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         using var foreignUsage = await otherClient.PostAsJsonAsync(foreignPlanting, request);
         Assert.Equal(HttpStatusCode.NotFound, foreignUsage.StatusCode);
 
+        using var foreignList = await otherClient.GetAsync(firstPlanting);
+        Assert.Equal(HttpStatusCode.NotFound, foreignList.StatusCode);
+        var otherMaterial = await CreateMaterialAsync(otherClient, "有機肥");
+        var otherLot = await CreateLotAsync(otherClient, otherMaterial, 5, 10);
+        using var foreignCreate = await otherClient.PostAsJsonAsync(firstPlanting, new
+        {
+            operationDate = Today,
+            details = new[] { new { materialPurchaseLotId = otherLot, quantity = 4m } }
+        });
+        Assert.Equal(HttpStatusCode.NotFound, foreignCreate.StatusCode);
+
         var writes = await Task.WhenAll(client.PostAsJsonAsync(firstPlanting, request),
             client.PostAsJsonAsync(secondPlanting, request));
         using var accepted = Assert.Single(writes, response => response.StatusCode == HttpStatusCode.Created);
         using var rejected = Assert.Single(writes, response => response.StatusCode == HttpStatusCode.Conflict);
         var problem = await ReadAsync(rejected, HttpStatusCode.Conflict);
         Assert.True(problem.GetProperty("errors").TryGetProperty("details[0].quantity", out _));
+        var operationId = (await accepted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        using var foreignEdit = await otherClient.PutAsJsonAsync($"/api/v1/fertilizations/{operationId}", request);
+        Assert.Equal(HttpStatusCode.NotFound, foreignEdit.StatusCode);
+        using var foreignLotEdit = await otherClient.PutAsJsonAsync($"/api/v1/fertilizer-lots/{lot}",
+            new { receivedQuantity = 5, unitPrice = 10 });
+        Assert.Equal(HttpStatusCode.NotFound, foreignLotEdit.StatusCode);
+        using var foreignLotDelete = await otherClient.DeleteAsync($"/api/v1/fertilizer-lots/{lot}");
+        Assert.Equal(HttpStatusCode.NotFound, foreignLotDelete.StatusCode);
         var stock = await client.GetFromJsonAsync<JsonElement>($"{MaterialsUrl}/{material}/lots");
         Assert.Equal(1m, stock[0].GetProperty("remainingQuantity").GetDecimal());
     }
@@ -147,7 +166,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         Assert.Equal(HttpStatusCode.Conflict, changeUnit.StatusCode);
         using var inUse = await client.DeleteAsync(materialUrl);
         Assert.Equal(HttpStatusCode.Conflict, inUse.StatusCode);
-        using var deleteLot = await client.DeleteAsync($"{lotsUrl}/{lotId}");
+        using var deleteLot = await client.DeleteAsync($"/api/v1/fertilizer-lots/{lotId}");
         Assert.Equal(HttpStatusCode.NoContent, deleteLot.StatusCode);
         using var deleteMaterial = await client.DeleteAsync(materialUrl);
         Assert.Equal(HttpStatusCode.NoContent, deleteMaterial.StatusCode);
@@ -163,7 +182,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var field = await ReadAsync(response, HttpStatusCode.Created);
         var fieldId = field.GetProperty("fields")[0].GetProperty("id").GetGuid();
         var plantingId = await fixture.AddCompletedPlantingAsync(fieldId);
-        return $"/api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations";
+        return $"/api/v1/plantings/{plantingId}/fertilizations";
     }
 
     /// <summary>建立測試資材並取得識別碼。</summary>
