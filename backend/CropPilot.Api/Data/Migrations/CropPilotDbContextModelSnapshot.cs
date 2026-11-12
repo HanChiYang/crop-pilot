@@ -69,9 +69,9 @@ namespace CropPilot.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_agricultural_materials_name", "btrim(name) <> ''");
 
-                            t.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> ''");
+                            t.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> '' AND (material_type <> 'PESTICIDE' OR stock_unit IN ('公升', '毫升', '公斤', '公克'))");
 
-                            t.HasCheckConstraint("ck_agricultural_materials_type", "material_type = 'FERTILIZER'");
+                            t.HasCheckConstraint("ck_agricultural_materials_type", "material_type IN ('FERTILIZER', 'PESTICIDE')");
                         });
                 });
 
@@ -143,73 +143,6 @@ namespace CropPilot.Api.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("CropPilot.Api.Data.FertilizationDetail", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("CurrencyCode")
-                        .IsRequired()
-                        .HasColumnType("char(3)")
-                        .HasColumnName("currency_code");
-
-                    b.Property<string>("FertilizerName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("fertilizer_name");
-
-                    b.Property<Guid>("FieldOperationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("field_operation_id");
-
-                    b.Property<Guid>("MaterialPurchaseLotId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("material_purchase_lot_id");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(15, 6)
-                        .HasColumnType("numeric(15,6)")
-                        .HasColumnName("quantity");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<string>("Unit")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("unit");
-
-                    b.Property<decimal?>("UnitPrice")
-                        .HasPrecision(15, 6)
-                        .HasColumnType("numeric(15,6)")
-                        .HasColumnName("unit_price");
-
-                    b.HasKey("Id")
-                        .HasName("pk_fertilization_details");
-
-                    b.HasIndex("MaterialPurchaseLotId")
-                        .HasDatabaseName("ix_fertilization_details_material_purchase_lot_id");
-
-                    b.HasIndex("FieldOperationId", "SortOrder")
-                        .HasDatabaseName("ix_fertilization_details_field_operation_id_sort_order");
-
-                    b.ToTable("fertilization_details", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_fertilization_details_currency", "currency_code = 'TWD'");
-
-                            t.HasCheckConstraint("ck_fertilization_details_price", "unit_price BETWEEN 0 AND 999999999.999999");
-
-                            t.HasCheckConstraint("ck_fertilization_details_quantity", "quantity BETWEEN 0.000001 AND 999999999.999999");
-
-                            t.HasCheckConstraint("ck_fertilization_details_sort_order", "sort_order >= 0");
-                        });
-                });
-
             modelBuilder.Entity("CropPilot.Api.Data.Field", b =>
                 {
                     b.Property<Guid>("Id")
@@ -259,7 +192,7 @@ namespace CropPilot.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_fields_area_square_meters", "area_square_meters > 0 AND area_square_meters <= 9999999999.9999");
 
-                            t.HasCheckConstraint("ck_fields_coordinates", "(latitude IS NULL AND longitude IS NULL) OR\n(latitude IS NOT NULL AND longitude IS NOT NULL AND\n latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180)");
+                            t.HasCheckConstraint("ck_fields_coordinates", "(latitude IS NULL AND longitude IS NULL) OR\r\n(latitude IS NOT NULL AND longitude IS NOT NULL AND\r\n latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180)");
 
                             t.HasCheckConstraint("ck_fields_name", "btrim(name, U&'\\0009\\000A\\000B\\000C\\000D\\0020\\0085\\00A0\\1680\\2000\\2001\\2002\\2003\\2004\\2005\\2006\\2007\\2008\\2009\\200A\\2028\\2029\\202F\\205F\\3000') <> ''");
                         });
@@ -312,7 +245,7 @@ namespace CropPilot.Api.Data.Migrations
 
                     b.ToTable("field_operations", null, t =>
                         {
-                            t.HasCheckConstraint("ck_field_operations_type", "operation_type IN ('FERTILIZATION', 'IRRIGATION')");
+                            t.HasCheckConstraint("ck_field_operations_type", "operation_type IN ('MATERIAL_APPLICATION', 'IRRIGATION')");
                         });
                 });
 
@@ -432,6 +365,110 @@ namespace CropPilot.Api.Data.Migrations
                     b.ToTable("main_account", null, t =>
                         {
                             t.HasCheckConstraint("ck_main_account_status", "status IN ('PENDING', 'ACTIVE', 'DISABLED')");
+                        });
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.MaterialApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("FieldOperationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("field_operation_id");
+
+                    b.Property<decimal?>("SprayWaterVolumeLiters")
+                        .HasPrecision(15, 6)
+                        .HasColumnType("numeric(15,6)")
+                        .HasColumnName("spray_water_volume_liters");
+
+                    b.HasKey("Id")
+                        .HasName("pk_material_applications");
+
+                    b.HasIndex("FieldOperationId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_material_applications_field_operation_id");
+
+                    b.ToTable("material_applications", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_material_applications_water", "spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999");
+                        });
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.MaterialApplicationDetail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ApplicationMethod")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("application_method");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("currency_code");
+
+                    b.Property<Guid>("MaterialApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("material_application_id");
+
+                    b.Property<string>("MaterialName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("material_name");
+
+                    b.Property<Guid>("MaterialPurchaseLotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("material_purchase_lot_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(15, 6)
+                        .HasColumnType("numeric(15,6)")
+                        .HasColumnName("quantity");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(15, 6)
+                        .HasColumnType("numeric(15,6)")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("Id")
+                        .HasName("pk_material_application_details");
+
+                    b.HasIndex("MaterialPurchaseLotId")
+                        .HasDatabaseName("ix_material_application_details_material_purchase_lot_id");
+
+                    b.HasIndex("MaterialApplicationId", "SortOrder")
+                        .HasDatabaseName("ix_material_application_details_material_application_id_sort_o");
+
+                    b.ToTable("material_application_details", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_material_application_details_currency", "currency_code = 'TWD'");
+
+                            t.HasCheckConstraint("ck_material_application_details_method", "application_method IN ('spray', 'broadcast')");
+
+                            t.HasCheckConstraint("ck_material_application_details_price", "unit_price BETWEEN 0 AND 999999999.999999");
+
+                            t.HasCheckConstraint("ck_material_application_details_quantity", "quantity BETWEEN 0.000001 AND 999999999.999999");
+
+                            t.HasCheckConstraint("ck_material_application_details_sort_order", "sort_order >= 0");
                         });
                 });
 
@@ -674,27 +711,6 @@ namespace CropPilot.Api.Data.Migrations
                     b.Navigation("MainAccount");
                 });
 
-            modelBuilder.Entity("CropPilot.Api.Data.FertilizationDetail", b =>
-                {
-                    b.HasOne("CropPilot.Api.Data.FieldOperation", "FieldOperation")
-                        .WithMany("Details")
-                        .HasForeignKey("FieldOperationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_fertilization_details_field_operations_field_operation_id");
-
-                    b.HasOne("CropPilot.Api.Data.MaterialPurchaseLot", "Lot")
-                        .WithMany()
-                        .HasForeignKey("MaterialPurchaseLotId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fertilization_details_material_purchase_lots_material_purch");
-
-                    b.Navigation("FieldOperation");
-
-                    b.Navigation("Lot");
-                });
-
             modelBuilder.Entity("CropPilot.Api.Data.Field", b =>
                 {
                     b.HasOne("CropPilot.Api.Data.MainAccount", null)
@@ -737,6 +753,39 @@ namespace CropPilot.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_local_credentials_main_accounts_main_account_id");
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.MaterialApplication", b =>
+                {
+                    b.HasOne("CropPilot.Api.Data.FieldOperation", "FieldOperation")
+                        .WithOne("Application")
+                        .HasForeignKey("CropPilot.Api.Data.MaterialApplication", "FieldOperationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_material_applications_field_operations_field_operation_id");
+
+                    b.Navigation("FieldOperation");
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.MaterialApplicationDetail", b =>
+                {
+                    b.HasOne("CropPilot.Api.Data.MaterialApplication", "Application")
+                        .WithMany("Details")
+                        .HasForeignKey("MaterialApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_material_application_details_material_application_material_");
+
+                    b.HasOne("CropPilot.Api.Data.MaterialPurchaseLot", "Lot")
+                        .WithMany()
+                        .HasForeignKey("MaterialPurchaseLotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_material_application_details_material_purchase_lots_materia");
+
+                    b.Navigation("Application");
+
+                    b.Navigation("Lot");
                 });
 
             modelBuilder.Entity("CropPilot.Api.Data.MaterialPurchaseLot", b =>
@@ -787,7 +836,7 @@ namespace CropPilot.Api.Data.Migrations
 
             modelBuilder.Entity("CropPilot.Api.Data.FieldOperation", b =>
                 {
-                    b.Navigation("Details");
+                    b.Navigation("Application");
 
                     b.Navigation("IrrigationDetail");
                 });
@@ -795,6 +844,11 @@ namespace CropPilot.Api.Data.Migrations
             modelBuilder.Entity("CropPilot.Api.Data.MainAccount", b =>
                 {
                     b.Navigation("LocalCredential");
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.MaterialApplication", b =>
+                {
+                    b.Navigation("Details");
                 });
 #pragma warning restore 612, 618
         }

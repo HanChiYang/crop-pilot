@@ -136,62 +136,6 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 驗收涵蓋預設全部、田區及作物交集、選項去重、同日排序、空結果、參數錯誤及兩個帳號的隔離。也要確認同一筆栽培結束後會出現在歷史與單筆詳情，並從田區的目前栽培列表及總覽移除。
 
-### 施肥紀錄
-
-清單與新增以栽培 ID 指定所屬栽培，編輯以施肥 ID 指定作業。栽培管理和栽培歷史使用同一組端點。清單已包含完整明細，編輯表單直接帶入選取的作業。
-
-| 方法與路徑 | 成功回應 | 行為 |
-| --- | --- | --- |
-| `GET /api/v1/plantings/{plantingId}/fertilizations` | `200`，施肥作業陣列 | 依實際作業日、建立時間及識別碼由大到小排列。查無作業回傳 `[]`。 |
-| `POST /api/v1/plantings/{plantingId}/fertilizations` | `201`，新增的施肥作業 | 建立作業及一項或多項明細。 |
-| `PUT /api/v1/fertilizations/{fertilizationId}` | `200`，更新的施肥作業 | 保留作業 ID，依完整表單同步明細。 |
-
-沿用田區端點的 Bearer 與 `USER` 角色。清單和新增透過栽培查所屬田區。編輯先依施肥作業 ID 定位，再透過該筆作業的栽培查所屬田區。各端點都核對田區是否屬於登入主帳號。新增時由後端設定作業類型為 `FERTILIZATION`，查詢與編輯時也以此類型篩選。識別碼格式錯誤回傳 `400`。資源不存在、類型不符或不屬於該帳號時，統一回傳 `404`。
-
-首版寫入設計允許栽培中、採收中與已結束。規劃中回傳 `409`。實際施肥日最晚為台北當日，可早於實際栽種日。已結束批次可依實際日期補登，施肥日期須在所選庫存批次的生效日當天或之後。以目前餘量驗證扣量，補登時也採同一規則。
-
-每項明細提交 `materialPurchaseLotId` 與以庫存單位表示的 `quantity`。用量必須大於零、小於 10 億，且最多六位小數。至少一項明細，同一肥料可選不同批次分列，同批次分列時依合計驗證庫存。後端從所選批次取得名稱、單位、單價和幣別。欄位錯誤回傳 `400`，用 `errors` 標出 `operationDate`、`details` 或 `details[1].quantity` 等欄位。批次不存在、屬於別的帳號或類別不符時回傳 `404`。
-
-編輯時，原明細以 `id` 識別，未帶 `id` 的列建立新明細，未送回的舊列移除。重複的明細 ID 或不屬於該作業的 ID 回傳 `400`。沿用同一明細及批次時保留價格快照，新增明細或改批次時取新選批次的單價。單價未知回傳 `null`，畫面顯示成本待補。
-
-新增與編輯都在單一交易寫入作業及明細。先鎖定並核對栽培，編輯再鎖定作業，接著依 UUID 順序鎖定本次涉及的所有新舊批次。批次取得鎖後再讀取餘量。編輯的可用量等於當下餘量加上該作業原先扣用的量。任何批次不足回傳 `409`，以 `errors` 標出受影響的明細，整筆回滾。
-
-| API JSON | 資料庫 |
-| --- | --- |
-| 作業 `id` | `field_operations.id` |
-| `operationDate` | `field_operations.operation_date` |
-| `details[].id` | `fertilization_details.id` |
-| `details[].materialPurchaseLotId` | `fertilization_details.material_purchase_lot_id` |
-| `details[].materialId` | 透過批次查 `material_purchase_lots.material_id` |
-| `details[].fertilizerName`、`quantity`、`unit` | `fertilization_details.fertilizer_name`、`quantity`、`unit` |
-| `details[].unitPrice`、`currencyCode` | `fertilization_details.unit_price`、`currency_code` |
-| `details` 陣列順序 | `fertilization_details.sort_order` |
-
-一次施用兩種肥料的新增請求如下。
-
-```json
-{
-  "operationDate": "2026-10-18",
-  "details": [
-    { "materialPurchaseLotId": "20808d11-3535-476a-846c-325e14d3c017", "quantity": 5 },
-    { "materialPurchaseLotId": "3e3742d7-f9a9-451d-8f5e-5933a291745b", "quantity": 2 }
-  ]
-}
-```
-
-新增回傳作業 ID 與各項明細 ID，供清單開啟編輯時使用。
-
-```json
-{
-  "id": "31a7d311-874b-4110-b845-9cddad9e72b8",
-  "operationDate": "2026-10-18",
-  "details": [
-    { "id": "5be1cdc4-23c2-4ab1-a851-c25df13ab338", "materialId": "f3524814-d962-4ca7-8ecd-2aed03177980", "materialPurchaseLotId": "20808d11-3535-476a-846c-325e14d3c017", "fertilizerName": "有機肥", "quantity": 5, "unit": "公斤", "unitPrice": 20, "currencyCode": "TWD" },
-    { "id": "c9fdf3ba-8c65-4ccb-ac93-0ae4015624fa", "materialId": "50139b6a-58ef-44ca-9cc2-6855cdc27ff7", "materialPurchaseLotId": "3e3742d7-f9a9-451d-8f5e-5933a291745b", "fertilizerName": "複合肥", "quantity": 2, "unit": "公斤", "unitPrice": null, "currencyCode": "TWD" }
-  ]
-}
-```
-
 ### 灌溉紀錄
 
 作物栽培管理和栽培歷史共用以下端點。清單與新增使用栽培 ID，編輯與刪除直接使用灌溉作業 ID。
@@ -220,6 +164,67 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 沿用 Bearer 與 `USER` 角色。清單和新增透過栽培查所屬田區；編輯和刪除先以作業 ID 和 `IRRIGATION` 定位，再透過該筆作業的栽培查所屬田區。各端點都核對田區是否屬於登入主帳號。資源不存在、作業類型不符或帳號歸屬不符回 `404`。欄位錯誤回 `400`。栽培中、採收中及已結束可新增、編輯及刪除，規劃中新增或編輯沿用共用 `409 Conflict`。清單中的刪除動作先顯示作業日期與方式，確認後送出請求。
 
+### 資材施用
+
+| 方法與路徑 | 成功回應 | 行為 |
+| --- | --- | --- |
+| `GET /api/v1/plantings/{plantingId}/material-applications` | `200`，施用作業陣列 | 依實際作業日、建立時間及 ID 遞減排序。無紀錄時回傳 `[]`。 |
+| `POST /api/v1/plantings/{plantingId}/material-applications` | `201`，新增的施用作業 | 一次儲存作業及所有明細，按批次合計扣量。 |
+| `PUT /api/v1/material-applications/{materialApplicationId}` | `200`，更新的施用作業 | 保留作業 ID，以完整表單同步明細和批次用量。 |
+| `DELETE /api/v1/material-applications/{materialApplicationId}` | `204` | 確認後刪除整筆作業與明細，同一交易退回各原批次用量。 |
+
+端點使用 Bearer 與 `USER` 角色。清單及新增透過栽培及田區核對主帳號。編輯及刪除使用作業 ID 和 `MATERIAL_APPLICATION` 定位，再核對所屬栽培和田區。伺服器以明細的 `materialPurchaseLotId` 查詢庫存批次，驗證是同一主帳號的農藥或肥料資材。資源或批次不存在、類型不符或屬於其他帳號時回傳 `404`。
+
+栽培中、採收中及已結束都可新增和編輯。歷史補登保留栽培的已結束狀態。規劃中新增或編輯回傳 `409`。實際施用日最晚為台北當日，且不得早於任何所選批次的生效日。欄位驗證失敗回傳 `400`，批次生效日使用 `details[i].materialPurchaseLotId` 定位錯誤。批次餘量不足回傳 `409`，以 `details[i].quantity` 指向超量批次的明細。任一明細失敗時整筆作業與庫存用量一起回滾。
+
+| JSON 欄位 | 資料來源與行為 |
+| --- | --- |
+| `id`、`operationDate` | `field_operations.id`、`operation_date`。 |
+| `sprayWaterVolumeLiters` | `material_applications.spray_water_volume_liters`。選填，單位為公升。省略或傳 `null` 時保存為 NULL，回應以 `null` 表示未記錄或無噴施。 |
+| `details[].id` | `material_application_details.id`。編輯時帶原 ID 保留該明細，省略 ID 新增明細。未送回的原明細移除。重複或不屬於本作業的明細 ID 回 `400`。 |
+| `details[].materialPurchaseLotId`、`quantity` | `material_application_details.material_purchase_lot_id`、`quantity`。依庫存單位記錄取用量。同一批次多筆明細合計驗證餘量。 |
+| `details[].materialId`、`details[].materialType` | 從批次取得資材 ID 及類別。回應以 `pesticide`、`fertilizer` 對應主檔的 `PESTICIDE`、`FERTILIZER`。 |
+| `details[].applicationMethod` | `material_application_details.application_method`。每筆必填，`spray` 為噴施，`broadcast` 為撒施。 |
+| `details[].materialName`、`unit`、`unitPrice`、`currencyCode` | `material_application_details` 的名稱、單位、單價與幣別快照。新增明細或換批次時取新批次當下值，保留原批次時沿用原快照。單位回傳快照字串。 |
+
+一筆作業至少有一項明細，依表單列順序回傳。同一次作業可混合噴施與撒施，有噴施明細才可填噴施總水量。全為撒施卻填了水量時回 `400`，以 `sprayWaterVolumeLiters` 定位欄位。噴施總水量及各筆用量必須大於零、小於 10 億且最多六位小數。扣量以各明細的資材用量計算。同日同栽培可分開登記多筆，每筆各有自己的水量和明細。
+
+以下範例的前兩筆是農藥，第三筆是葉肥，三筆共用一次噴施水量。純撒施的表單可省略水量。歷史清單依明細判斷，純撒施顯示「不適用」，有噴施且水量為 `null` 時顯示「未記錄」。
+
+```json
+{
+  "operationDate": "2026-11-12",
+  "sprayWaterVolumeLiters": 20,
+  "details": [
+    { "materialPurchaseLotId": "20808d11-3535-476a-846c-325e14d3c017", "applicationMethod": "spray", "quantity": 15 },
+    { "materialPurchaseLotId": "3e3742d7-f9a9-451d-8f5e-5933a291745b", "applicationMethod": "spray", "quantity": 10 },
+    { "materialPurchaseLotId": "9bebf361-ec33-46cf-a9f9-b085b7391d3c", "applicationMethod": "spray", "quantity": 30 }
+  ]
+}
+```
+
+### 農藥庫存
+
+| 方法與路徑 | 成功回應 | 行為 |
+| --- | --- | --- |
+| `GET /api/v1/pesticides` | `200`，農藥主檔陣列 | 回傳同帳號農藥主檔、各自的庫存單位與總餘量。 |
+| `POST /api/v1/pesticides` | `201`，新增的農藥主檔 | 必填 `name` 和 `stockUnit`。名稱去除首尾空白後須非空且最多 100 字，同帳號同名農藥回傳 `409`。 |
+| `GET /api/v1/pesticides/{materialId}/lots` | `200`，批次陣列 | 回傳進貨與期初批次，含已用完批次。 |
+| `POST /api/v1/pesticides/{materialId}/lots` | `201`，新增的批次 | 按主檔的庫存單位登記進貨或期初庫存。 |
+
+主檔的 `stockUnit` 和明細的 `unit` 使用 `liter`、`milliliter`、`kilogram`、`gram`，依序對應資料庫和畫面上的公升、毫升、公斤、公克。批次沿用主檔單位，以及肥料的購買日、生效日、數值精度及帳號歸屬規則。農藥進貨必填 `unitPrice`，可填 `0`。期初庫存成本未知可省略或傳 `null`。回傳的 `totalCost` 為 `receivedQuantity × unitPrice`，使用十進位計算，單價未知時回傳 `null`。`remainingQuantity` 為登記量扣除已提交的資材施用明細合計。
+
+例如登記 40 公升、每公升 NT$350 的進貨批次，回應的 `totalCost` 為 14000、`currencyCode` 為 `TWD`。
+
+```json
+{
+  "source": "purchase",
+  "purchasedOn": "2026-11-11",
+  "receivedQuantity": 40,
+  "unitPrice": 350
+}
+```
+
 ### 肥料庫存
 
 | 方法與路徑 | 成功回應 | 行為 |
@@ -231,15 +236,15 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 | `GET /api/v1/fertilizers/{materialId}/lots` | `200` | 查該肥料所有批次與餘量，包含用完的批次。 |
 | `POST /api/v1/fertilizers/{materialId}/lots` | `201` | 登記進貨或期初庫存。 |
 | `PUT /api/v1/fertilizer-lots/{lotId}` | `200` | 更正登記量、日期或單價。批次來源沿用原值。 |
-| `DELETE /api/v1/fertilizer-lots/{lotId}` | `204` | 刪除尚未被施肥明細引用的批次。已有引用回傳 `409`。 |
+| `DELETE /api/v1/fertilizer-lots/{lotId}` | `204` | 刪除尚未被資材施用明細引用的批次。已有引用回傳 `409`。 |
 
-肥料資材端點沿用 Bearer 與 `USER` 角色，依登入主帳號限制資材和批次。新施肥選單只列出於作業日已生效且有餘量的批次。編輯時，以原明細及目前餘量計算可用量，因此原先用完的批次仍可顯示。伺服器在交易內重新驗證。
+肥料資材端點沿用 Bearer 與 `USER` 角色，依登入主帳號限制資材和批次。資材施用選單只列出於作業日已生效且有餘量的批次。編輯時，以原明細及目前餘量計算可用量，因此原先用完的批次仍可顯示。伺服器在交易內重新驗證。
 
 `source` 為 `purchase` 時必填 `purchasedOn`，伺服器以購買日作為 `availableFrom`。若同時傳入 `availableFrom`，須等於購買日。`openingStock` 的 `receivedQuantity` 填盤點時實際剩餘量，`availableFrom` 填盤點日，省略則取台北當日，購買日和單價可省略。購買日不得晚於生效日，生效日不得晚於台北當日。期初庫存以盤點後的用量扣庫存，避免把盤點前的歷史用量再扣一次。若同一天有盤點前的作業，以使用者確認的盤點邊界為準，首版日期欄位只區分到日。
 
-`receivedQuantity` 對應 `received_quantity`，`purchasedOn` 對應 `purchased_on`，`availableFrom` 對應 `available_from`。`remainingQuantity` 由批次登記量與施肥用量即時計算。批次登記量須大於零，單價可為零。兩者以 JSON 數值傳輸，須小於 10 億且最多六位小數。首版使用 `TWD`，每庫存單位的價格以 `unitPrice` 傳入。未知價格省略或傳 `null`，免費取得傳 `0`。
+`receivedQuantity` 對應 `received_quantity`，`purchasedOn` 對應 `purchased_on`，`availableFrom` 對應 `available_from`。`remainingQuantity` 由批次登記量與資材施用用量即時計算。批次登記量須大於零，單價可為零。兩者以 JSON 數值傳輸，須小於 10 億且最多六位小數。首版使用 `TWD`，每庫存單位的價格以 `unitPrice` 傳入。未知價格省略或傳 `null`，免費取得傳 `0`。
 
-編輯或刪除時，以批次 ID 定位，並核對所屬資材為登入帳號的肥料。批次不存在、資材類型不符或歸屬不符時回傳 `404`。批次更正後的登記量須大於 0 且至少等於已用量，生效日須早於或等於所有關聯施肥日期，與既有用量或日期衝突時回傳 `409`。更正進貨單價只影響之後採用該批次價格的新明細，既有施肥成本仍使用當次快照。
+編輯或刪除時，以批次 ID 定位，並核對所屬資材為登入帳號的肥料。批次不存在、資材類型不符或歸屬不符時回傳 `404`。批次更正後的登記量須大於 0 且至少等於已用量，生效日須早於或等於所有關聯施用日期，與既有用量或日期衝突時回傳 `409`。更正進貨單價只影響之後採用該批次價格的新明細，既有施用成本仍使用當次快照。
 
 ```json
 {

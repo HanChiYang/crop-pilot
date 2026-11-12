@@ -9,12 +9,12 @@ namespace CropPilot.Api.Fertilizers;
 public sealed class FertilizerRepository(CropPilotDbContext db)
 {
     /// <summary>限制資材查詢為登入帳號的肥料。</summary>
-    internal IQueryable<AgriculturalMaterial> Materials(Guid accountId) =>
-        db.AgriculturalMaterials.Where(x => x.MainAccountId == accountId && x.MaterialType == AgriculturalMaterial.Fertilizer);
+    internal IQueryable<AgriculturalMaterial> Materials(Guid accountId, string? type = AgriculturalMaterial.Fertilizer) =>
+        db.AgriculturalMaterials.Where(x => x.MainAccountId == accountId && (type == null || x.MaterialType == type));
 
     /// <summary>限制批次查詢為登入帳號的肥料批次。</summary>
-    internal IQueryable<MaterialPurchaseLot> Lots(Guid accountId) =>
-        db.MaterialPurchaseLots.Where(x => Materials(accountId).Any(m => m.Id == x.MaterialId));
+    internal IQueryable<MaterialPurchaseLot> Lots(Guid accountId, string? type = AgriculturalMaterial.Fertilizer) =>
+        db.MaterialPurchaseLots.Where(x => Materials(accountId, type).Any(m => m.Id == x.MaterialId));
 
     /// <summary>查詢登入帳號擁有的栽培紀錄。</summary>
     internal IQueryable<Planting> Plantings(Guid accountId) =>
@@ -22,18 +22,18 @@ public sealed class FertilizerRepository(CropPilotDbContext db)
 
     /// <summary>載入已核對歸屬的栽培之施肥作業、明細及批次。</summary>
     internal IQueryable<FieldOperation> Operations(Guid plantingId) =>
-        db.FieldOperations.Where(x => x.PlantingId == plantingId && x.OperationType == FieldOperation.Fertilization)
-            .Include(x => x.Details).ThenInclude(x => x.Lot);
+        db.FieldOperations.Where(x => x.PlantingId == plantingId && x.OperationType == FieldOperation.MaterialApplication)
+            .Include(x => x.Application!).ThenInclude(x => x.Details).ThenInclude(x => x.Lot).ThenInclude(x => x.Material);
 
     /// <summary>查詢指定施肥作業所屬的栽培 ID。作業不屬於帳號或類型不符時回傳 null。</summary>
     internal Task<Guid?> FindOperationPlantingIdAsync(Guid accountId, Guid operationId, CancellationToken ct) =>
-        db.FieldOperations.Where(x => x.Id == operationId && x.OperationType == FieldOperation.Fertilization
+        db.FieldOperations.Where(x => x.Id == operationId && x.OperationType == FieldOperation.MaterialApplication
             && x.Planting.Field.MainAccountId == accountId)
             .Select(x => (Guid?)x.PlantingId).SingleOrDefaultAsync(ct);
 
     /// <summary>查詢扣用指定庫存批次的全部明細。</summary>
-    internal IQueryable<FertilizationDetail> Usage(Guid lotId) =>
-        db.FertilizationDetails.Where(x => x.MaterialPurchaseLotId == lotId);
+    internal IQueryable<MaterialApplicationDetail> Usage(Guid lotId) =>
+        db.MaterialApplicationDetails.Where(x => x.MaterialPurchaseLotId == lotId);
 
     /// <summary>開始施肥或庫存寫入交易，鎖定維持至提交或回滾。</summary>
     internal Task<IDbContextTransaction> BeginAsync(CancellationToken ct) => db.Database.BeginTransactionAsync(ct);
@@ -54,7 +54,7 @@ public sealed class FertilizerRepository(CropPilotDbContext db)
     internal Task LockOperationAsync(Guid plantingId, Guid operationId, CancellationToken ct) =>
         db.Database.ExecuteSqlInterpolatedAsync($"""
             SELECT id FROM field_operations
-            WHERE planting_id = {plantingId} AND id = {operationId} AND operation_type = {FieldOperation.Fertilization}
+            WHERE planting_id = {plantingId} AND id = {operationId} AND operation_type = {FieldOperation.MaterialApplication}
             FOR UPDATE
             """, ct);
 
@@ -80,20 +80,20 @@ public sealed class FertilizerRepository(CropPilotDbContext db)
     }
 
     /// <summary>查詢資材及其所有批次的即時餘量。</summary>
-    internal IQueryable<MaterialStock> MaterialStocks(Guid accountId, Guid? materialId = null) =>
-        Materials(accountId).Where(x => materialId == null || x.Id == materialId)
+    internal IQueryable<MaterialStock> MaterialStocks(Guid accountId, Guid? materialId = null, string type = AgriculturalMaterial.Fertilizer) =>
+        Materials(accountId, type).Where(x => materialId == null || x.Id == materialId)
             .OrderBy(x => x.Name).Select(material => new MaterialStock(material,
                 (db.MaterialPurchaseLots.Where(lot => lot.MaterialId == material.Id)
                     .Sum(lot => (decimal?)lot.ReceivedQuantity) ?? 0)
-                - (db.FertilizationDetails.Where(x => x.Lot.MaterialId == material.Id)
+                - (db.MaterialApplicationDetails.Where(x => x.Lot.MaterialId == material.Id)
                     .Sum(x => (decimal?)x.Quantity) ?? 0)));
 
     /// <summary>查詢批次及其即時餘量。</summary>
-    internal IQueryable<LotStock> LotStocks(Guid accountId, Guid materialId) =>
-        Lots(accountId).Where(lot => lot.MaterialId == materialId)
+    internal IQueryable<LotStock> LotStocks(Guid accountId, Guid materialId, string type = AgriculturalMaterial.Fertilizer) =>
+        Lots(accountId, type).Where(lot => lot.MaterialId == materialId)
             .OrderByDescending(x => x.AvailableFrom).ThenByDescending(x => x.Id)
             .Select(lot => new LotStock(lot, lot.ReceivedQuantity -
-                (db.FertilizationDetails.Where(x => x.MaterialPurchaseLotId == lot.Id)
+                (db.MaterialApplicationDetails.Where(x => x.MaterialPurchaseLotId == lot.Id)
                     .Sum(x => (decimal?)x.Quantity) ?? 0)));
 }
 

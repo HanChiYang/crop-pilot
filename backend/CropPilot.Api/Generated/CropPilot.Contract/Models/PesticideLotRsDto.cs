@@ -24,7 +24,7 @@ namespace CropPilot.Contract.Models
     /// 
     /// </summary>
     [DataContract]
-    public class FertilizationDetailRsDto : IEquatable<FertilizationDetailRsDto>
+    public class PesticideLotRsDto : IEquatable<PesticideLotRsDto>
     {
         /// <summary>
         /// Gets or Sets Id
@@ -40,46 +40,82 @@ namespace CropPilot.Contract.Models
         [DataMember(Name="materialId", EmitDefaultValue=true)]
         public Guid MaterialId { get; set; }
 
-        /// <summary>
-        /// Gets or Sets MaterialPurchaseLotId
-        /// </summary>
-        [Required]
-        [DataMember(Name="materialPurchaseLotId", EmitDefaultValue=true)]
-        public Guid MaterialPurchaseLotId { get; set; }
 
         /// <summary>
-        /// Gets or Sets FertilizerName
+        /// Gets or Sets Source
         /// </summary>
-        [Required]
-        [StringLength(100, MinimumLength=1)]
-        [DataMember(Name="fertilizerName", EmitDefaultValue=false)]
-        public string FertilizerName { get; set; }
+        [TypeConverter(typeof(CustomEnumConverter<SourceEnum>))]
+        [JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+        public enum SourceEnum
+        {
+            
+            /// <summary>
+            /// Enum PurchaseEnum for purchase
+            /// </summary>
+            [EnumMember(Value = "purchase")]
+            PurchaseEnum = 1,
+            
+            /// <summary>
+            /// Enum OpeningStockEnum for openingStock
+            /// </summary>
+            [EnumMember(Value = "openingStock")]
+            OpeningStockEnum = 2
+        }
 
         /// <summary>
-        /// 實際施用總量，最多六位小數。
+        /// Gets or Sets Source
         /// </summary>
-        /// <value>實際施用總量，最多六位小數。</value>
+        [Required]
+        [DataMember(Name="source", EmitDefaultValue=true)]
+        public SourceEnum Source { get; set; }
+
+        /// <summary>
+        /// 最多六位小數。
+        /// </summary>
+        /// <value>最多六位小數。</value>
         [Required]
         [Range(0, 1000000000)]
-        [DataMember(Name="quantity", EmitDefaultValue=true)]
-        public decimal Quantity { get; set; }
+        [DataMember(Name="receivedQuantity", EmitDefaultValue=true)]
+        public decimal ReceivedQuantity { get; set; }
 
         /// <summary>
-        /// Gets or Sets Unit
+        /// 每一庫存單位的單價，最多六位小數。null 表示未知。
         /// </summary>
-        [Required]
-        [StringLength(20, MinimumLength=1)]
-        [DataMember(Name="unit", EmitDefaultValue=false)]
-        public string Unit { get; set; }
-
-        /// <summary>
-        /// 作業採用的單價快照。null 表示成本待補。
-        /// </summary>
-        /// <value>作業採用的單價快照。null 表示成本待補。</value>
+        /// <value>每一庫存單位的單價，最多六位小數。null 表示未知。</value>
         [Required]
         [Range(0, 1000000000)]
         [DataMember(Name="unitPrice", EmitDefaultValue=true)]
         public decimal? UnitPrice { get; set; }
+
+        /// <summary>
+        /// Gets or Sets PurchasedOn
+        /// </summary>
+        [Required]
+        [DataMember(Name="purchasedOn", EmitDefaultValue=true)]
+        public DateOnly? PurchasedOn { get; set; }
+
+        /// <summary>
+        /// 進貨採購買日。期初庫存採盤點日。
+        /// </summary>
+        /// <value>進貨採購買日。期初庫存採盤點日。</value>
+        [Required]
+        [DataMember(Name="availableFrom", EmitDefaultValue=true)]
+        public DateOnly AvailableFrom { get; set; }
+
+        /// <summary>
+        /// Gets or Sets RemainingQuantity
+        /// </summary>
+        [Required]
+        [DataMember(Name="remainingQuantity", EmitDefaultValue=true)]
+        public decimal RemainingQuantity { get; set; }
+
+        /// <summary>
+        /// 登記量乘以每庫存單位單價，使用十進位計算。未知單價時為 null。
+        /// </summary>
+        /// <value>登記量乘以每庫存單位單價，使用十進位計算。未知單價時為 null。</value>
+        [Required]
+        [DataMember(Name="totalCost", EmitDefaultValue=true)]
+        public decimal? TotalCost { get; set; }
 
 
         /// <summary>
@@ -111,14 +147,16 @@ namespace CropPilot.Contract.Models
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.Append("class FertilizationDetailRsDto {\n");
+            sb.Append("class PesticideLotRsDto {\n");
             sb.Append("  Id: ").Append(Id).Append("\n");
             sb.Append("  MaterialId: ").Append(MaterialId).Append("\n");
-            sb.Append("  MaterialPurchaseLotId: ").Append(MaterialPurchaseLotId).Append("\n");
-            sb.Append("  FertilizerName: ").Append(FertilizerName).Append("\n");
-            sb.Append("  Quantity: ").Append(Quantity).Append("\n");
-            sb.Append("  Unit: ").Append(Unit).Append("\n");
+            sb.Append("  Source: ").Append(Source).Append("\n");
+            sb.Append("  ReceivedQuantity: ").Append(ReceivedQuantity).Append("\n");
             sb.Append("  UnitPrice: ").Append(UnitPrice).Append("\n");
+            sb.Append("  PurchasedOn: ").Append(PurchasedOn).Append("\n");
+            sb.Append("  AvailableFrom: ").Append(AvailableFrom).Append("\n");
+            sb.Append("  RemainingQuantity: ").Append(RemainingQuantity).Append("\n");
+            sb.Append("  TotalCost: ").Append(TotalCost).Append("\n");
             sb.Append("  CurrencyCode: ").Append(CurrencyCode).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -142,15 +180,15 @@ namespace CropPilot.Contract.Models
         {
             if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            return obj.GetType() == GetType() && Equals((FertilizationDetailRsDto)obj);
+            return obj.GetType() == GetType() && Equals((PesticideLotRsDto)obj);
         }
 
         /// <summary>
-        /// Returns true if FertilizationDetailRsDto instances are equal
+        /// Returns true if PesticideLotRsDto instances are equal
         /// </summary>
-        /// <param name="other">Instance of FertilizationDetailRsDto to be compared</param>
+        /// <param name="other">Instance of PesticideLotRsDto to be compared</param>
         /// <returns>Boolean</returns>
-        public bool Equals(FertilizationDetailRsDto other)
+        public bool Equals(PesticideLotRsDto other)
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -167,29 +205,39 @@ namespace CropPilot.Contract.Models
                     MaterialId.Equals(other.MaterialId)
                 ) && 
                 (
-                    MaterialPurchaseLotId == other.MaterialPurchaseLotId ||
+                    Source == other.Source ||
                     
-                    MaterialPurchaseLotId.Equals(other.MaterialPurchaseLotId)
+                    Source.Equals(other.Source)
                 ) && 
                 (
-                    FertilizerName == other.FertilizerName ||
-                    FertilizerName != null &&
-                    FertilizerName.Equals(other.FertilizerName)
-                ) && 
-                (
-                    Quantity == other.Quantity ||
+                    ReceivedQuantity == other.ReceivedQuantity ||
                     
-                    Quantity.Equals(other.Quantity)
-                ) && 
-                (
-                    Unit == other.Unit ||
-                    Unit != null &&
-                    Unit.Equals(other.Unit)
+                    ReceivedQuantity.Equals(other.ReceivedQuantity)
                 ) && 
                 (
                     UnitPrice == other.UnitPrice ||
                     UnitPrice != null &&
                     UnitPrice.Equals(other.UnitPrice)
+                ) && 
+                (
+                    PurchasedOn == other.PurchasedOn ||
+                    PurchasedOn != null &&
+                    PurchasedOn.Equals(other.PurchasedOn)
+                ) && 
+                (
+                    AvailableFrom == other.AvailableFrom ||
+                    
+                    AvailableFrom.Equals(other.AvailableFrom)
+                ) && 
+                (
+                    RemainingQuantity == other.RemainingQuantity ||
+                    
+                    RemainingQuantity.Equals(other.RemainingQuantity)
+                ) && 
+                (
+                    TotalCost == other.TotalCost ||
+                    TotalCost != null &&
+                    TotalCost.Equals(other.TotalCost)
                 ) && 
                 (
                     CurrencyCode == other.CurrencyCode ||
@@ -213,15 +261,19 @@ namespace CropPilot.Contract.Models
                     
                     hashCode = hashCode * 59 + MaterialId.GetHashCode();
                     
-                    hashCode = hashCode * 59 + MaterialPurchaseLotId.GetHashCode();
-                    if (FertilizerName != null)
-                    hashCode = hashCode * 59 + FertilizerName.GetHashCode();
+                    hashCode = hashCode * 59 + Source.GetHashCode();
                     
-                    hashCode = hashCode * 59 + Quantity.GetHashCode();
-                    if (Unit != null)
-                    hashCode = hashCode * 59 + Unit.GetHashCode();
+                    hashCode = hashCode * 59 + ReceivedQuantity.GetHashCode();
                     if (UnitPrice != null)
                     hashCode = hashCode * 59 + UnitPrice.GetHashCode();
+                    if (PurchasedOn != null)
+                    hashCode = hashCode * 59 + PurchasedOn.GetHashCode();
+                    
+                    hashCode = hashCode * 59 + AvailableFrom.GetHashCode();
+                    
+                    hashCode = hashCode * 59 + RemainingQuantity.GetHashCode();
+                    if (TotalCost != null)
+                    hashCode = hashCode * 59 + TotalCost.GetHashCode();
                     
                     hashCode = hashCode * 59 + CurrencyCode.GetHashCode();
                 return hashCode;
@@ -231,12 +283,12 @@ namespace CropPilot.Contract.Models
         #region Operators
         #pragma warning disable 1591
 
-        public static bool operator ==(FertilizationDetailRsDto left, FertilizationDetailRsDto right)
+        public static bool operator ==(PesticideLotRsDto left, PesticideLotRsDto right)
         {
             return Equals(left, right);
         }
 
-        public static bool operator !=(FertilizationDetailRsDto left, FertilizationDetailRsDto right)
+        public static bool operator !=(PesticideLotRsDto left, PesticideLotRsDto right)
         {
             return !Equals(left, right);
         }

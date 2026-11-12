@@ -13,24 +13,24 @@ public sealed class FertilizerService(FertilizerRepository repository)
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
 
     /// <summary>取得帳號的肥料主檔及餘量。</summary>
-    internal Task<List<MaterialStock>> ListMaterialsAsync(Guid accountId, CancellationToken ct) =>
-        repository.MaterialStocks(accountId).ToListAsync(ct);
+    internal Task<List<MaterialStock>> ListMaterialsAsync(Guid accountId, CancellationToken ct, string type = AgriculturalMaterial.Fertilizer) =>
+        repository.MaterialStocks(accountId, type: type).ToListAsync(ct);
 
     /// <summary>取得資材批次。資材無法存取時回傳 null。</summary>
-    internal async Task<List<LotStock>?> ListLotsAsync(Guid accountId, Guid materialId, CancellationToken ct)
+    internal async Task<List<LotStock>?> ListLotsAsync(Guid accountId, Guid materialId, CancellationToken ct, string type = AgriculturalMaterial.Fertilizer)
     {
-        if (!await repository.Materials(accountId).AnyAsync(x => x.Id == materialId, ct))
+        if (!await repository.Materials(accountId, type).AnyAsync(x => x.Id == materialId, ct))
             return null;
 
-        return await repository.LotStocks(accountId, materialId).ToListAsync(ct);
+        return await repository.LotStocks(accountId, materialId, type).ToListAsync(ct);
     }
 
     /// <summary>建立或更新資材，已有批次時鎖定庫存單位。</summary>
     internal async Task<FertilizerResult<MaterialStock>> SaveMaterialAsync(Guid accountId, Guid? id,
-        CreateFertilizerMaterialRqDto request, CancellationToken ct)
+        string name, string unit, CancellationToken ct, string type = AgriculturalMaterial.Fertilizer)
     {
-        var name = request.Name.Trim();
-        var unit = request.StockUnit.Trim();
+        name = name.Trim();
+        unit = unit.Trim();
         if (!ValidText(name, 100))
             return new(null, Invalid, ErrorMessages.FertilizerTextInvalid, "name");
         if (!ValidText(unit, 20))
@@ -40,7 +40,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
         AgriculturalMaterial material;
         if (id is { } materialId)
         {
-            var owned = repository.Materials(accountId).Where(x => x.Id == materialId);
+            var owned = repository.Materials(accountId, type).Where(x => x.Id == materialId);
             if (!await owned.AnyAsync(ct))
                 return new(null, NotFound);
             await repository.LockMaterialAsync(materialId, ct);
@@ -54,13 +54,13 @@ public sealed class FertilizerService(FertilizerRepository repository)
         }
         else
         {
-            material = new() { MainAccountId = accountId, Name = name, StockUnit = unit };
+            material = new() { MainAccountId = accountId, Name = name, StockUnit = unit, MaterialType = type };
             repository.Add(material);
         }
 
         if (!await repository.SaveAsync(ct))
             return new(null, Conflict, ErrorMessages.FertilizerNameConflict, "name");
-        var stock = await repository.MaterialStocks(accountId, material.Id).SingleAsync(ct);
+        var stock = await repository.MaterialStocks(accountId, material.Id, type).SingleAsync(ct);
         await transaction.CommitAsync(ct);
         return new(stock, id is null ? Created : Updated);
     }
@@ -100,9 +100,19 @@ public sealed class FertilizerService(FertilizerRepository repository)
         SaveLotAsync(accountId, null, lotId, null, request.ReceivedQuantity, request.UnitPrice,
             request.PurchasedOn, request.AvailableFrom, ct);
 
+    /// <summary>依農藥庫存規則建立進貨或期初批次。</summary>
+    internal Task<FertilizerResult<LotStock>> CreatePesticideLotAsync(Guid accountId, Guid materialId,
+        CreatePesticideLotRqDto request, CancellationToken ct) =>
+        !Enum.IsDefined(request.Source)
+            ? Task.FromResult(new FertilizerResult<LotStock>(null, Invalid, ErrorMessages.FertilizerSourceInvalid, "source"))
+            : SaveLotAsync(accountId, materialId, null, request.Source == CreatePesticideLotRqDto.SourceEnum.PurchaseEnum
+                ? MaterialPurchaseLot.Purchase : MaterialPurchaseLot.OpeningStock,
+                request.ReceivedQuantity, request.UnitPrice, request.PurchasedOn, request.AvailableFrom, ct,
+                AgriculturalMaterial.Pesticide);
+
     /// <summary>鎖定資材及批次後驗證並儲存，避免與施肥扣量競爭。</summary>
     private async Task<FertilizerResult<LotStock>> SaveLotAsync(Guid accountId, Guid? requestedMaterialId, Guid? lotId,
-        string? source, decimal quantity, decimal? price, DateOnly? purchasedOn, DateOnly availableFrom, CancellationToken ct)
+        string? source, decimal quantity, decimal? price, DateOnly? purchasedOn, DateOnly availableFrom, CancellationToken ct, string type = AgriculturalMaterial.Fertilizer)
     {
         await using var transaction = await repository.BeginAsync(ct);
         var resolvedMaterialId = requestedMaterialId ?? await repository.Lots(accountId)
@@ -110,7 +120,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
         if (resolvedMaterialId is not Guid materialId)
             return new(null, NotFound);
 
-        var materials = repository.Materials(accountId).Where(x => x.Id == materialId);
+        var materials = repository.Materials(accountId, type).Where(x => x.Id == materialId);
         if (!await materials.AnyAsync(ct))
             return new(null, NotFound);
         await repository.LockMaterialAsync(materialId, ct);
@@ -135,7 +145,8 @@ public sealed class FertilizerService(FertilizerRepository repository)
 
         if (!ValidQuantity(quantity) || quantity <= 0)
             return new(null, Invalid, ErrorMessages.FertilizerQuantityInvalid, "receivedQuantity");
-        if (price is { } value && !ValidQuantity(value))
+        if (price is { } value && !ValidQuantity(value)
+            || type == AgriculturalMaterial.Pesticide && lot.Source == MaterialPurchaseLot.Purchase && price is null)
             return new(null, Invalid, ErrorMessages.FertilizerPriceInvalid, "unitPrice");
         if (lot.Source == MaterialPurchaseLot.Purchase)
         {
@@ -162,7 +173,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
             used = await usage.SumAsync(x => x.Quantity, ct);
             if (quantity < used)
                 return new(null, Conflict, ErrorMessages.FertilizerQuantityBelowUsed, "receivedQuantity");
-            if (await usage.AnyAsync(x => x.FieldOperation.OperationDate < availableFrom, ct))
+            if (await usage.AnyAsync(x => x.Application.FieldOperation.OperationDate < availableFrom, ct))
                 return new(null, Conflict, ErrorMessages.FertilizerLotDateInUse,
                     lot.Source == MaterialPurchaseLot.Purchase ? "purchasedOn" : "availableFrom");
         }
@@ -209,20 +220,20 @@ public sealed class FertilizerService(FertilizerRepository repository)
 
     /// <summary>新增一次施肥，交易成功時扣用所有送出的批次。</summary>
     internal Task<FertilizerResult<FieldOperation>> CreateOperationAsync(Guid accountId, Guid plantingId,
-        CreateFertilizationRqDto request, CancellationToken ct) =>
-        SaveOperationAsync(accountId, plantingId, null, request.OperationDate,
-            request.Details?.Select(x => x is null ? null : new UsageInput(null, x.MaterialPurchaseLotId, x.Quantity)).ToList(), ct);
+        CreateMaterialApplicationRqDto request, CancellationToken ct) =>
+        SaveOperationAsync(accountId, plantingId, null, request.OperationDate, request.SprayWaterVolumeLiters,
+            request.Details?.Select(x => x is null ? null : new UsageInput(null, x.MaterialPurchaseLotId, x.Quantity, x.ApplicationMethod)).ToList(), ct);
 
     /// <summary>更新施肥及完整的明細清單，釋放移除的批次用量。</summary>
     internal Task<FertilizerResult<FieldOperation>> EditOperationAsync(Guid accountId,
-        Guid operationId, EditFertilizationRqDto request, CancellationToken ct) =>
-        SaveOperationAsync(accountId, null, operationId, request.OperationDate,
+        Guid operationId, EditMaterialApplicationRqDto request, CancellationToken ct) =>
+        SaveOperationAsync(accountId, null, operationId, request.OperationDate, request.SprayWaterVolumeLiters,
             request.Details?.Select(x => x is null ? null : new UsageInput(x.Id == Guid.Empty ? null : x.Id,
-                x.MaterialPurchaseLotId, x.Quantity)).ToList(), ct);
+                x.MaterialPurchaseLotId, x.Quantity, x.ApplicationMethod)).ToList(), ct);
 
     /// <summary>依栽培及批次順序鎖定資料，驗證後原子更新施肥與庫存。</summary>
     private async Task<FertilizerResult<FieldOperation>> SaveOperationAsync(Guid accountId,
-        Guid? requestedPlantingId, Guid? operationId, DateOnly date, List<UsageInput?>? input, CancellationToken ct)
+        Guid? requestedPlantingId, Guid? operationId, DateOnly date, decimal? water, List<UsageInput?>? input, CancellationToken ct)
     {
         await using var transaction = await repository.BeginAsync(ct);
         var resolvedPlantingId = operationId is Guid requestedOperationId
@@ -241,7 +252,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
             await repository.LockOperationAsync(plantingId, existingOperationId, ct);
         var operation = operationId is { } id
             ? await repository.Operations(plantingId).SingleOrDefaultAsync(x => x.Id == id, ct)
-            : new FieldOperation { PlantingId = plantingId };
+            : new FieldOperation { PlantingId = plantingId, Application = new MaterialApplication() };
         if (operation is null)
             return new(null, NotFound);
         if (planting.Status == Planting.Planned)
@@ -251,7 +262,8 @@ public sealed class FertilizerService(FertilizerRepository repository)
         if (input is null || input.Count == 0)
             return new(null, Invalid, ErrorMessages.FertilizerDetailsRequired, "details");
 
-        var original = operation.Details.ToDictionary(x => x.Id);
+        var application = operation.Application!;
+        var original = application.Details.ToDictionary(x => x.Id);
         var retained = new HashSet<Guid>();
         var rows = new List<UsageInput>(input.Count);
         for (var index = 0; index < input.Count; index++)
@@ -262,12 +274,18 @@ public sealed class FertilizerService(FertilizerRepository repository)
                 return new(null, Invalid, ErrorMessages.FertilizerDetailInvalid, $"details[{index}].id");
             if (!ValidQuantity(row.Quantity) || row.Quantity <= 0)
                 return new(null, Invalid, ErrorMessages.FertilizerQuantityInvalid, $"details[{index}].quantity");
+            if (!Enum.IsDefined(row.Method))
+                return new(null, Invalid, ErrorMessages.MaterialApplicationMethodInvalid, $"details[{index}].applicationMethod");
             rows.Add(row);
         }
 
+        if (water is { } liters && (!ValidQuantity(liters) || liters <= 0
+            || rows.All(x => x.Method != MaterialApplicationMethod.SprayEnum)))
+            return new(null, Invalid, ErrorMessages.MaterialApplicationWaterInvalid, "sprayWaterVolumeLiters");
+
         var lotIds = rows.Select(x => x.LotId).Concat(original.Values.Select(x => x.MaterialPurchaseLotId))
             .Distinct().Order().ToArray();
-        var accountLots = repository.Lots(accountId);
+        var accountLots = repository.Lots(accountId, null);
         var ownedLotIds = await accountLots.Where(x => lotIds.Contains(x.Id)).Select(x => x.Id).ToListAsync(ct);
         foreach (var lotId in ownedLotIds.Order())
             await repository.LockLotAsync(lotId, ct);
@@ -285,43 +303,51 @@ public sealed class FertilizerService(FertilizerRepository repository)
         foreach (var group in rows.Select((row, index) => (row, index)).GroupBy(x => x.row.LotId))
         {
             var usedElsewhere = await repository.Usage(group.Key)
-                .Where(x => x.FieldOperationId != operation.Id).SumAsync(x => x.Quantity, ct);
-            if (group.Sum(x => x.row.Quantity) > lots[group.Key].ReceivedQuantity - usedElsewhere)
-                return new(null, Conflict, ErrorMessages.FertilizerStockInsufficient, $"details[{group.Last().index}].quantity");
+                .Where(x => x.MaterialApplicationId != application.Id).SumAsync(x => x.Quantity, ct);
+            var remaining = lots[group.Key].ReceivedQuantity - usedElsewhere;
+            foreach (var (row, index) in group)
+            {
+                remaining -= row.Quantity;
+                if (remaining < 0)
+                    return new(null, Conflict, ErrorMessages.FertilizerStockInsufficient, $"details[{index}].quantity");
+            }
         }
 
         foreach (var removed in original.Values.Where(x => !retained.Contains(x.Id)))
         {
-            operation.Details.Remove(removed);
+            application.Details.Remove(removed);
             repository.Remove(removed);
         }
         for (var index = 0; index < rows.Count; index++)
         {
             var row = rows[index];
             var lot = lots[row.LotId];
-            var detail = row.Id is { } detailId ? original[detailId] : new FertilizationDetail
+            var detail = row.Id is { } detailId ? original[detailId] : new MaterialApplicationDetail
             {
-                FertilizerName = lot.Material.Name,
-                Unit = lot.Material.StockUnit
+                MaterialName = lot.Material.Name,
+                Unit = lot.Material.StockUnit,
+                ApplicationMethod = string.Empty
             };
             if (detail.MaterialPurchaseLotId != lot.Id)
             {
                 detail.MaterialPurchaseLotId = lot.Id;
-                detail.FertilizerName = lot.Material.Name;
+                detail.MaterialName = lot.Material.Name;
                 detail.Unit = lot.Material.StockUnit;
                 detail.UnitPrice = lot.UnitPrice;
                 detail.CurrencyCode = lot.CurrencyCode;
             }
+            detail.ApplicationMethod = row.Method == MaterialApplicationMethod.SprayEnum ? "spray" : "broadcast";
             detail.Quantity = row.Quantity;
             detail.SortOrder = index;
             if (row.Id is null)
             {
-                operation.Details.Add(detail);
+                application.Details.Add(detail);
                 if (operationId is not null)
                     repository.Add(detail);
             }
         }
 
+        application.SprayWaterVolumeLiters = water;
         operation.OperationDate = date;
         operation.UpdatedAt = DateTimeOffset.UtcNow;
         if (operationId is null)
@@ -333,6 +359,27 @@ public sealed class FertilizerService(FertilizerRepository repository)
         return new(saved, operationId is null ? Created : Updated);
     }
 
+    /// <summary>刪除登入帳號的施用作業，並在同一交易釋放各批次用量。</summary>
+    internal async Task<FertilizerResult<FieldOperation>> DeleteOperationAsync(Guid accountId, Guid operationId,
+        CancellationToken ct)
+    {
+        await using var transaction = await repository.BeginAsync(ct);
+        if (await repository.FindOperationPlantingIdAsync(accountId, operationId, ct) is not { } plantingId)
+            return new(null, NotFound);
+        await repository.LockPlantingAsync(plantingId, ct);
+        await repository.LockOperationAsync(plantingId, operationId, ct);
+        if (await repository.Operations(plantingId).SingleOrDefaultAsync(x => x.Id == operationId, ct) is not { } operation)
+            return new(null, NotFound);
+
+        foreach (var lotId in operation.Application!.Details.Select(x => x.MaterialPurchaseLotId).Distinct().Order())
+            await repository.LockLotAsync(lotId, ct);
+
+        repository.Remove(operation);
+        await repository.SaveAsync(ct);
+        await transaction.CommitAsync(ct);
+        return new(null, Deleted);
+    }
+
     /// <summary>檢查庫存數值是否可由資料庫欄位精確保存。</summary>
     private static bool ValidQuantity(decimal value) =>
         value is >= 0 and <= 999999999.999999m && decimal.Round(value, 6) == value;
@@ -342,7 +389,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
         value.Length > 0 && !value.Contains('\0') && value.EnumerateRunes().Count() <= maxLength;
 
     /// <summary>統一新增及編輯請求的明細資料，編輯時可帶原識別碼。</summary>
-    private sealed record UsageInput(Guid? Id, Guid LotId, decimal Quantity);
+    private sealed record UsageInput(Guid? Id, Guid LotId, decimal Quantity, MaterialApplicationMethod Method);
 }
 
 /// <summary>表示寫入成功或可預期的錯誤，以及契約對應的欄位。</summary>

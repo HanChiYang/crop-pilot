@@ -24,29 +24,36 @@ namespace CropPilot.Contract.Models
     /// 
     /// </summary>
     [DataContract]
-    public class EditFertilizationDetailRqDto : IEquatable<EditFertilizationDetailRqDto>
+    public class PesticideMaterialRsDto : IEquatable<PesticideMaterialRsDto>
     {
         /// <summary>
         /// Gets or Sets Id
         /// </summary>
+        [Required]
         [DataMember(Name="id", EmitDefaultValue=true)]
         public Guid Id { get; set; }
 
         /// <summary>
-        /// Gets or Sets MaterialPurchaseLotId
+        /// Gets or Sets Name
         /// </summary>
         [Required]
-        [DataMember(Name="materialPurchaseLotId", EmitDefaultValue=true)]
-        public Guid MaterialPurchaseLotId { get; set; }
+        [StringLength(100, MinimumLength=1)]
+        [DataMember(Name="name", EmitDefaultValue=false)]
+        public string Name { get; set; }
 
         /// <summary>
-        /// 實際施用總量，最多六位小數。
+        /// Gets or Sets StockUnit
         /// </summary>
-        /// <value>實際施用總量，最多六位小數。</value>
         [Required]
-        [Range(0, 1000000000)]
-        [DataMember(Name="quantity", EmitDefaultValue=true)]
-        public decimal Quantity { get; set; }
+        [DataMember(Name="stockUnit", EmitDefaultValue=true)]
+        public PesticideStockUnit StockUnit { get; set; }
+
+        /// <summary>
+        /// Gets or Sets RemainingQuantity
+        /// </summary>
+        [Required]
+        [DataMember(Name="remainingQuantity", EmitDefaultValue=true)]
+        public decimal RemainingQuantity { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -55,10 +62,11 @@ namespace CropPilot.Contract.Models
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.Append("class EditFertilizationDetailRqDto {\n");
+            sb.Append("class PesticideMaterialRsDto {\n");
             sb.Append("  Id: ").Append(Id).Append("\n");
-            sb.Append("  MaterialPurchaseLotId: ").Append(MaterialPurchaseLotId).Append("\n");
-            sb.Append("  Quantity: ").Append(Quantity).Append("\n");
+            sb.Append("  Name: ").Append(Name).Append("\n");
+            sb.Append("  StockUnit: ").Append(StockUnit).Append("\n");
+            sb.Append("  RemainingQuantity: ").Append(RemainingQuantity).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -81,15 +89,15 @@ namespace CropPilot.Contract.Models
         {
             if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            return obj.GetType() == GetType() && Equals((EditFertilizationDetailRqDto)obj);
+            return obj.GetType() == GetType() && Equals((PesticideMaterialRsDto)obj);
         }
 
         /// <summary>
-        /// Returns true if EditFertilizationDetailRqDto instances are equal
+        /// Returns true if PesticideMaterialRsDto instances are equal
         /// </summary>
-        /// <param name="other">Instance of EditFertilizationDetailRqDto to be compared</param>
+        /// <param name="other">Instance of PesticideMaterialRsDto to be compared</param>
         /// <returns>Boolean</returns>
-        public bool Equals(EditFertilizationDetailRqDto other)
+        public bool Equals(PesticideMaterialRsDto other)
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -101,14 +109,19 @@ namespace CropPilot.Contract.Models
                     Id.Equals(other.Id)
                 ) && 
                 (
-                    MaterialPurchaseLotId == other.MaterialPurchaseLotId ||
-                    
-                    MaterialPurchaseLotId.Equals(other.MaterialPurchaseLotId)
+                    Name == other.Name ||
+                    Name != null &&
+                    Name.Equals(other.Name)
                 ) && 
                 (
-                    Quantity == other.Quantity ||
+                    StockUnit == other.StockUnit ||
                     
-                    Quantity.Equals(other.Quantity)
+                    StockUnit.Equals(other.StockUnit)
+                ) && 
+                (
+                    RemainingQuantity == other.RemainingQuantity ||
+                    
+                    RemainingQuantity.Equals(other.RemainingQuantity)
                 );
         }
 
@@ -124,10 +137,12 @@ namespace CropPilot.Contract.Models
                 // Suitable nullity checks etc, of course :)
                     
                     hashCode = hashCode * 59 + Id.GetHashCode();
+                    if (Name != null)
+                    hashCode = hashCode * 59 + Name.GetHashCode();
                     
-                    hashCode = hashCode * 59 + MaterialPurchaseLotId.GetHashCode();
+                    hashCode = hashCode * 59 + StockUnit.GetHashCode();
                     
-                    hashCode = hashCode * 59 + Quantity.GetHashCode();
+                    hashCode = hashCode * 59 + RemainingQuantity.GetHashCode();
                 return hashCode;
             }
         }
@@ -135,12 +150,12 @@ namespace CropPilot.Contract.Models
         #region Operators
         #pragma warning disable 1591
 
-        public static bool operator ==(EditFertilizationDetailRqDto left, EditFertilizationDetailRqDto right)
+        public static bool operator ==(PesticideMaterialRsDto left, PesticideMaterialRsDto right)
         {
             return Equals(left, right);
         }
 
-        public static bool operator !=(EditFertilizationDetailRqDto left, EditFertilizationDetailRqDto right)
+        public static bool operator !=(PesticideMaterialRsDto left, PesticideMaterialRsDto right)
         {
             return !Equals(left, right);
         }

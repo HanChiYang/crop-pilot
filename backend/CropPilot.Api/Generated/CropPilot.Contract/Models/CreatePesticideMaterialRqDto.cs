@@ -24,23 +24,22 @@ namespace CropPilot.Contract.Models
     /// 
     /// </summary>
     [DataContract]
-    public class FertilizationDetailRqDto : IEquatable<FertilizationDetailRqDto>
+    public class CreatePesticideMaterialRqDto : IEquatable<CreatePesticideMaterialRqDto>
     {
         /// <summary>
-        /// Gets or Sets MaterialPurchaseLotId
+        /// Gets or Sets Name
         /// </summary>
         [Required]
-        [DataMember(Name="materialPurchaseLotId", EmitDefaultValue=true)]
-        public Guid MaterialPurchaseLotId { get; set; }
+        [StringLength(100, MinimumLength=1)]
+        [DataMember(Name="name", EmitDefaultValue=false)]
+        public string Name { get; set; }
 
         /// <summary>
-        /// 實際施用總量，最多六位小數。
+        /// Gets or Sets StockUnit
         /// </summary>
-        /// <value>實際施用總量，最多六位小數。</value>
         [Required]
-        [Range(0, 1000000000)]
-        [DataMember(Name="quantity", EmitDefaultValue=true)]
-        public decimal Quantity { get; set; }
+        [DataMember(Name="stockUnit", EmitDefaultValue=true)]
+        public PesticideStockUnit StockUnit { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -49,9 +48,9 @@ namespace CropPilot.Contract.Models
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.Append("class FertilizationDetailRqDto {\n");
-            sb.Append("  MaterialPurchaseLotId: ").Append(MaterialPurchaseLotId).Append("\n");
-            sb.Append("  Quantity: ").Append(Quantity).Append("\n");
+            sb.Append("class CreatePesticideMaterialRqDto {\n");
+            sb.Append("  Name: ").Append(Name).Append("\n");
+            sb.Append("  StockUnit: ").Append(StockUnit).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -74,29 +73,29 @@ namespace CropPilot.Contract.Models
         {
             if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            return obj.GetType() == GetType() && Equals((FertilizationDetailRqDto)obj);
+            return obj.GetType() == GetType() && Equals((CreatePesticideMaterialRqDto)obj);
         }
 
         /// <summary>
-        /// Returns true if FertilizationDetailRqDto instances are equal
+        /// Returns true if CreatePesticideMaterialRqDto instances are equal
         /// </summary>
-        /// <param name="other">Instance of FertilizationDetailRqDto to be compared</param>
+        /// <param name="other">Instance of CreatePesticideMaterialRqDto to be compared</param>
         /// <returns>Boolean</returns>
-        public bool Equals(FertilizationDetailRqDto other)
+        public bool Equals(CreatePesticideMaterialRqDto other)
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
 
             return 
                 (
-                    MaterialPurchaseLotId == other.MaterialPurchaseLotId ||
-                    
-                    MaterialPurchaseLotId.Equals(other.MaterialPurchaseLotId)
+                    Name == other.Name ||
+                    Name != null &&
+                    Name.Equals(other.Name)
                 ) && 
                 (
-                    Quantity == other.Quantity ||
+                    StockUnit == other.StockUnit ||
                     
-                    Quantity.Equals(other.Quantity)
+                    StockUnit.Equals(other.StockUnit)
                 );
         }
 
@@ -110,10 +109,10 @@ namespace CropPilot.Contract.Models
             {
                 var hashCode = 41;
                 // Suitable nullity checks etc, of course :)
+                    if (Name != null)
+                    hashCode = hashCode * 59 + Name.GetHashCode();
                     
-                    hashCode = hashCode * 59 + MaterialPurchaseLotId.GetHashCode();
-                    
-                    hashCode = hashCode * 59 + Quantity.GetHashCode();
+                    hashCode = hashCode * 59 + StockUnit.GetHashCode();
                 return hashCode;
             }
         }
@@ -121,12 +120,12 @@ namespace CropPilot.Contract.Models
         #region Operators
         #pragma warning disable 1591
 
-        public static bool operator ==(FertilizationDetailRqDto left, FertilizationDetailRqDto right)
+        public static bool operator ==(CreatePesticideMaterialRqDto left, CreatePesticideMaterialRqDto right)
         {
             return Equals(left, right);
         }
 
-        public static bool operator !=(FertilizationDetailRqDto left, FertilizationDetailRqDto right)
+        public static bool operator !=(CreatePesticideMaterialRqDto left, CreatePesticideMaterialRqDto right)
         {
             return !Equals(left, right);
         }

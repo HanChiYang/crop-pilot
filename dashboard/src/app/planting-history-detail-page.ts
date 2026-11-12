@@ -46,7 +46,7 @@ type DetailState =
         @let planting = detail.planting;
         <p class="operations">
           <a class="button button-outline"
-            [routerLink]="['/dashboard/planting-history', planting.fieldId, planting.id, 'fertilizations']">施肥紀錄</a>
+            [routerLink]="['/dashboard/planting-history', planting.fieldId, planting.id, 'fertilizations']">資材施用紀錄</a>
           <a class="button button-outline"
             [routerLink]="['/dashboard/planting-history', planting.fieldId, planting.id, 'irrigations']">灌溉紀錄</a>
         </p>

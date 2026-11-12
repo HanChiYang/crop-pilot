@@ -31,7 +31,7 @@ public sealed class IrrigationApiTests(FieldsApiFixture fixture) : IClassFixture
         Assert.Equal("drip", record.GetProperty("method").GetString());
         Assert.Equal(999999999.999999m, record.GetProperty("waterVolumeLiters").GetDecimal());
         Assert.Equal(description, record.GetProperty("description").GetString());
-        using var wrongType = await client.PutAsJsonAsync($"/api/v1/fertilizations/{id}", new
+        using var wrongType = await client.PutAsJsonAsync($"/api/v1/material-applications/{id}", new
         {
             operationDate = Today,
             details = new[] { new { materialPurchaseLotId = Guid.NewGuid(), quantity = 1 } }

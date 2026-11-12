@@ -23,19 +23,19 @@ import { ApiProblemRsDto } from '../model/apiProblemRsDto';
 // @ts-ignore
 import { ApiValidationProblemRsDto } from '../model/apiValidationProblemRsDto';
 // @ts-ignore
-import { CreateFertilizationRqDto } from '../model/createFertilizationRqDto';
+import { CreateMaterialApplicationRqDto } from '../model/createMaterialApplicationRqDto';
 // @ts-ignore
 import { CreatePlantingRqDto } from '../model/createPlantingRqDto';
 // @ts-ignore
-import { EditFertilizationRqDto } from '../model/editFertilizationRqDto';
+import { EditMaterialApplicationRqDto } from '../model/editMaterialApplicationRqDto';
 // @ts-ignore
 import { EditPlantingRqDto } from '../model/editPlantingRqDto';
-// @ts-ignore
-import { FertilizationRsDto } from '../model/fertilizationRsDto';
 // @ts-ignore
 import { FieldPlantingsRsDto } from '../model/fieldPlantingsRsDto';
 // @ts-ignore
 import { IrrigationRsDto } from '../model/irrigationRsDto';
+// @ts-ignore
+import { MaterialApplicationRsDto } from '../model/materialApplicationRsDto';
 // @ts-ignore
 import { PlantingHistoryItemDto } from '../model/plantingHistoryItemDto';
 // @ts-ignore
@@ -49,16 +49,16 @@ import { Configuration }                                     from '../configurat
 import { BaseService } from '../api.base.service';
 
 
-export interface CreateFertilizationRequestParams {
-    /** 栽培紀錄的 UUID。 */
-    plantingId: string;
-    createFertilizationRqDto: CreateFertilizationRqDto;
-}
-
 export interface CreateIrrigationRequestParams {
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
     saveIrrigationRqDto: SaveIrrigationRqDto;
+}
+
+export interface CreateMaterialApplicationRequestParams {
+    /** 栽培紀錄的 UUID。 */
+    plantingId: string;
+    createMaterialApplicationRqDto: CreateMaterialApplicationRqDto;
 }
 
 export interface CreatePlantingRequestParams {
@@ -72,21 +72,26 @@ export interface DeleteIrrigationRequestParams {
     irrigationId: string;
 }
 
+export interface DeleteMaterialApplicationRequestParams {
+    /** 施用作業的 UUID。 */
+    materialApplicationId: string;
+}
+
 export interface DeletePlantingRequestParams {
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
-}
-
-export interface EditFertilizationRequestParams {
-    /** 指定栽培紀錄下施肥作業的 UUID。 */
-    fertilizationId: string;
-    editFertilizationRqDto: EditFertilizationRqDto;
 }
 
 export interface EditIrrigationRequestParams {
     /** 灌溉作業識別碼 */
     irrigationId: string;
     saveIrrigationRqDto: SaveIrrigationRqDto;
+}
+
+export interface EditMaterialApplicationRequestParams {
+    /** 施用作業的 UUID。 */
+    materialApplicationId: string;
+    editMaterialApplicationRqDto: EditMaterialApplicationRqDto;
 }
 
 export interface EditPlantingRequestParams {
@@ -100,17 +105,17 @@ export interface GetPlantingRequestParams {
     plantingId: string;
 }
 
-export interface ListFertilizationsRequestParams {
-    /** 栽培紀錄的 UUID。 */
-    plantingId: string;
-}
-
 export interface ListFieldPlantingsRequestParams {
     /** 田區的 UUID。 */
     fieldId: string;
 }
 
 export interface ListIrrigationsRequestParams {
+    /** 栽培紀錄的 UUID。 */
+    plantingId: string;
+}
+
+export interface ListMaterialApplicationsRequestParams {
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
 }
@@ -135,82 +140,6 @@ export class PlantingsService extends BaseService {
 
     constructor(protected httpClient: HttpClient, @Optional() @Inject(BASE_PATH) basePath: string|string[], @Optional() configuration?: Configuration) {
         super(basePath, configuration);
-    }
-
-    /**
-     * 新增施肥作業
-     * 栽培中、採收中及已結束的批次均可登記。實際施肥日不得早於所選庫存批次的生效日，也不得晚於台北當日。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
-     * @endpoint post /api/v1/plantings/{plantingId}/fertilizations
-     * @param requestParameters
-     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
-     * @param reportProgress flag to report request and response progress.
-     * @param options additional options
-     */
-    public createFertilization(requestParameters: CreateFertilizationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<FertilizationRsDto>;
-    public createFertilization(requestParameters: CreateFertilizationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FertilizationRsDto>>;
-    public createFertilization(requestParameters: CreateFertilizationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FertilizationRsDto>>;
-    public createFertilization(requestParameters: CreateFertilizationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const plantingId = requestParameters?.plantingId;
-        if (plantingId === null || plantingId === undefined) {
-            throw new Error('Required parameter plantingId was null or undefined when calling createFertilization.');
-        }
-        const createFertilizationRqDto = requestParameters?.createFertilizationRqDto;
-        if (createFertilizationRqDto === null || createFertilizationRqDto === undefined) {
-            throw new Error('Required parameter createFertilizationRqDto was null or undefined when calling createFertilization.');
-        }
-
-        let localVarHeaders = this.defaultHeaders;
-
-        // authentication (BearerAuth) required
-        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
-
-        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
-            'application/json',
-            'application/problem+json'
-        ]);
-        if (localVarHttpHeaderAcceptSelected !== undefined) {
-            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
-        }
-
-        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
-
-        const localVarTransferCache: boolean = options?.transferCache ?? true;
-
-
-        // to determine the Content-Type header
-        const consumes: string[] = [
-            'application/json'
-        ];
-        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
-        if (httpContentTypeSelected !== undefined) {
-            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
-        }
-
-        let responseType_: 'text' | 'json' | 'blob' = 'json';
-        if (localVarHttpHeaderAcceptSelected) {
-            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
-                responseType_ = 'text';
-            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
-                responseType_ = 'json';
-            } else {
-                responseType_ = 'blob';
-            }
-        }
-
-        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations`;
-        const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<FertilizationRsDto>('post', `${basePath}${localVarPath}`,
-            {
-                context: localVarHttpContext,
-                body: createFertilizationRqDto,
-                responseType: <any>responseType_,
-                ...(withCredentials ? { withCredentials } : {}),
-                headers: localVarHeaders,
-                observe: observe,
-                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
-                reportProgress: reportProgress
-            }
-        );
     }
 
     /**
@@ -279,6 +208,82 @@ export class PlantingsService extends BaseService {
             {
                 context: localVarHttpContext,
                 body: saveIrrigationRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 新增施用作業
+     * 栽培中、採收中及已結束的批次均可登記。實際施用日不得早於所選庫存批次的生效日，也不得晚於台北當日。同一筆可包含農藥與肥料。同日同栽培可登記多筆。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
+     * @endpoint post /api/v1/plantings/{plantingId}/material-applications
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public createMaterialApplication(requestParameters: CreateMaterialApplicationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<MaterialApplicationRsDto>;
+    public createMaterialApplication(requestParameters: CreateMaterialApplicationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<MaterialApplicationRsDto>>;
+    public createMaterialApplication(requestParameters: CreateMaterialApplicationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<MaterialApplicationRsDto>>;
+    public createMaterialApplication(requestParameters: CreateMaterialApplicationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling createMaterialApplication.');
+        }
+        const createMaterialApplicationRqDto = requestParameters?.createMaterialApplicationRqDto;
+        if (createMaterialApplicationRqDto === null || createMaterialApplicationRqDto === undefined) {
+            throw new Error('Required parameter createMaterialApplicationRqDto was null or undefined when calling createMaterialApplication.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/material-applications`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<MaterialApplicationRsDto>('post', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: createMaterialApplicationRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -427,6 +432,67 @@ export class PlantingsService extends BaseService {
     }
 
     /**
+     * 刪除施用作業
+     * 栽培中、採收中及已結束的批次可刪除施用紀錄。作業及明細一併刪除，用量退回各原批次。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+     * @endpoint delete /api/v1/material-applications/{materialApplicationId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public deleteMaterialApplication(requestParameters: DeleteMaterialApplicationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
+    public deleteMaterialApplication(requestParameters: DeleteMaterialApplicationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
+    public deleteMaterialApplication(requestParameters: DeleteMaterialApplicationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
+    public deleteMaterialApplication(requestParameters: DeleteMaterialApplicationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const materialApplicationId = requestParameters?.materialApplicationId;
+        if (materialApplicationId === null || materialApplicationId === undefined) {
+            throw new Error('Required parameter materialApplicationId was null or undefined when calling deleteMaterialApplication.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/material-applications/${this.configuration.encodeParam({name: "materialApplicationId", value: materialApplicationId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
      * 刪除單筆規劃中栽培紀錄
      * 刪除登入帳號所屬田區的一筆規劃中栽培紀錄，並釋放該筆紀錄占用的面積。
      * @endpoint delete /api/v1/plantings/{plantingId}
@@ -477,82 +543,6 @@ export class PlantingsService extends BaseService {
         return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
-                responseType: <any>responseType_,
-                ...(withCredentials ? { withCredentials } : {}),
-                headers: localVarHeaders,
-                observe: observe,
-                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
-                reportProgress: reportProgress
-            }
-        );
-    }
-
-    /**
-     * 編輯施肥作業
-     * 更新完整表單。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。可用量包含原作業已扣用量，超過時回傳 409。
-     * @endpoint put /api/v1/fertilizations/{fertilizationId}
-     * @param requestParameters
-     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
-     * @param reportProgress flag to report request and response progress.
-     * @param options additional options
-     */
-    public editFertilization(requestParameters: EditFertilizationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<FertilizationRsDto>;
-    public editFertilization(requestParameters: EditFertilizationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FertilizationRsDto>>;
-    public editFertilization(requestParameters: EditFertilizationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FertilizationRsDto>>;
-    public editFertilization(requestParameters: EditFertilizationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const fertilizationId = requestParameters?.fertilizationId;
-        if (fertilizationId === null || fertilizationId === undefined) {
-            throw new Error('Required parameter fertilizationId was null or undefined when calling editFertilization.');
-        }
-        const editFertilizationRqDto = requestParameters?.editFertilizationRqDto;
-        if (editFertilizationRqDto === null || editFertilizationRqDto === undefined) {
-            throw new Error('Required parameter editFertilizationRqDto was null or undefined when calling editFertilization.');
-        }
-
-        let localVarHeaders = this.defaultHeaders;
-
-        // authentication (BearerAuth) required
-        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
-
-        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
-            'application/json',
-            'application/problem+json'
-        ]);
-        if (localVarHttpHeaderAcceptSelected !== undefined) {
-            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
-        }
-
-        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
-
-        const localVarTransferCache: boolean = options?.transferCache ?? true;
-
-
-        // to determine the Content-Type header
-        const consumes: string[] = [
-            'application/json'
-        ];
-        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
-        if (httpContentTypeSelected !== undefined) {
-            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
-        }
-
-        let responseType_: 'text' | 'json' | 'blob' = 'json';
-        if (localVarHttpHeaderAcceptSelected) {
-            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
-                responseType_ = 'text';
-            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
-                responseType_ = 'json';
-            } else {
-                responseType_ = 'blob';
-            }
-        }
-
-        let localVarPath = `/api/v1/fertilizations/${this.configuration.encodeParam({name: "fertilizationId", value: fertilizationId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
-        const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<FertilizationRsDto>('put', `${basePath}${localVarPath}`,
-            {
-                context: localVarHttpContext,
-                body: editFertilizationRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -629,6 +619,82 @@ export class PlantingsService extends BaseService {
             {
                 context: localVarHttpContext,
                 body: saveIrrigationRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 編輯施用作業
+     * 更新完整表單。省略噴施總水量或傳 null 時清除原值。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。實際施用日不得早於所選批次生效日，也不得晚於台北當日。可用量包含原作業已扣用量，超過時回傳 409。
+     * @endpoint put /api/v1/material-applications/{materialApplicationId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public editMaterialApplication(requestParameters: EditMaterialApplicationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<MaterialApplicationRsDto>;
+    public editMaterialApplication(requestParameters: EditMaterialApplicationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<MaterialApplicationRsDto>>;
+    public editMaterialApplication(requestParameters: EditMaterialApplicationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<MaterialApplicationRsDto>>;
+    public editMaterialApplication(requestParameters: EditMaterialApplicationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const materialApplicationId = requestParameters?.materialApplicationId;
+        if (materialApplicationId === null || materialApplicationId === undefined) {
+            throw new Error('Required parameter materialApplicationId was null or undefined when calling editMaterialApplication.');
+        }
+        const editMaterialApplicationRqDto = requestParameters?.editMaterialApplicationRqDto;
+        if (editMaterialApplicationRqDto === null || editMaterialApplicationRqDto === undefined) {
+            throw new Error('Required parameter editMaterialApplicationRqDto was null or undefined when calling editMaterialApplication.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/material-applications/${this.configuration.encodeParam({name: "materialApplicationId", value: materialApplicationId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<MaterialApplicationRsDto>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: editMaterialApplicationRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -778,68 +844,6 @@ export class PlantingsService extends BaseService {
     }
 
     /**
-     * 查詢單筆栽培的施肥清單
-     * 按實際施肥日期、建立時間與識別碼依序由大到小排列。所屬栽培沒有施肥作業時回傳空陣列。
-     * @endpoint get /api/v1/plantings/{plantingId}/fertilizations
-     * @param requestParameters
-     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
-     * @param reportProgress flag to report request and response progress.
-     * @param options additional options
-     */
-    public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<Array<FertilizationRsDto>>;
-    public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<FertilizationRsDto>>>;
-    public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<FertilizationRsDto>>>;
-    public listFertilizations(requestParameters: ListFertilizationsRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const plantingId = requestParameters?.plantingId;
-        if (plantingId === null || plantingId === undefined) {
-            throw new Error('Required parameter plantingId was null or undefined when calling listFertilizations.');
-        }
-
-        let localVarHeaders = this.defaultHeaders;
-
-        // authentication (BearerAuth) required
-        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
-
-        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
-            'application/json',
-            'application/problem+json'
-        ]);
-        if (localVarHttpHeaderAcceptSelected !== undefined) {
-            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
-        }
-
-        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
-
-        const localVarTransferCache: boolean = options?.transferCache ?? true;
-
-
-        let responseType_: 'text' | 'json' | 'blob' = 'json';
-        if (localVarHttpHeaderAcceptSelected) {
-            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
-                responseType_ = 'text';
-            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
-                responseType_ = 'json';
-            } else {
-                responseType_ = 'blob';
-            }
-        }
-
-        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/fertilizations`;
-        const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<Array<FertilizationRsDto>>('get', `${basePath}${localVarPath}`,
-            {
-                context: localVarHttpContext,
-                responseType: <any>responseType_,
-                ...(withCredentials ? { withCredentials } : {}),
-                headers: localVarHeaders,
-                observe: observe,
-                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
-                reportProgress: reportProgress
-            }
-        );
-    }
-
-    /**
      * 列出指定田區目前的栽培紀錄
      * 需要 USER 角色。回傳田區面積摘要及規劃中、栽培中與採收中的紀錄。空田區仍回傳面積摘要。田區不存在或屬於其他帳號時回傳 404。
      * @endpoint get /api/v1/fields/{fieldId}/plantings
@@ -951,6 +955,68 @@ export class PlantingsService extends BaseService {
         let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/irrigations`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<Array<IrrigationRsDto>>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 查詢單筆栽培的施用清單
+     * 按實際施用日期、建立時間與識別碼依序由大到小排列。所屬栽培沒有施用作業時回傳空陣列。
+     * @endpoint get /api/v1/plantings/{plantingId}/material-applications
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public listMaterialApplications(requestParameters: ListMaterialApplicationsRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<Array<MaterialApplicationRsDto>>;
+    public listMaterialApplications(requestParameters: ListMaterialApplicationsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<MaterialApplicationRsDto>>>;
+    public listMaterialApplications(requestParameters: ListMaterialApplicationsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<MaterialApplicationRsDto>>>;
+    public listMaterialApplications(requestParameters: ListMaterialApplicationsRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling listMaterialApplications.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/material-applications`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<Array<MaterialApplicationRsDto>>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,
