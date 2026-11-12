@@ -36,6 +36,7 @@ internal sealed class MaterialPurchaseLot
 internal sealed class FieldOperation
 {
     internal const string Fertilization = "FERTILIZATION";
+    internal const string Irrigation = "IRRIGATION";
 
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid PlantingId { get; init; }
@@ -46,6 +47,7 @@ internal sealed class FieldOperation
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset UpdatedAt { get; set; }
     public List<FertilizationDetail> Details { get; } = [];
+    public IrrigationDetail? IrrigationDetail { get; set; }
 }
 
 /// <summary>保存一次施肥中的批次扣用量及當時的名稱、單位與單價。</summary>

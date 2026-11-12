@@ -15,6 +15,12 @@ internal sealed class ContractEnumJsonConverter<TValue>(string invalidMessage) :
     private static readonly Dictionary<string, TValue> Values = Names
         .ToDictionary(entry => entry.Value, entry => entry.Key, StringComparer.Ordinal);
 
+    /// <summary>取得列舉對應的契約值，未定義時回傳 null。</summary>
+    internal static string? GetName(TValue value) => Names.GetValueOrDefault(value);
+
+    /// <summary>以已知的契約值還原列舉。</summary>
+    internal static TValue FromName(string name) => Values[name];
+
     /// <summary>只接受契約定義的字串值。</summary>
     public override TValue Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
         reader.TokenType == JsonTokenType.String && Values.TryGetValue(reader.GetString()!, out var value)

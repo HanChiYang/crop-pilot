@@ -29,8 +29,11 @@ CropPilot.Contract/Models/FieldDto.cs
 CropPilot.Contract/Models/FieldOverviewRsDto.cs
 CropPilot.Contract/Models/FieldPlantingsRsDto.cs
 CropPilot.Contract/Models/FieldRsDto.cs
+CropPilot.Contract/Models/IrrigationMethod.cs
+CropPilot.Contract/Models/IrrigationRsDto.cs
 CropPilot.Contract/Models/LoginRqDto.cs
 CropPilot.Contract/Models/LogoutRqDto.cs
 CropPilot.Contract/Models/PlantingHistoryItemDto.cs
 CropPilot.Contract/Models/PlantingRsDto.cs
 CropPilot.Contract/Models/PlantingStatus.cs
+CropPilot.Contract/Models/SaveIrrigationRqDto.cs

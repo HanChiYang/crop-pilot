@@ -56,7 +56,7 @@ internal static class FertilizationModel
         builder.Entity<FieldOperation>(operation =>
         {
             operation.ToTable("field_operations", table =>
-                table.HasCheckConstraint("ck_field_operations_type", "operation_type = 'FERTILIZATION'"));
+                table.HasCheckConstraint("ck_field_operations_type", "operation_type IN ('FERTILIZATION', 'IRRIGATION')"));
             operation.HasOne(value => value.Planting).WithMany().HasForeignKey(value => value.PlantingId)
                 .OnDelete(DeleteBehavior.Restrict);
             operation.Property(value => value.OperationType).HasMaxLength(24);

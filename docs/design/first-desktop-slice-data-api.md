@@ -192,6 +192,34 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 }
 ```
 
+### 灌溉紀錄
+
+作物栽培管理和栽培歷史共用以下端點。清單與新增使用栽培 ID，編輯與刪除直接使用灌溉作業 ID。
+
+| 方法與路徑 | 成功回應 | 行為 |
+| --- | --- | --- |
+| `GET /api/v1/plantings/{plantingId}/irrigations` | `200` | 依作業日、建立時間、ID 遞減排列。清單含完整欄位，沒有紀錄時回傳空陣列。 |
+| `POST /api/v1/plantings/{plantingId}/irrigations` | `201` | 新增並回傳完整作業。 |
+| `PUT /api/v1/irrigations/{irrigationId}` | `200` | 更新完整表單並回傳作業，保留原 ID。 |
+| `DELETE /api/v1/irrigations/{irrigationId}` | `204` | 刪除該筆作業，由外鍵一併刪除明細。 |
+
+新增及編輯共用請求格式，必填 `operationDate` 與 `method`。實際灌溉日可早於栽種日，最晚為台北當日。方式可選滴灌、噴灌、溝灌、人工澆灌及其他。選填的 `waterVolumeLiters` 採 JSON 數值，須大於零、低於 10 億，最多六位小數。選填的 `description` 最多 500 字。編輯時省略選填欄位或傳入 `null` 會清除原值。清單以「未記錄」呈現未知用水量。
+
+例如新增一筆用水量未記錄的滴灌作業。
+
+```json
+{
+  "operationDate": "2026-11-11",
+  "method": "drip",
+  "waterVolumeLiters": null,
+  "description": "早上灌溉"
+}
+```
+
+回應包含同樣四個欄位及 `field_operations.id`。日期與備註存於 `field_operations`；方式與用水量存於 `irrigation_details`。
+
+沿用 Bearer 與 `USER` 角色。清單和新增透過栽培查所屬田區；編輯和刪除先以作業 ID 和 `IRRIGATION` 定位，再透過該筆作業的栽培查所屬田區。各端點都核對田區是否屬於登入主帳號。資源不存在、作業類型不符或帳號歸屬不符回 `404`。欄位錯誤回 `400`。栽培中、採收中及已結束可新增、編輯及刪除，規劃中新增或編輯沿用共用 `409 Conflict`。清單中的刪除動作先顯示作業日期與方式，確認後送出請求。
+
 ### 肥料庫存
 
 | 方法與路徑 | 成功回應 | 行為 |

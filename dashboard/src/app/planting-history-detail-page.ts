@@ -21,6 +21,7 @@ type DetailState =
     dt { font-weight: 700; }
     dd { margin: .3rem 0 0; }
     .notes { grid-column: 1 / -1; white-space: pre-wrap; }
+    .operations { display: flex; flex-wrap: wrap; gap: .65rem; }
   `,
   template: `
     <header class="page-heading">
@@ -43,8 +44,12 @@ type DetailState =
       }
       @case ('ready') {
         @let planting = detail.planting;
-        <p><a class="button button-outline"
-          [routerLink]="['/dashboard/planting-history', planting.fieldId, planting.id, 'fertilizations']">施肥紀錄</a></p>
+        <p class="operations">
+          <a class="button button-outline"
+            [routerLink]="['/dashboard/planting-history', planting.fieldId, planting.id, 'fertilizations']">施肥紀錄</a>
+          <a class="button button-outline"
+            [routerLink]="['/dashboard/planting-history', planting.fieldId, planting.id, 'irrigations']">灌溉紀錄</a>
+        </p>
         <section class="panel field-form" aria-label="栽培紀錄資料">
           <dl class="field-form-grid">
             <div><dt>田區</dt><dd>{{ detail.fieldName }}</dd></div>

@@ -149,7 +149,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 
 首版沿用 `fields(main_account_id, name)` 與 `plantings(field_id)` 索引及現有外鍵限制，資料模型沿用下列 ER 圖，因此無須 migration 或資料回填。
 
-### 田間作業與施肥
+### 田間作業
 
 #### field_operations
 
@@ -157,9 +157,9 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | --- | --- | --- | --- |
 | `id` | `uuid` | PK | 一次作業的識別碼。 |
 | `planting_id` | `uuid` | NOT NULL、FK 至 `plantings.id`，ON DELETE RESTRICT | 保留所屬栽培。已有作業的栽培不得刪除。 |
-| `operation_type` | `varchar(24)` | NOT NULL、CHECK 首版僅允許 `FERTILIZATION` | 後續加入其他類型時同步擴充 CHECK。 |
+| `operation_type` | `varchar(24)` | NOT NULL、CHECK 允許 `FERTILIZATION`、`IRRIGATION` | 灌溉 migration 擴充既有 CHECK。 |
 | `operation_date` | `date` | NOT NULL | 實際作業日。由 API 以台北日期驗證。 |
-| `description` | `varchar(500)` | 可為 NULL | 共用備註，首版表單與契約省略。 |
+| `description` | `varchar(500)` | 可為 NULL | 共用備註，灌溉表單可選填。 |
 | `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 建立時間，同日作業的排序依據。 |
 | `updated_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 每次成功編輯後更新。 |
 
@@ -180,6 +180,17 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `sort_order` | `integer` | NOT NULL、CHECK 大於等於 0 | 依表單列順序從 0 編號。 |
 
 作業類型由 `field_operations.operation_type` 保存。施肥 API 建立 `FERTILIZATION` 作業，查詢及編輯時只取同類型作業。一筆施肥至少有一項明細。以 `(field_operation_id, sort_order)` 索引查明細，以 `material_purchase_lot_id` 索引加總批次使用量。
+
+#### irrigation_details
+
+| 欄位 | 型別 | 約束 | 說明 |
+| --- | --- | --- | --- |
+| `id` | `uuid` | PK | 灌溉明細識別碼。 |
+| `field_operation_id` | `uuid` | NOT NULL、UNIQUE、FK 至 `field_operations.id`，ON DELETE CASCADE | 每筆灌溉作業只對應一筆明細。 |
+| `method` | `varchar(24)` | NOT NULL、CHECK 允許 `drip`、`sprinkler`、`furrow`、`manual`、`other` | 灌溉方式。 |
+| `water_volume_liters` | `numeric(15,6)` | 可為 NULL，已知時大於 0 且小於 10 億 | 單位為公升。API 拒絕超過六位小數的輸入。 |
+
+新增及編輯時，在同一交易寫入作業與明細。查詢、編輯和刪除均依所屬栽培與 `IRRIGATION` 篩選；清單沿用作業索引。刪除作業時由外鍵一併刪除明細。
 
 #### agricultural_materials
 
@@ -218,7 +229,8 @@ erDiagram
     agricultural_materials ||--o{ material_purchase_lots : receives
     material_purchase_lots ||--o{ fertilization_details : supplies
     plantings ||--o{ field_operations : contains
-    field_operations ||--|{ fertilization_details : contains
+    field_operations ||--o{ fertilization_details : contains
+    field_operations ||--o| irrigation_details : contains
     plantings {
         uuid id PK
     }
@@ -241,6 +253,12 @@ erDiagram
         numeric unit_price
         char currency_code
         integer sort_order
+    }
+    irrigation_details {
+        uuid id PK
+        uuid field_operation_id FK, UK
+        varchar method
+        numeric water_volume_liters
     }
     agricultural_materials {
         uuid id PK
