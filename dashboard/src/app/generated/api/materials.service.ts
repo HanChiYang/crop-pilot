@@ -50,9 +50,7 @@ export interface CreateFertilizerMaterialRequestParams {
 }
 
 export interface DeleteFertilizerLotRequestParams {
-    /** 肥料資材識別碼。 */
-    materialId: string;
-    /** 指定肥料資材下的庫存批次識別碼。 */
+    /** 肥料庫存批次的 UUID。 */
     lotId: string;
 }
 
@@ -62,9 +60,7 @@ export interface DeleteFertilizerMaterialRequestParams {
 }
 
 export interface EditFertilizerLotRequestParams {
-    /** 肥料資材識別碼。 */
-    materialId: string;
-    /** 指定肥料資材下的庫存批次識別碼。 */
+    /** 肥料庫存批次的 UUID。 */
     lotId: string;
     editFertilizerLotRqDto: EditFertilizerLotRqDto;
 }
@@ -241,7 +237,7 @@ export class MaterialsService extends BaseService {
     /**
      * 刪除肥料庫存批次
      * 只允許刪除未被施肥明細引用的批次。
-     * @endpoint delete /api/v1/fertilizers/{materialId}/lots/{lotId}
+     * @endpoint delete /api/v1/fertilizer-lots/{lotId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -251,10 +247,6 @@ export class MaterialsService extends BaseService {
     public deleteFertilizerLot(requestParameters: DeleteFertilizerLotRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
     public deleteFertilizerLot(requestParameters: DeleteFertilizerLotRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
     public deleteFertilizerLot(requestParameters: DeleteFertilizerLotRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const materialId = requestParameters?.materialId;
-        if (materialId === null || materialId === undefined) {
-            throw new Error('Required parameter materialId was null or undefined when calling deleteFertilizerLot.');
-        }
         const lotId = requestParameters?.lotId;
         if (lotId === null || lotId === undefined) {
             throw new Error('Required parameter lotId was null or undefined when calling deleteFertilizerLot.');
@@ -288,7 +280,7 @@ export class MaterialsService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/fertilizers/${this.configuration.encodeParam({name: "materialId", value: materialId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/lots/${this.configuration.encodeParam({name: "lotId", value: lotId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        let localVarPath = `/api/v1/fertilizer-lots/${this.configuration.encodeParam({name: "lotId", value: lotId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
             {
@@ -367,7 +359,7 @@ export class MaterialsService extends BaseService {
     /**
      * 編輯肥料庫存批次
      * 更新整份表單。來源固定。已用於施肥的批次可更正單價，登記量不得小於已用量，生效日不得晚於任一關聯施肥日。
-     * @endpoint put /api/v1/fertilizers/{materialId}/lots/{lotId}
+     * @endpoint put /api/v1/fertilizer-lots/{lotId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -377,10 +369,6 @@ export class MaterialsService extends BaseService {
     public editFertilizerLot(requestParameters: EditFertilizerLotRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FertilizerLotRsDto>>;
     public editFertilizerLot(requestParameters: EditFertilizerLotRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FertilizerLotRsDto>>;
     public editFertilizerLot(requestParameters: EditFertilizerLotRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        const materialId = requestParameters?.materialId;
-        if (materialId === null || materialId === undefined) {
-            throw new Error('Required parameter materialId was null or undefined when calling editFertilizerLot.');
-        }
         const lotId = requestParameters?.lotId;
         if (lotId === null || lotId === undefined) {
             throw new Error('Required parameter lotId was null or undefined when calling editFertilizerLot.');
@@ -428,7 +416,7 @@ export class MaterialsService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/v1/fertilizers/${this.configuration.encodeParam({name: "materialId", value: materialId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/lots/${this.configuration.encodeParam({name: "lotId", value: lotId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        let localVarPath = `/api/v1/fertilizer-lots/${this.configuration.encodeParam({name: "lotId", value: lotId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<FertilizerLotRsDto>('put', `${basePath}${localVarPath}`,
             {

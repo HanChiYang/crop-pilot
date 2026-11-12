@@ -435,15 +435,14 @@ paths:
           description: 超過可分配面積或目前狀態不允許更新。errors 以 areaSquareMeters 或 status 標示欄位，超額訊息包含當下可分配面積。
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/v1/fields/{fieldId}/plantings/{plantingId}:
+  /api/v1/plantings/{plantingId}:
     parameters:
-      - $ref: '#/components/parameters/FieldId'
       - $ref: '#/components/parameters/PlantingId'
     get:
       tags: [Plantings]
       operationId: getPlanting
       summary: 列出自己的栽培紀錄詳細資料
-      description: 依田區和栽培紀錄識別碼查詢。田區或紀錄不存在、兩者不相符，或田區屬於其他帳號時回傳 404。
+      description: 依栽培紀錄識別碼查詢。紀錄不存在或所屬田區屬於其他帳號時回傳 404。
       security:
         - BearerAuth: []
       responses:
@@ -604,9 +603,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations:
+  /api/v1/plantings/{plantingId}/fertilizations:
     parameters:
-      - $ref: '#/components/parameters/FieldId'
       - $ref: '#/components/parameters/PlantingId'
     get:
       tags: [Plantings]
@@ -668,10 +666,8 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /api/v1/fields/{fieldId}/plantings/{plantingId}/fertilizations/{fertilizationId}:
+  /api/v1/fertilizations/{fertilizationId}:
     parameters:
-      - $ref: '#/components/parameters/FieldId'
-      - $ref: '#/components/parameters/PlantingId'
       - $ref: '#/components/parameters/FertilizationId'
     put:
       tags: [Plantings]
@@ -1003,9 +999,8 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /api/v1/fertilizers/{materialId}/lots/{lotId}:
+  /api/v1/fertilizer-lots/{lotId}:
     parameters:
-      - $ref: '#/components/parameters/MaterialId'
       - $ref: '#/components/parameters/LotId'
     put:
       tags: [Materials]
@@ -1123,7 +1118,7 @@ components:
     PlantingId:
       name: plantingId
       in: path
-      description: 指定田區下栽培紀錄的 UUID。
+      description: 栽培紀錄的 UUID。
       required: true
       schema:
         type: string
@@ -1140,7 +1135,7 @@ components:
       name: lotId
       in: path
       required: true
-      description: 指定肥料資材下的庫存批次識別碼。
+      description: 肥料庫存批次的 UUID。
       schema:
         type: string
         format: uuid
@@ -1187,7 +1182,7 @@ components:
           schema:
             $ref: '#/components/schemas/ApiProblemRsDto'
     NotFound:
-      description: 資源不存在、栽培紀錄不屬於路徑上的田區，或資源屬於其他帳號
+      description: 資源不存在、類型不符，或資源屬於其他帳號
       content:
         application/problem+json:
           schema:

@@ -207,14 +207,18 @@ export class FertilizationPage {
     this.loadError.set('');
     try {
       const data = await firstValueFrom(forkJoin({
-        planting: this.plantings.getPlanting(ids),
-        operations: this.plantings.listFertilizations(ids),
+        planting: this.plantings.getPlanting({ plantingId: ids.plantingId }),
+        operations: this.plantings.listFertilizations({ plantingId: ids.plantingId }),
         inventory: this.materialsApi.listFertilizerMaterials().pipe(switchMap(materials =>
           materials.length ? forkJoin(materials.map(material =>
             forkJoin({ material: of(material), lots: this.materialsApi.listFertilizerLots({ materialId: material.id }) })))
             : of([]))),
       }).pipe(takeUntilDestroyed(this.destroyRef)));
       if (version !== this.requestVersion) return;
+      if (data.planting.fieldId !== ids.fieldId.toLowerCase()) {
+        this.loadError.set('找不到這筆栽培紀錄。');
+        return;
+      }
       this.planting.set(data.planting);
       this.operations.set(data.operations);
       this.inventory.set(data.inventory);
@@ -271,8 +275,8 @@ export class FertilizationPage {
     this.message.set('');
     try {
       await firstValueFrom((selected
-        ? this.plantings.editFertilization({ ...ids, fertilizationId: selected.id, editFertilizationRqDto: { operationDate, details } })
-        : this.plantings.createFertilization({ ...ids, createFertilizationRqDto: { operationDate, details } }))
+        ? this.plantings.editFertilization({ fertilizationId: selected.id, editFertilizationRqDto: { operationDate, details } })
+        : this.plantings.createFertilization({ plantingId: ids.plantingId, createFertilizationRqDto: { operationDate, details } }))
         .pipe(takeUntilDestroyed(this.destroyRef)));
       if (ids !== this.ids()) return;
       this.editorOpen.set(false);

@@ -40,7 +40,7 @@ test('栽培歷史可依條件查詢、重試、看詳情及返回原結果', as
       }
       case `/api/v1/fields/${north}`:
         return route.fulfill({ json: northField });
-      case `/api/v1/fields/${north}/plantings/${plantingId}`:
+      case `/api/v1/plantings/${plantingId}`:
         return route.fulfill({ json: { ...record, status: 'completed', plannedPlantingDate: '2026-03-10', notes: '第二期採收完成' } });
       default:
         return route.fulfill({ status: 404 });

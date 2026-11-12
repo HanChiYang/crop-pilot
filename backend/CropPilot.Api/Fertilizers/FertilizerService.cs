@@ -95,16 +95,21 @@ public sealed class FertilizerService(FertilizerRepository repository)
             request.ReceivedQuantity, request.UnitPrice, request.PurchasedOn, request.AvailableFrom, ct);
 
     /// <summary>修正原有批次的日期、數量與價格。</summary>
-    internal Task<FertilizerResult<LotStock>> EditLotAsync(Guid accountId, Guid materialId, Guid lotId,
+    internal Task<FertilizerResult<LotStock>> EditLotAsync(Guid accountId, Guid lotId,
         EditFertilizerLotRqDto request, CancellationToken ct) =>
-        SaveLotAsync(accountId, materialId, lotId, null, request.ReceivedQuantity, request.UnitPrice,
+        SaveLotAsync(accountId, null, lotId, null, request.ReceivedQuantity, request.UnitPrice,
             request.PurchasedOn, request.AvailableFrom, ct);
 
     /// <summary>鎖定資材及批次後驗證並儲存，避免與施肥扣量競爭。</summary>
-    private async Task<FertilizerResult<LotStock>> SaveLotAsync(Guid accountId, Guid materialId, Guid? lotId,
+    private async Task<FertilizerResult<LotStock>> SaveLotAsync(Guid accountId, Guid? requestedMaterialId, Guid? lotId,
         string? source, decimal quantity, decimal? price, DateOnly? purchasedOn, DateOnly availableFrom, CancellationToken ct)
     {
         await using var transaction = await repository.BeginAsync(ct);
+        var resolvedMaterialId = requestedMaterialId ?? await repository.Lots(accountId)
+            .Where(x => x.Id == lotId).Select(x => (Guid?)x.MaterialId).SingleOrDefaultAsync(ct);
+        if (resolvedMaterialId is not Guid materialId)
+            return new(null, NotFound);
+
         var materials = repository.Materials(accountId).Where(x => x.Id == materialId);
         if (!await materials.AnyAsync(ct))
             return new(null, NotFound);
@@ -174,11 +179,11 @@ public sealed class FertilizerService(FertilizerRepository repository)
     }
 
     /// <summary>刪除無施肥明細引用的批次。</summary>
-    internal async Task<FertilizerResult<LotStock>> DeleteLotAsync(Guid accountId, Guid materialId, Guid lotId,
+    internal async Task<FertilizerResult<LotStock>> DeleteLotAsync(Guid accountId, Guid lotId,
         CancellationToken ct)
     {
         await using var transaction = await repository.BeginAsync(ct);
-        var owned = repository.Lots(accountId).Where(x => x.MaterialId == materialId && x.Id == lotId);
+        var owned = repository.Lots(accountId).Where(x => x.Id == lotId);
         if (!await owned.AnyAsync(ct))
             return new(null, NotFound);
         await repository.LockLotAsync(lotId, ct);
@@ -193,34 +198,40 @@ public sealed class FertilizerService(FertilizerRepository repository)
     }
 
     /// <summary>依實際作業日查詢指定栽培的施肥紀錄。</summary>
-    internal async Task<List<FieldOperation>?> ListOperationsAsync(Guid accountId, Guid fieldId, Guid plantingId,
+    internal async Task<List<FieldOperation>?> ListOperationsAsync(Guid accountId, Guid plantingId,
         CancellationToken ct)
     {
-        if (!await repository.Plantings(accountId, fieldId).AnyAsync(x => x.Id == plantingId, ct))
+        if (!await repository.Plantings(accountId).AnyAsync(x => x.Id == plantingId, ct))
             return null;
         return await repository.Operations(plantingId).OrderByDescending(x => x.OperationDate)
             .ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).ToListAsync(ct);
     }
 
     /// <summary>新增一次施肥，交易成功時扣用所有送出的批次。</summary>
-    internal Task<FertilizerResult<FieldOperation>> CreateOperationAsync(Guid accountId, Guid fieldId, Guid plantingId,
+    internal Task<FertilizerResult<FieldOperation>> CreateOperationAsync(Guid accountId, Guid plantingId,
         CreateFertilizationRqDto request, CancellationToken ct) =>
-        SaveOperationAsync(accountId, fieldId, plantingId, null, request.OperationDate,
+        SaveOperationAsync(accountId, plantingId, null, request.OperationDate,
             request.Details?.Select(x => x is null ? null : new UsageInput(null, x.MaterialPurchaseLotId, x.Quantity)).ToList(), ct);
 
     /// <summary>更新施肥及完整的明細清單，釋放移除的批次用量。</summary>
-    internal Task<FertilizerResult<FieldOperation>> EditOperationAsync(Guid accountId, Guid fieldId, Guid plantingId,
+    internal Task<FertilizerResult<FieldOperation>> EditOperationAsync(Guid accountId,
         Guid operationId, EditFertilizationRqDto request, CancellationToken ct) =>
-        SaveOperationAsync(accountId, fieldId, plantingId, operationId, request.OperationDate,
+        SaveOperationAsync(accountId, null, operationId, request.OperationDate,
             request.Details?.Select(x => x is null ? null : new UsageInput(x.Id == Guid.Empty ? null : x.Id,
                 x.MaterialPurchaseLotId, x.Quantity)).ToList(), ct);
 
     /// <summary>依栽培及批次順序鎖定資料，驗證後原子更新施肥與庫存。</summary>
-    private async Task<FertilizerResult<FieldOperation>> SaveOperationAsync(Guid accountId, Guid fieldId,
-        Guid plantingId, Guid? operationId, DateOnly date, List<UsageInput?>? input, CancellationToken ct)
+    private async Task<FertilizerResult<FieldOperation>> SaveOperationAsync(Guid accountId,
+        Guid? requestedPlantingId, Guid? operationId, DateOnly date, List<UsageInput?>? input, CancellationToken ct)
     {
         await using var transaction = await repository.BeginAsync(ct);
-        var owned = repository.Plantings(accountId, fieldId).Where(x => x.Id == plantingId);
+        var resolvedPlantingId = operationId is Guid requestedOperationId
+            ? await repository.FindOperationPlantingIdAsync(accountId, requestedOperationId, ct)
+            : requestedPlantingId;
+        if (resolvedPlantingId is not Guid plantingId)
+            return new(null, NotFound);
+
+        var owned = repository.Plantings(accountId).Where(x => x.Id == plantingId);
         if (!await owned.AnyAsync(ct))
             return new(null, NotFound);
         await repository.LockPlantingAsync(plantingId, ct);

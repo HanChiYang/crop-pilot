@@ -234,15 +234,16 @@ export class PlantingFormPage {
     forkJoin({
       field: this.fields.getField({ fieldId: this.fieldId }),
       planting: this.plantingId
-        ? this.plantings.getPlanting({
-            fieldId: this.fieldId,
-            plantingId: this.plantingId,
-          })
+        ? this.plantings.getPlanting({ plantingId: this.plantingId })
         : of(null),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ field, planting }) => {
+          if (planting && planting.fieldId !== field.id) {
+            this.message.set("找不到這筆栽培紀錄。");
+            return;
+          }
           if (planting?.status === "completed") {
             this.message.set("已結束的栽培紀錄無法編輯。");
             return;
@@ -308,7 +309,6 @@ export class PlantingFormPage {
     };
     const save = this.plantingId
       ? this.plantings.editPlanting({
-          fieldId: this.fieldId,
           plantingId: this.plantingId,
           editPlantingRqDto: request,
         })

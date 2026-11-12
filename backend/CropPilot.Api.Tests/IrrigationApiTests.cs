@@ -31,6 +31,13 @@ public sealed class IrrigationApiTests(FieldsApiFixture fixture) : IClassFixture
         Assert.Equal("drip", record.GetProperty("method").GetString());
         Assert.Equal(999999999.999999m, record.GetProperty("waterVolumeLiters").GetDecimal());
         Assert.Equal(description, record.GetProperty("description").GetString());
+        using var wrongType = await client.PutAsJsonAsync($"/api/v1/fertilizations/{id}", new
+        {
+            operationDate = Today,
+            details = new[] { new { materialPurchaseLotId = Guid.NewGuid(), quantity = 1 } }
+        });
+        Assert.Equal(HttpStatusCode.NotFound, wrongType.StatusCode);
+
         var itemUrl = $"/api/v1/irrigations/{id}";
 
         using var older = await client.PostAsJsonAsync(url, new { operationDate = Today.AddDays(-30), method = "manual" });
@@ -55,7 +62,7 @@ public sealed class IrrigationApiTests(FieldsApiFixture fixture) : IClassFixture
             deletions.Select(response => response.StatusCode).Order());
         list = await client.GetFromJsonAsync<JsonElement>(url);
         Assert.Equal(olderId, list.EnumerateArray().Single().GetProperty("id").GetGuid());
-        var planting = await client.GetFromJsonAsync<JsonElement>($"/api/v1/fields/{fieldId}/plantings/{plantingId}");
+        var planting = await client.GetFromJsonAsync<JsonElement>($"/api/v1/plantings/{plantingId}");
         Assert.Equal("completed", planting.GetProperty("status").GetString());
     }
 

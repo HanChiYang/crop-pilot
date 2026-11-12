@@ -81,9 +81,9 @@ export class PlantingHistoryDetailPage {
         const plantingId = params.get('plantingId')!;
         return forkJoin({
           field: this.fields.getField({ fieldId }),
-          planting: this.plantings.getPlanting({ fieldId, plantingId }),
+          planting: this.plantings.getPlanting({ plantingId }),
         }).pipe(
-          map(({ field, planting }): DetailState => planting.status === 'completed'
+          map(({ field, planting }): DetailState => planting.fieldId === field.id && planting.status === 'completed'
             ? { status: 'ready', fieldName: field.name, planting }
             : { status: 'missing' }),
           catchError((error: unknown) => of<DetailState>({

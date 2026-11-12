@@ -16,14 +16,20 @@ public sealed class FertilizerRepository(CropPilotDbContext db)
     internal IQueryable<MaterialPurchaseLot> Lots(Guid accountId) =>
         db.MaterialPurchaseLots.Where(x => Materials(accountId).Any(m => m.Id == x.MaterialId));
 
-    /// <summary>查詢登入帳號在指定田區的栽培紀錄。</summary>
-    internal IQueryable<Planting> Plantings(Guid accountId, Guid fieldId) =>
-        db.Plantings.Where(x => x.FieldId == fieldId && x.Field.MainAccountId == accountId);
+    /// <summary>查詢登入帳號擁有的栽培紀錄。</summary>
+    internal IQueryable<Planting> Plantings(Guid accountId) =>
+        db.Plantings.Where(x => x.Field.MainAccountId == accountId);
 
     /// <summary>載入已核對歸屬的栽培之施肥作業、明細及批次。</summary>
     internal IQueryable<FieldOperation> Operations(Guid plantingId) =>
         db.FieldOperations.Where(x => x.PlantingId == plantingId && x.OperationType == FieldOperation.Fertilization)
             .Include(x => x.Details).ThenInclude(x => x.Lot);
+
+    /// <summary>查詢指定施肥作業所屬的栽培 ID。作業不屬於帳號或類型不符時回傳 null。</summary>
+    internal Task<Guid?> FindOperationPlantingIdAsync(Guid accountId, Guid operationId, CancellationToken ct) =>
+        db.FieldOperations.Where(x => x.Id == operationId && x.OperationType == FieldOperation.Fertilization
+            && x.Planting.Field.MainAccountId == accountId)
+            .Select(x => (Guid?)x.PlantingId).SingleOrDefaultAsync(ct);
 
     /// <summary>查詢扣用指定庫存批次的全部明細。</summary>
     internal IQueryable<FertilizationDetail> Usage(Guid lotId) =>

@@ -24,7 +24,7 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
         var result = await plantings.CreateAsync(AccountId, fieldId, request, HttpContext.RequestAborted);
         if (result.Planting is { } planting)
         {
-            return CreatedAtAction(nameof(GetPlanting), new { fieldId, plantingId = planting.Id },
+            return CreatedAtAction(nameof(GetPlanting), new { plantingId = planting.Id },
                 PlantingDtoMapper.ToDto(planting));
         }
 
@@ -32,16 +32,16 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
     }
 
     /// <summary>更新栽培紀錄並回傳新值，或依驗證結果回傳問題。</summary>
-    public override async Task<IActionResult> EditPlanting(Guid fieldId, Guid plantingId, EditPlantingRqDto request)
+    public override async Task<IActionResult> EditPlanting(Guid plantingId, EditPlantingRqDto request)
     {
-        var result = await plantings.EditAsync(AccountId, fieldId, plantingId, request, HttpContext.RequestAborted);
+        var result = await plantings.EditAsync(AccountId, plantingId, request, HttpContext.RequestAborted);
         return result.Planting is { } planting ? Ok(PlantingDtoMapper.ToDto(planting)) : WriteProblem(result);
     }
 
     /// <summary>刪除規劃中的紀錄，成功時回傳 HTTP 204。</summary>
-    public override async Task<IActionResult> DeletePlanting(Guid fieldId, Guid plantingId)
+    public override async Task<IActionResult> DeletePlanting(Guid plantingId)
     {
-        var result = await plantings.DeleteAsync(AccountId, fieldId, plantingId, HttpContext.RequestAborted);
+        var result = await plantings.DeleteAsync(AccountId, plantingId, HttpContext.RequestAborted);
         return result.Status switch
         {
             PlantingWriteStatus.Success => NoContent(),
@@ -67,10 +67,10 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
             : StatusCodes.Status400BadRequest);
     }
 
-    /// <summary>回傳指定田區的單筆栽培紀錄，查無可存取的紀錄時回傳 HTTP 404。</summary>
-    public override async Task<IActionResult> GetPlanting(Guid fieldId, Guid plantingId)
+    /// <summary>依栽培 ID 回傳登入帳號的單筆栽培紀錄，查無可存取的紀錄時回傳 HTTP 404。</summary>
+    public override async Task<IActionResult> GetPlanting(Guid plantingId)
     {
-        var planting = await plantings.FindAsync(AccountId, fieldId, plantingId, HttpContext.RequestAborted);
+        var planting = await plantings.FindAsync(AccountId, plantingId, HttpContext.RequestAborted);
         return planting is null ? NotFound() : Ok(PlantingDtoMapper.ToDto(planting));
     }
 
@@ -122,21 +122,21 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
     }
 
     /// <summary>回傳指定栽培的施肥清單。</summary>
-    public override async Task<IActionResult> ListFertilizations(Guid fieldId, Guid plantingId)
+    public override async Task<IActionResult> ListFertilizations(Guid plantingId)
     {
-        var operations = await fertilizers.ListOperationsAsync(AccountId, fieldId, plantingId, HttpContext.RequestAborted);
+        var operations = await fertilizers.ListOperationsAsync(AccountId, plantingId, HttpContext.RequestAborted);
         return operations is null ? NotFound() : Ok(operations.ConvertAll(FertilizerDtoMapper.ToDto));
     }
 
     /// <summary>新增施肥作業及其批次扣用明細。</summary>
-    public override async Task<IActionResult> CreateFertilization(Guid fieldId, Guid plantingId, CreateFertilizationRqDto request) =>
-        this.ToResponse(await fertilizers.CreateOperationAsync(AccountId, fieldId, plantingId, request, HttpContext.RequestAborted),
+    public override async Task<IActionResult> CreateFertilization(Guid plantingId, CreateFertilizationRqDto request) =>
+        this.ToResponse(await fertilizers.CreateOperationAsync(AccountId, plantingId, request, HttpContext.RequestAborted),
             FertilizerDtoMapper.ToDto);
 
     /// <summary>更新既有施肥作業及其完整明細。</summary>
-    public override async Task<IActionResult> EditFertilization(Guid fieldId, Guid plantingId, Guid fertilizationId,
+    public override async Task<IActionResult> EditFertilization(Guid fertilizationId,
         EditFertilizationRqDto request) =>
-        this.ToResponse(await fertilizers.EditOperationAsync(AccountId, fieldId, plantingId, fertilizationId, request,
+        this.ToResponse(await fertilizers.EditOperationAsync(AccountId, fertilizationId, request,
             HttpContext.RequestAborted), FertilizerDtoMapper.ToDto);
 
     /// <summary>回傳指定栽培的灌溉清單，無法存取栽培時回傳 404。</summary>
