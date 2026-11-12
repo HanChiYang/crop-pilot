@@ -20,10 +20,10 @@ tags:
     description: 登入、登出、工作階段與防偽權杖。
   - name: Fields
     description: 新增和查詢登入帳號所擁有的田區。
-  - name: Overview
-    description: 查詢田區及各田區目前的栽培狀況。
   - name: Materials
     description: 肥料資材與庫存批次
+  - name: Overview
+    description: 查詢田區及各田區目前的栽培狀況。
   - name: Plantings
     description: 新增和查詢田區的栽培紀錄。
 security:
@@ -500,6 +500,7 @@ paths:
       tags: [Plantings]
       operationId: deletePlanting
       summary: 刪除單筆規劃中栽培紀錄
+      description: 刪除登入帳號所屬田區的一筆規劃中栽培紀錄，並釋放該筆紀錄占用的面積。
       security:
         - BearerAuth: []
       responses:
@@ -706,11 +707,132 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/v1/plantings/{plantingId}/irrigations:
+    parameters:
+      - $ref: '#/components/parameters/PlantingId'
+    get:
+      tags: [Plantings]
+      operationId: listIrrigations
+      summary: 查詢單筆栽培的灌溉清單
+      security:
+        - BearerAuth: []
+      description: 按實際灌溉日期、建立時間與識別碼依序由大到小排列。所屬栽培沒有灌溉作業時回傳空陣列。栽培不存在或其田區不屬於登入帳號時回傳 404。
+      responses:
+        '200':
+          description: 灌溉作業清單
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IrrigationRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Plantings]
+      operationId: createIrrigation
+      summary: 新增灌溉作業
+      security:
+        - BearerAuth: []
+      description: 栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveIrrigationRqDto'
+      responses:
+        '201':
+          description: 已新增的灌溉作業
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IrrigationRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 所屬栽培為規劃中。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/irrigations/{irrigationId}:
+    parameters:
+      - $ref: '#/components/parameters/IrrigationId'
+    put:
+      tags: [Plantings]
+      operationId: editIrrigation
+      summary: 編輯灌溉作業
+      security:
+        - BearerAuth: []
+      description: 更新完整表單。省略選填欄位或傳入 null 會清除原值。日期與栽培狀態限制同新增。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveIrrigationRqDto'
+      responses:
+        '200':
+          description: 已更新的灌溉作業
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IrrigationRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 所屬栽培為規劃中。
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Plantings]
+      operationId: deleteIrrigation
+      summary: 刪除灌溉作業
+      security:
+        - BearerAuth: []
+      description: 栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+      responses:
+        '204':
+          description: 已刪除灌溉作業
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /api/v1/fertilizers:
     get:
       tags: [Materials]
       operationId: listFertilizerMaterials
       summary: 查詢肥料資材
+      description: 查詢登入帳號的肥料資材，回傳各資材的庫存單位及所有批次的合計剩餘量。
       security:
         - BearerAuth: []
       responses:
@@ -734,6 +856,7 @@ paths:
       tags: [Materials]
       operationId: createFertilizerMaterial
       summary: 新增肥料資材
+      description: 為登入帳號建立肥料資材並設定庫存單位。同一帳號已有同名資材時回傳 409。
       security:
         - BearerAuth: []
       requestBody:
@@ -768,6 +891,7 @@ paths:
       tags: [Materials]
       operationId: listFertilizerLots
       summary: 查詢肥料庫存批次
+      description: 查詢指定肥料資材的進貨及期初庫存批次，並回傳各批次的剩餘量。
       security:
         - BearerAuth: []
       responses:
@@ -793,6 +917,7 @@ paths:
       tags: [Materials]
       operationId: createFertilizerLot
       summary: 新增肥料庫存批次
+      description: 為指定肥料資材登記進貨或期初庫存，數量採該資材的庫存單位。
       security:
         - BearerAuth: []
       requestBody:
@@ -1007,6 +1132,7 @@ components:
       name: materialId
       in: path
       required: true
+      description: 肥料資材識別碼。
       schema:
         type: string
         format: uuid
@@ -1014,6 +1140,7 @@ components:
       name: lotId
       in: path
       required: true
+      description: 指定肥料資材下的庫存批次識別碼。
       schema:
         type: string
         format: uuid
@@ -1025,6 +1152,15 @@ components:
       schema:
         type: string
         format: uuid
+    IrrigationId:
+      name: irrigationId
+      in: path
+      required: true
+      description: 灌溉作業識別碼
+      schema:
+        type: string
+        format: uuid
+
   responses:
     Conflict:
       description: 請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。
@@ -1287,6 +1423,51 @@ components:
         currencyCode:
           type: string
           enum: [TWD]
+    IrrigationMethod:
+      type: string
+      enum: [drip, sprinkler, furrow, manual, other]
+      description: 依序為滴灌、噴灌、溝灌、人工澆灌、其他。
+    SaveIrrigationRqDto:
+      type: object
+      required: [operationDate, method]
+      properties:
+        operationDate:
+          type: string
+          format: date
+          description: 實際灌溉日期，最晚為台北當日。
+        method:
+          $ref: '#/components/schemas/IrrigationMethod'
+        waterVolumeLiters:
+          type: [number, 'null']
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1000000000
+          description: 用水量，單位為公升，最多六位小數。null 表示未記錄。
+        description:
+          type: [string, 'null']
+          maxLength: 500
+          description: 灌溉備註。
+    IrrigationRsDto:
+      type: object
+      required: [id, operationDate, method, waterVolumeLiters, description]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 灌溉作業識別碼。
+        operationDate:
+          type: string
+          format: date
+        method:
+          $ref: '#/components/schemas/IrrigationMethod'
+        waterVolumeLiters:
+          type: [number, 'null']
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1000000000
+          description: 用水量，單位為公升。null 表示未記錄。
+        description:
+          type: [string, 'null']
+          maxLength: 500
+          description: 灌溉備註。
     CreateFertilizationRqDto:
       type: object
       required: [operationDate, details]

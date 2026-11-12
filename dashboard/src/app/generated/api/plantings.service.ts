@@ -35,9 +35,13 @@ import { FertilizationRsDto } from '../model/fertilizationRsDto';
 // @ts-ignore
 import { FieldPlantingsRsDto } from '../model/fieldPlantingsRsDto';
 // @ts-ignore
+import { IrrigationRsDto } from '../model/irrigationRsDto';
+// @ts-ignore
 import { PlantingHistoryItemDto } from '../model/plantingHistoryItemDto';
 // @ts-ignore
 import { PlantingRsDto } from '../model/plantingRsDto';
+// @ts-ignore
+import { SaveIrrigationRqDto } from '../model/saveIrrigationRqDto';
 
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS }                     from '../variables';
@@ -53,10 +57,21 @@ export interface CreateFertilizationRequestParams {
     createFertilizationRqDto: CreateFertilizationRqDto;
 }
 
+export interface CreateIrrigationRequestParams {
+    /** 指定田區下栽培紀錄的 UUID。 */
+    plantingId: string;
+    saveIrrigationRqDto: SaveIrrigationRqDto;
+}
+
 export interface CreatePlantingRequestParams {
     /** 田區的 UUID。 */
     fieldId: string;
     createPlantingRqDto: CreatePlantingRqDto;
+}
+
+export interface DeleteIrrigationRequestParams {
+    /** 灌溉作業識別碼 */
+    irrigationId: string;
 }
 
 export interface DeletePlantingRequestParams {
@@ -74,6 +89,12 @@ export interface EditFertilizationRequestParams {
     /** 指定栽培紀錄下施肥作業的 UUID。 */
     fertilizationId: string;
     editFertilizationRqDto: EditFertilizationRqDto;
+}
+
+export interface EditIrrigationRequestParams {
+    /** 灌溉作業識別碼 */
+    irrigationId: string;
+    saveIrrigationRqDto: SaveIrrigationRqDto;
 }
 
 export interface EditPlantingRequestParams {
@@ -101,6 +122,11 @@ export interface ListFertilizationsRequestParams {
 export interface ListFieldPlantingsRequestParams {
     /** 田區的 UUID。 */
     fieldId: string;
+}
+
+export interface ListIrrigationsRequestParams {
+    /** 指定田區下栽培紀錄的 UUID。 */
+    plantingId: string;
 }
 
 export interface ListPlantingHistoryRequestParams {
@@ -206,6 +232,82 @@ export class PlantingsService extends BaseService {
     }
 
     /**
+     * 新增灌溉作業
+     * 栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。
+     * @endpoint post /api/v1/plantings/{plantingId}/irrigations
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public createIrrigation(requestParameters: CreateIrrigationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<IrrigationRsDto>;
+    public createIrrigation(requestParameters: CreateIrrigationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<IrrigationRsDto>>;
+    public createIrrigation(requestParameters: CreateIrrigationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<IrrigationRsDto>>;
+    public createIrrigation(requestParameters: CreateIrrigationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling createIrrigation.');
+        }
+        const saveIrrigationRqDto = requestParameters?.saveIrrigationRqDto;
+        if (saveIrrigationRqDto === null || saveIrrigationRqDto === undefined) {
+            throw new Error('Required parameter saveIrrigationRqDto was null or undefined when calling createIrrigation.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/irrigations`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<IrrigationRsDto>('post', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: saveIrrigationRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
      * 新增單筆栽培紀錄
      * 省略狀態時預設為 planned。選 growing 時必須提供實際栽種日，否則回傳 400。補登 harvesting 時實際栽種日可留空。
      * @endpoint post /api/v1/fields/{fieldId}/plantings
@@ -282,7 +384,69 @@ export class PlantingsService extends BaseService {
     }
 
     /**
+     * 刪除灌溉作業
+     * 栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+     * @endpoint delete /api/v1/irrigations/{irrigationId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public deleteIrrigation(requestParameters: DeleteIrrigationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
+    public deleteIrrigation(requestParameters: DeleteIrrigationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
+    public deleteIrrigation(requestParameters: DeleteIrrigationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
+    public deleteIrrigation(requestParameters: DeleteIrrigationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const irrigationId = requestParameters?.irrigationId;
+        if (irrigationId === null || irrigationId === undefined) {
+            throw new Error('Required parameter irrigationId was null or undefined when calling deleteIrrigation.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/irrigations/${this.configuration.encodeParam({name: "irrigationId", value: irrigationId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
      * 刪除單筆規劃中栽培紀錄
+     * 刪除登入帳號所屬田區的一筆規劃中栽培紀錄，並釋放該筆紀錄占用的面積。
      * @endpoint delete /api/v1/fields/{fieldId}/plantings/{plantingId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -419,6 +583,82 @@ export class PlantingsService extends BaseService {
             {
                 context: localVarHttpContext,
                 body: editFertilizationRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 編輯灌溉作業
+     * 更新完整表單。省略選填欄位或傳入 null 會清除原值。日期與栽培狀態限制同新增。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+     * @endpoint put /api/v1/irrigations/{irrigationId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public editIrrigation(requestParameters: EditIrrigationRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<IrrigationRsDto>;
+    public editIrrigation(requestParameters: EditIrrigationRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<IrrigationRsDto>>;
+    public editIrrigation(requestParameters: EditIrrigationRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<IrrigationRsDto>>;
+    public editIrrigation(requestParameters: EditIrrigationRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const irrigationId = requestParameters?.irrigationId;
+        if (irrigationId === null || irrigationId === undefined) {
+            throw new Error('Required parameter irrigationId was null or undefined when calling editIrrigation.');
+        }
+        const saveIrrigationRqDto = requestParameters?.saveIrrigationRqDto;
+        if (saveIrrigationRqDto === null || saveIrrigationRqDto === undefined) {
+            throw new Error('Required parameter saveIrrigationRqDto was null or undefined when calling editIrrigation.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/irrigations/${this.configuration.encodeParam({name: "irrigationId", value: irrigationId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<IrrigationRsDto>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: saveIrrigationRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -691,6 +931,68 @@ export class PlantingsService extends BaseService {
         let localVarPath = `/api/v1/fields/${this.configuration.encodeParam({name: "fieldId", value: fieldId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/plantings`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<FieldPlantingsRsDto>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 查詢單筆栽培的灌溉清單
+     * 按實際灌溉日期、建立時間與識別碼依序由大到小排列。所屬栽培沒有灌溉作業時回傳空陣列。栽培不存在或其田區不屬於登入帳號時回傳 404。
+     * @endpoint get /api/v1/plantings/{plantingId}/irrigations
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public listIrrigations(requestParameters: ListIrrigationsRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<Array<IrrigationRsDto>>;
+    public listIrrigations(requestParameters: ListIrrigationsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<IrrigationRsDto>>>;
+    public listIrrigations(requestParameters: ListIrrigationsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<IrrigationRsDto>>>;
+    public listIrrigations(requestParameters: ListIrrigationsRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling listIrrigations.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/irrigations`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<Array<IrrigationRsDto>>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,

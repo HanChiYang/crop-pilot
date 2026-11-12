@@ -42,6 +42,11 @@ internal static class ErrorMessages
     internal const string FertilizerDetailInvalid = "施肥明細不存在或重複。";
     internal const string FertilizerSourceInvalid = "請選擇進貨或期初庫存。";
     internal const string FertilizerCurrencyInvalid = "首版肥料庫存僅支援新臺幣。";
+    internal const string IrrigationMethodInvalid = "請選擇灌溉方式。";
+    internal const string IrrigationDateInvalid = "請填寫實際灌溉日期，最晚為台北當日。";
+    internal const string IrrigationVolumeInvalid = "用水量須大於零、小於 10 億公升，且最多六位小數。";
+    internal const string IrrigationDescriptionInvalid = "灌溉備註最多 500 字，且不可包含空字元。";
+    internal const string IrrigationPlantingPlanned = "規劃中的栽培無法登記或編輯灌溉。";
     internal const string FertilizerLotUnavailable = "施肥日期不得早於批次生效日。";
     internal const string FertilizerStockInsufficient = "此批次的庫存餘量不足。";
 }

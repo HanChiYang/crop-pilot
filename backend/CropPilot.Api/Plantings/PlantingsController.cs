@@ -2,6 +2,7 @@ using CropPilot.Api.Authentication;
 using CropPilot.Api.Constants;
 using CropPilot.Api.Data;
 using CropPilot.Api.Fertilizers;
+using CropPilot.Api.Irrigations;
 using CropPilot.Contract.Controllers;
 using CropPilot.Contract.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,8 @@ namespace CropPilot.Api.Plantings;
 
 /// <summary>讓具備 USER 角色的帳號管理自己田區的栽培紀錄。</summary>
 [Authorize(Roles = UserRole.User)]
-public sealed class PlantingsController(PlantingService plantings, FertilizerService fertilizers) : PlantingsApiController
+public sealed class PlantingsController(PlantingService plantings, FertilizerService fertilizers,
+    IrrigationService irrigations) : PlantingsApiController
 {
     private Guid AccountId => HttpContext.Features.GetRequiredFeature<AuthenticatedAccount>().Id;
 
@@ -136,4 +138,42 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
         EditFertilizationRqDto request) =>
         this.ToResponse(await fertilizers.EditOperationAsync(AccountId, fieldId, plantingId, fertilizationId, request,
             HttpContext.RequestAborted), FertilizerDtoMapper.ToDto);
+
+    /// <summary>回傳指定栽培的灌溉清單，無法存取栽培時回傳 404。</summary>
+    public override async Task<IActionResult> ListIrrigations(Guid plantingId)
+    {
+        var operations = await irrigations.ListAsync(AccountId, plantingId, HttpContext.RequestAborted);
+        return operations is null ? NotFound() : Ok(operations.ConvertAll(IrrigationDtoMapper.ToDto));
+    }
+
+    /// <summary>新增灌溉作業，成功時回傳 201 及完整紀錄。</summary>
+    public override async Task<IActionResult> CreateIrrigation(Guid plantingId, SaveIrrigationRqDto request) =>
+        IrrigationResponse(await irrigations.CreateAsync(AccountId, plantingId, request, HttpContext.RequestAborted),
+            StatusCodes.Status201Created);
+
+    /// <summary>更新單筆灌溉作業並回傳完整紀錄。</summary>
+    public override async Task<IActionResult> EditIrrigation(Guid irrigationId, SaveIrrigationRqDto request) =>
+        IrrigationResponse(await irrigations.EditAsync(AccountId, irrigationId, request, HttpContext.RequestAborted),
+            StatusCodes.Status200OK);
+
+    /// <summary>刪除單筆灌溉作業，成功時回傳 204。</summary>
+    public override async Task<IActionResult> DeleteIrrigation(Guid irrigationId) =>
+        await irrigations.DeleteAsync(AccountId, irrigationId, HttpContext.RequestAborted) ? NoContent() : NotFound();
+
+    /// <summary>將灌溉寫入結果轉成成功或契約定義的問題回應。</summary>
+    private IActionResult IrrigationResponse(IrrigationWriteResult result, int successStatus)
+    {
+        switch (result.Status)
+        {
+            case IrrigationWriteStatus.Success:
+                return StatusCode(successStatus, IrrigationDtoMapper.ToDto(result.Operation!));
+            case IrrigationWriteStatus.NotFound:
+                return NotFound();
+            case IrrigationWriteStatus.Conflict:
+                return Problem(statusCode: StatusCodes.Status409Conflict, detail: result.Message);
+            default:
+                ModelState.AddModelError(result.Field!, result.Message!);
+                return ValidationProblem(ModelState);
+        }
+    }
 }

@@ -33,12 +33,15 @@ model/fieldDto.ts
 model/fieldOverviewRsDto.ts
 model/fieldPlantingsRsDto.ts
 model/fieldRsDto.ts
+model/irrigationMethod.ts
+model/irrigationRsDto.ts
 model/loginRqDto.ts
 model/logoutRqDto.ts
 model/models.ts
 model/plantingHistoryItemDto.ts
 model/plantingRsDto.ts
 model/plantingStatus.ts
+model/saveIrrigationRqDto.ts
 param.ts
 provide-api.ts
 query.params.ts

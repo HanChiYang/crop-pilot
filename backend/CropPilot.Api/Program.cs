@@ -6,6 +6,7 @@ using CropPilot.Api.Data;
 using CropPilot.Api.Constants;
 using CropPilot.Api.Fields;
 using CropPilot.Api.Fertilizers;
+using CropPilot.Api.Irrigations;
 using CropPilot.Api.Plantings;
 using CropPilot.Contract.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -30,6 +31,8 @@ builder.Services.AddScoped<PlantingRepository>();
 builder.Services.AddScoped<PlantingService>();
 builder.Services.AddScoped<FertilizerRepository>();
 builder.Services.AddScoped<FertilizerService>();
+builder.Services.AddScoped<IrrigationRepository>();
+builder.Services.AddScoped<IrrigationService>();
 builder.Services.AddIdentityCore<MainAccount>()
     .AddUserStore<CropPilotUserStore>()
     .AddClaimsPrincipalFactory<AccountPrincipalFactory>()
@@ -101,6 +104,7 @@ builder.Services.AddControllers(options =>
     serializer.Converters.Add(new ContractEnumJsonConverter<FertilizerLotRsDto.SourceEnum>(ErrorMessages.FertilizerSourceInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<FertilizerLotRsDto.CurrencyCodeEnum>(ErrorMessages.FertilizerCurrencyInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<FertilizationDetailRsDto.CurrencyCodeEnum>(ErrorMessages.FertilizerCurrencyInvalid));
+    serializer.Converters.Add(new ContractEnumJsonConverter<IrrigationMethod>(ErrorMessages.IrrigationMethodInvalid));
     serializer.TypeInfoResolver = serializer.TypeInfoResolver!
         .WithAddedModifier(FieldDecimalJsonConverter.ConfigureFieldSave)
         .WithAddedModifier(FertilizationDetailIdJsonConverter.Configure);

@@ -30,7 +30,8 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 新增肥料庫存批次
         /// </summary>
-        /// <param name="materialId"></param>
+        /// <remarks>為指定肥料資材登記進貨或期初庫存，數量採該資材的庫存單位。</remarks>
+        /// <param name="materialId">肥料資材識別碼。</param>
         /// <param name="createFertilizerLotRqDto"></param>
         /// <response code="201">肥料庫存批次</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
@@ -54,6 +55,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 新增肥料資材
         /// </summary>
+        /// <remarks>為登入帳號建立肥料資材並設定庫存單位。同一帳號已有同名資材時回傳 409。</remarks>
         /// <param name="createFertilizerMaterialRqDto"></param>
         /// <response code="201">肥料資材</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
@@ -78,8 +80,8 @@ namespace CropPilot.Contract.Controllers
         /// 刪除肥料庫存批次
         /// </summary>
         /// <remarks>只允許刪除未被施肥明細引用的批次。</remarks>
-        /// <param name="materialId"></param>
-        /// <param name="lotId"></param>
+        /// <param name="materialId">肥料資材識別碼。</param>
+        /// <param name="lotId">指定肥料資材下的庫存批次識別碼。</param>
         /// <response code="204">已刪除</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
@@ -103,7 +105,7 @@ namespace CropPilot.Contract.Controllers
         /// 刪除肥料資材
         /// </summary>
         /// <remarks>只允許刪除沒有庫存批次的資材。</remarks>
-        /// <param name="materialId"></param>
+        /// <param name="materialId">肥料資材識別碼。</param>
         /// <response code="204">已刪除</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
@@ -127,8 +129,8 @@ namespace CropPilot.Contract.Controllers
         /// 編輯肥料庫存批次
         /// </summary>
         /// <remarks>更新整份表單。來源固定。已用於施肥的批次可更正單價，登記量不得小於已用量，生效日不得晚於任一關聯施肥日。</remarks>
-        /// <param name="materialId"></param>
-        /// <param name="lotId"></param>
+        /// <param name="materialId">肥料資材識別碼。</param>
+        /// <param name="lotId">指定肥料資材下的庫存批次識別碼。</param>
         /// <param name="editFertilizerLotRqDto"></param>
         /// <response code="200">更新後的肥料庫存批次</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
@@ -155,7 +157,7 @@ namespace CropPilot.Contract.Controllers
         /// 編輯肥料資材
         /// </summary>
         /// <remarks>更新名稱與庫存單位。已有批次的資材只可修改名稱。同帳號名稱重複回傳 409。</remarks>
-        /// <param name="materialId"></param>
+        /// <param name="materialId">肥料資材識別碼。</param>
         /// <param name="createFertilizerMaterialRqDto"></param>
         /// <response code="200">更新後的肥料資材</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
@@ -181,7 +183,8 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 查詢肥料庫存批次
         /// </summary>
-        /// <param name="materialId"></param>
+        /// <remarks>查詢指定肥料資材的進貨及期初庫存批次，並回傳各批次的剩餘量。</remarks>
+        /// <param name="materialId">肥料資材識別碼。</param>
         /// <response code="200">肥料庫存批次</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
@@ -203,6 +206,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 查詢肥料資材
         /// </summary>
+        /// <remarks>查詢登入帳號的肥料資材，回傳各資材的庫存單位及所有批次的合計剩餘量。</remarks>
         /// <response code="200">肥料資材</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>

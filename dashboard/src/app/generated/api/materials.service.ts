@@ -40,6 +40,7 @@ import { BaseService } from '../api.base.service';
 
 
 export interface CreateFertilizerLotRequestParams {
+    /** 肥料資材識別碼。 */
     materialId: string;
     createFertilizerLotRqDto: CreateFertilizerLotRqDto;
 }
@@ -49,26 +50,33 @@ export interface CreateFertilizerMaterialRequestParams {
 }
 
 export interface DeleteFertilizerLotRequestParams {
+    /** 肥料資材識別碼。 */
     materialId: string;
+    /** 指定肥料資材下的庫存批次識別碼。 */
     lotId: string;
 }
 
 export interface DeleteFertilizerMaterialRequestParams {
+    /** 肥料資材識別碼。 */
     materialId: string;
 }
 
 export interface EditFertilizerLotRequestParams {
+    /** 肥料資材識別碼。 */
     materialId: string;
+    /** 指定肥料資材下的庫存批次識別碼。 */
     lotId: string;
     editFertilizerLotRqDto: EditFertilizerLotRqDto;
 }
 
 export interface EditFertilizerMaterialRequestParams {
+    /** 肥料資材識別碼。 */
     materialId: string;
     createFertilizerMaterialRqDto: CreateFertilizerMaterialRqDto;
 }
 
 export interface ListFertilizerLotsRequestParams {
+    /** 肥料資材識別碼。 */
     materialId: string;
 }
 
@@ -84,6 +92,7 @@ export class MaterialsService extends BaseService {
 
     /**
      * 新增肥料庫存批次
+     * 為指定肥料資材登記進貨或期初庫存，數量採該資材的庫存單位。
      * @endpoint post /api/v1/fertilizers/{materialId}/lots
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -159,6 +168,7 @@ export class MaterialsService extends BaseService {
 
     /**
      * 新增肥料資材
+     * 為登入帳號建立肥料資材並設定庫存單位。同一帳號已有同名資材時回傳 409。
      * @endpoint post /api/v1/fertilizers
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -512,6 +522,7 @@ export class MaterialsService extends BaseService {
 
     /**
      * 查詢肥料庫存批次
+     * 查詢指定肥料資材的進貨及期初庫存批次，並回傳各批次的剩餘量。
      * @endpoint get /api/v1/fertilizers/{materialId}/lots
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -573,6 +584,7 @@ export class MaterialsService extends BaseService {
 
     /**
      * 查詢肥料資材
+     * 查詢登入帳號的肥料資材，回傳各資材的庫存單位及所有批次的合計剩餘量。
      * @endpoint get /api/v1/fertilizers
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.

@@ -22,6 +22,20 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
     protected override void OnModelCreating(ModelBuilder builder)
     {
         FertilizationModel.Configure(builder);
+        builder.Entity<IrrigationDetail>(detail =>
+        {
+            detail.ToTable("irrigation_details", table =>
+            {
+                table.HasCheckConstraint("ck_irrigation_details_method",
+                    "method IN ('drip', 'sprinkler', 'furrow', 'manual', 'other')");
+                table.HasCheckConstraint("ck_irrigation_details_water_volume_liters",
+                    "water_volume_liters > 0 AND water_volume_liters < 1000000000");
+            });
+            detail.HasOne(value => value.FieldOperation).WithOne(value => value.IrrigationDetail)
+                .HasForeignKey<IrrigationDetail>(value => value.FieldOperationId).OnDelete(DeleteBehavior.Cascade);
+            detail.Property(value => value.Method).HasMaxLength(24);
+            detail.Property(value => value.WaterVolumeLiters).HasPrecision(15, 6);
+        });
 
         builder.Entity<Field>(field =>
         {
