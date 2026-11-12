@@ -11,6 +11,71 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
     private const string MaterialsUrl = "/api/v1/fertilizers";
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
 
+    /// <summary>驗證同一筆噴施可扣用農藥與肥料，純撒施不接受水量，刪除會退回用量。</summary>
+    [Fact]
+    public async Task MixedApplicationSharesWaterAndDeleteRestoresBothLots()
+    {
+        var (owner, _) = await fixture.CreateAccountClientAsync();
+        using var client = owner;
+        var operationsUrl = await CreateCompletedPlantingAsync(client);
+        var fertilizer = await CreateMaterialAsync(client, "液態肥料");
+        var fertilizerLot = await CreateLotAsync(client, fertilizer, 10, null);
+        using var pesticideResponse = await client.PostAsJsonAsync("/api/v1/pesticides",
+            new { name = "示範農藥", stockUnit = "milliliter" });
+        var pesticide = (await ReadAsync(pesticideResponse, HttpStatusCode.Created)).GetProperty("id").GetGuid();
+        var lotsUrl = $"/api/v1/pesticides/{pesticide}/lots";
+        using var lotResponse = await client.PostAsJsonAsync(lotsUrl,
+            new { source = "purchase", purchasedOn = Today, receivedQuantity = 100m, unitPrice = 2m });
+        var lot = await ReadAsync(lotResponse, HttpStatusCode.Created);
+        var pesticideLot = lot.GetProperty("id").GetGuid();
+        Assert.Equal(200m, lot.GetProperty("totalCost").GetDecimal());
+
+        using var invalid = await client.PostAsJsonAsync(operationsUrl, new
+        {
+            operationDate = Today, sprayWaterVolumeLiters = 20m,
+            details = new[] { new { materialPurchaseLotId = fertilizerLot, applicationMethod = "broadcast", quantity = 1m } }
+        });
+        var problem = await ReadAsync(invalid, HttpStatusCode.BadRequest);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("sprayWaterVolumeLiters", out _));
+
+        using var insufficient = await client.PostAsJsonAsync(operationsUrl, new
+        {
+            operationDate = Today,
+            details = new[]
+            {
+                new { materialPurchaseLotId = fertilizerLot, applicationMethod = "spray", quantity = 2m },
+                new { materialPurchaseLotId = pesticideLot, applicationMethod = "spray", quantity = 101m },
+                new { materialPurchaseLotId = pesticideLot, applicationMethod = "broadcast", quantity = 1m }
+            }
+        });
+        var conflict = await ReadAsync(insufficient, HttpStatusCode.Conflict);
+        Assert.True(conflict.GetProperty("errors").TryGetProperty("details[1].quantity", out _));
+        Assert.Equal(100m, (await client.GetFromJsonAsync<JsonElement>(lotsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+        Assert.Equal(10m, (await client.GetFromJsonAsync<JsonElement>(MaterialsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+
+        using var created = await client.PostAsJsonAsync(operationsUrl, new
+        {
+            operationDate = Today, sprayWaterVolumeLiters = 20m,
+            details = new[]
+            {
+                new { materialPurchaseLotId = pesticideLot, applicationMethod = "spray", quantity = 15m },
+                new { materialPurchaseLotId = fertilizerLot, applicationMethod = "spray", quantity = 2m }
+            }
+        });
+        var operation = await ReadAsync(created, HttpStatusCode.Created);
+        Assert.Equal(20m, operation.GetProperty("sprayWaterVolumeLiters").GetDecimal());
+        Assert.Equal("pesticide", operation.GetProperty("details")[0].GetProperty("materialType").GetString());
+        Assert.Equal("fertilizer", operation.GetProperty("details")[1].GetProperty("materialType").GetString());
+        Assert.Equal(85m, (await client.GetFromJsonAsync<JsonElement>(lotsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+        Assert.Equal(8m, (await client.GetFromJsonAsync<JsonElement>(MaterialsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+
+        var operationId = operation.GetProperty("id").GetGuid();
+        using var deleted = await client.DeleteAsync($"/api/v1/material-applications/{operationId}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(100m, (await client.GetFromJsonAsync<JsonElement>(lotsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+        Assert.Equal(10m, (await client.GetFromJsonAsync<JsonElement>(MaterialsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+    }
+
     /// <summary>驗證已結束栽培的複合施肥補登、退回用量與單價快照。</summary>
     [Fact]
     public async Task CompletedPlantingCanRecordAndEditMultipleMaterials()
@@ -27,8 +92,8 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         using var created = await client.PostAsJsonAsync(operationsUrl, new
         {
             operationDate = Today,
-            details = new[] { new { materialPurchaseLotId = lot, quantity = 5m },
-                new { materialPurchaseLotId = otherLot, quantity = 2m } }
+            details = new[] { new { materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 5m },
+                new { materialPurchaseLotId = otherLot, applicationMethod = "broadcast", quantity = 2m } }
         });
         var operation = await ReadAsync(created, HttpStatusCode.Created);
         var details = operation.GetProperty("details");
@@ -44,18 +109,18 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
 
         var operationId = operation.GetProperty("id").GetGuid();
         var detailId = details[0].GetProperty("id").GetGuid();
-        using var invalidDetail = await client.PutAsJsonAsync($"/api/v1/fertilizations/{operationId}", new
+        using var invalidDetail = await client.PutAsJsonAsync($"/api/v1/material-applications/{operationId}", new
         {
             operationDate = Today,
-            details = new[] { new { id = Guid.Empty, materialPurchaseLotId = lot, quantity = 1m } }
+            details = new[] { new { id = Guid.Empty, materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 1m } }
         });
         Assert.Equal(HttpStatusCode.BadRequest, invalidDetail.StatusCode);
 
-        using var edited = await client.PutAsJsonAsync($"/api/v1/fertilizations/{operationId}", new
+        using var edited = await client.PutAsJsonAsync($"/api/v1/material-applications/{operationId}", new
         {
             operationDate = Today,
-            details = new object[] { new { id = detailId, materialPurchaseLotId = lot, quantity = 7m },
-                new { materialPurchaseLotId = lot, quantity = 1m } }
+            details = new object[] { new { id = detailId, materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 7m },
+                new { materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 1m } }
         });
         var updated = await ReadAsync(edited, HttpStatusCode.OK);
         var updatedDetails = updated.GetProperty("details");
@@ -87,7 +152,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var request = new
         {
             operationDate = Today,
-            details = new[] { new { materialPurchaseLotId = lot, quantity = 4m } }
+            details = new[] { new { materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 4m } }
         };
 
         using var foreignLots = await otherClient.GetAsync($"{MaterialsUrl}/{material}/lots");
@@ -102,7 +167,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         using var foreignCreate = await otherClient.PostAsJsonAsync(firstPlanting, new
         {
             operationDate = Today,
-            details = new[] { new { materialPurchaseLotId = otherLot, quantity = 4m } }
+            details = new[] { new { materialPurchaseLotId = otherLot, applicationMethod = "broadcast", quantity = 4m } }
         });
         Assert.Equal(HttpStatusCode.NotFound, foreignCreate.StatusCode);
 
@@ -113,7 +178,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var problem = await ReadAsync(rejected, HttpStatusCode.Conflict);
         Assert.True(problem.GetProperty("errors").TryGetProperty("details[0].quantity", out _));
         var operationId = (await accepted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
-        using var foreignEdit = await otherClient.PutAsJsonAsync($"/api/v1/fertilizations/{operationId}", request);
+        using var foreignEdit = await otherClient.PutAsJsonAsync($"/api/v1/material-applications/{operationId}", request);
         Assert.Equal(HttpStatusCode.NotFound, foreignEdit.StatusCode);
         using var foreignLotEdit = await otherClient.PutAsJsonAsync($"/api/v1/fertilizer-lots/{lot}",
             new { receivedQuantity = 5, unitPrice = 10 });
@@ -182,7 +247,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var field = await ReadAsync(response, HttpStatusCode.Created);
         var fieldId = field.GetProperty("fields")[0].GetProperty("id").GetGuid();
         var plantingId = await fixture.AddCompletedPlantingAsync(fieldId);
-        return $"/api/v1/plantings/{plantingId}/fertilizations";
+        return $"/api/v1/plantings/{plantingId}/material-applications";
     }
 
     /// <summary>建立測試資材並取得識別碼。</summary>

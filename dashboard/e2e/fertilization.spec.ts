@@ -38,13 +38,15 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
         return route.fulfill({ json: ['番茄'] });
       case plantingApi:
         return route.fulfill({ json: planting });
+      case '/api/v1/pesticides':
+        return route.fulfill({ json: [] });
       case materialsApi:
         return route.fulfill({ json: [{ ...material, remainingQuantity: remaining }] });
       case materialsApi + '/' + materialId + '/lots':
         return route.fulfill({ json: [{ ...lot, remainingQuantity: remaining, unitPrice: operations.length ? 20 : null },
           { ...lot, id: depletedId, availableFrom: '2026-01-02', remainingQuantity: 0 }] });
-      case plantingApi + '/fertilizations':
-      case '/api/v1/fertilizations/' + operationId: {
+      case plantingApi + '/material-applications':
+      case '/api/v1/material-applications/' + operationId: {
         if (request.method() === 'GET') return route.fulfill({ json: operations });
         const { operationDate, details } = request.postDataJSON();
         if (conflict) {
@@ -53,10 +55,10 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
         }
         const editing = request.method() === 'PUT';
         expect(details).toEqual([{ ...(editing ? { id: detailId } : {}), materialPurchaseLotId: lotId,
-          quantity: editing ? 2 : 3 }]);
+          applicationMethod: 'broadcast', quantity: editing ? 2 : 3 }]);
         remaining = 8 - details[0].quantity;
         const operation = { id: operationId, operationDate, details: [{ ...details[0], id: detailId,
-          materialId, fertilizerName: material.name, unit: material.stockUnit, unitPrice: null, currencyCode: 'TWD' }] };
+          materialId, materialType: 'fertilizer', materialName: material.name, unit: material.stockUnit, unitPrice: null, currencyCode: 'TWD' }] };
         operations = [operation];
         return route.fulfill({ status: editing ? 200 : 201, json: operation });
       }
@@ -66,25 +68,26 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
   });
 
   await page.goto(historyPath);
-  await page.getByRole('link', { name: '施肥紀錄', exact: true }).click();
-  await expect(page.getByText('目前沒有施肥紀錄。')).toBeVisible();
-  await page.getByRole('button', { name: '新增施肥', exact: true }).click();
-  await page.getByLabel('施肥日期').fill('2026-01-03');
-  await page.getByLabel('肥料 1', { exact: true }).selectOption(materialId);
-  const batches = page.getByLabel('肥料批次 1');
+  await page.getByRole('link', { name: '資材施用紀錄', exact: true }).click();
+  await expect(page.getByText('目前沒有資材施用紀錄。')).toBeVisible();
+  await page.getByRole('button', { name: '新增施用', exact: true }).click();
+  await page.getByLabel('施用日期').fill('2026-01-03');
+  await page.getByLabel('資材 1', { exact: true }).selectOption(materialId);
+  const batches = page.getByLabel('庫存批次 1');
   await expect(batches.getByRole('option')).toHaveCount(2);
   await batches.selectOption(lotId);
+  await page.getByLabel('施用方式').selectOption('broadcast');
   await page.getByLabel('用量').fill('3');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('庫存餘量不足');
+  await expect(page.locator('.detail').getByRole('alert')).toContainText('庫存餘量不足');
   await expect(page.getByLabel('用量')).toHaveValue('3');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
-  const list = page.getByRole('region', { name: '施肥紀錄清單' });
+  const list = page.getByRole('region', { name: '資材施用紀錄清單' });
   await expect(list).toContainText('3 公斤');
   await expect(list).toContainText('成本待補');
 
   await page.getByRole('button', { name: '編輯', exact: true }).click();
-  await expect(page.getByLabel('施肥日期')).toHaveValue('2026-01-03');
+  await expect(page.getByLabel('施用日期')).toHaveValue('2026-01-03');
   await expect(batches).toHaveValue(lotId);
   await expect(batches.getByRole('option').nth(1)).toContainText('可用 8 公斤');
   await expect(batches.getByRole('option').nth(1)).toContainText('原單價 成本待補');
