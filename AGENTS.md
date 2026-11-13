@@ -8,7 +8,7 @@
 - 提請核准 commit 前，審查本次待提交的差異。若可使用 `$pre-commit-review`，依該 skill 執行。登入、權限、資料庫遷移或跨模組行為變更，須派全新上下文的 subagent 做唯讀獨立審查，只交付範圍、基準、必要需求與專案規則。
 - 執行 commit 前，核對待提交的差異與已審查、已核准的版本。如果內容或範圍變動，重新審查並請使用者核准。
 - 功能變更依可獨立審查的範圍拆成小 commit。實作與測試可分開提交。建立 PR 前，先提交並推送該切片的實作和對應的自動化測試。
-- 每次 commit、push、建立 PR（含草稿）與合併都須分別取得使用者明確核准。提交前審查完成且三項資訊備妥時，優先在同一張選項卡中分別詢問是否 commit、是否 push、是否建立 PR。commit 附上變更摘要、審查與驗證結果及 commit 訊息。push 附上遠端與分支。PR 附上來源分支、目標分支、標題與完整內文。依序執行已核准且前置步驟已完成的項目。若已核准的內容或目標有變動，重新取得受影響項目的核准。合併另行核准。
+- 使用者明確說「可發 PR」、「可以發 PR」或以同義措辭核准建立 PR（含草稿）時，視為同時核准本次 PR 所需的 commit、push 和建立 PR。完成提交前審查與驗證後，依序執行，無須再逐項詢問。其他情況依使用者明確核准的操作執行。提請核准時，commit 附上變更摘要、審查與驗證結果及 commit 訊息，push 附上遠端與分支，PR 附上來源分支、目標分支、標題與完整內文。已核准的內容或目標有變動時，重新取得受影響項目的核准。合併另行核准。
 - API 採 contract-first。變更契約時先更新 Stoplight 匯出的 `openapi.yaml`，再從同一份規格生成 ASP.NET Core 抽象 Controller、請求與回應 DTO，以及 Angular client。業務實作放在生成目錄之外，以便重新生成。[OpenAPI 契約](docs/openapi/openapi.yaml)
 - 後端用 `dotnet` 建置。OpenAPI Generator CLI 由 `java -jar` 執行，負責規格驗證及程式碼生成。
 - PostgreSQL 的結構版本由 EF Core Migrations 管理，搭配 Npgsql。套用 migration 前先匯出 SQL，依設計核對外鍵、刪除行為及欄位約束，再套用到測試資料庫驗證。[資料庫設計](docs/design/first-desktop-slice-database.md)

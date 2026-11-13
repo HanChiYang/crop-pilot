@@ -15,6 +15,8 @@ import { PlantingHistoryDetailPage } from './planting-history-detail-page';
 import { FertilizationPage } from './fertilization-page';
 import { IrrigationPage } from './irrigation-page';
 import { FertilizerInventoryPage } from './fertilizer-inventory-page';
+import { MaterialInventory } from './material-inventory';
+import { PesticideInventoryPage } from './pesticide-inventory-page';
 
 const redirectSignedIn: CanActivateFn = () => {
   const auth = inject(AuthService);
@@ -60,7 +62,16 @@ export const routes: Routes = [
       { path: 'plantings/:fieldId/:plantingId/edit', component: PlantingFormPage, title: '編輯栽培紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/fertilizations', component: FertilizationPage, title: '施肥紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/irrigations', component: IrrigationPage, title: '灌溉紀錄｜CropPilot' },
-      { path: 'fertilizers', component: FertilizerInventoryPage, title: '肥料庫存｜CropPilot' },
+      { path: 'fertilizers', pathMatch: 'full', redirectTo: 'materials/fertilizers' },
+      {
+        path: 'materials',
+        component: MaterialInventory,
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'pesticides' },
+          { path: 'pesticides', component: PesticideInventoryPage, title: '農藥庫存｜CropPilot' },
+          { path: 'fertilizers', component: FertilizerInventoryPage, title: '肥料庫存｜CropPilot' },
+        ],
+      },
       {
         path: 'planting-history',
         component: PlantingHistoryPage,

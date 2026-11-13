@@ -11,12 +11,12 @@ import { FertilizerLotRsDto } from './generated/model/fertilizerLotRsDto';
 import { FertilizerMaterialRsDto } from './generated/model/fertilizerMaterialRsDto';
 import { MaterialApplicationMethod } from './generated/model/materialApplicationMethod';
 import { PesticideLotRsDto } from './generated/model/pesticideLotRsDto';
+import { pesticideUnits } from './pesticide-units';
 import { HttpErrorResponse } from '@angular/common/http';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
 import { operationError, parseOperationDecimal, taipeiToday } from './operation-form';
 
 type MaterialType = 'fertilizer' | 'pesticide';
-const pesticideUnits = { liter: '公升', milliliter: '毫升', kilogram: '公斤', gram: '公克' };
 
 interface DetailInput {
   materialType: MaterialType;
@@ -45,7 +45,7 @@ interface DetailInput {
       <div><h1>資材施用紀錄</h1>@if (planting(); as item) { <p>{{ item.cropName }}</p> }</div>
       <div class="actions">
         <a class="button button-outline" [routerLink]="backLink()" [queryParams]="backQuery()">返回{{ fromHistory ? '栽培詳情' : '作物栽培管理' }}</a>
-        <a class="button button-outline" routerLink="/dashboard/fertilizers">肥料庫存</a>
+        <a class="button button-outline" routerLink="/dashboard/materials">查看資材庫存</a>
         @if (!loading() && !loadError() && planting() && planting()?.status !== 'planned' && !editorOpen()) {
           <button class="button" type="button" (click)="open()">新增施用</button>
         }
@@ -76,7 +76,7 @@ interface DetailInput {
             </div>
           }
           @if (!availableLots().length) {
-            <p>該日沒有可用批次。<a routerLink="/dashboard/fertilizers">查看肥料庫存</a></p>
+            <p>該日沒有可用批次。<a routerLink="/dashboard/materials">前往資材管理</a></p>
           }
           <div class="details">
             @for (row of rows(); track $index; let index = $index) {
@@ -284,7 +284,7 @@ export class FertilizationPage {
       this.operations.set(data.operations);
       this.inventory.set([...data.inventory, ...data.pesticides]);
     } catch {
-      if (version === this.requestVersion) this.loadError.set('無法載入資材施用紀錄及肥料庫存。');
+      if (version === this.requestVersion) this.loadError.set('無法載入資材施用紀錄及庫存。');
     } finally {
       if (version === this.requestVersion) this.loading.set(false);
     }
