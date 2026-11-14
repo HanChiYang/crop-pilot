@@ -1,0 +1,142 @@
+.planting-search {
+  position: relative;
+  max-width: 24rem;
+  margin-top: 1.25rem;
+}
+.planting-search svg {
+  position: absolute;
+  inset: 0.65rem auto auto 0.65rem;
+  width: 1.2rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+.planting-search input {
+  padding-inline-start: 2.15rem;
+  background: white;
+}
+
+.planting-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0.65rem 0 1rem;
+}
+
+.filter-control,
+.planting-filters fieldset {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.875rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+}
+
+.planting-filters legend {
+  float: inline-start;
+  padding: 0;
+  align-self: center;
+}
+
+.planting-filters :is(select, input) {
+  padding: 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  color: inherit;
+  background: #f2f5ef;
+  font: inherit;
+}
+
+.planting-filters select {
+  min-width: 5rem;
+  max-width: 15rem;
+}
+.planting-filters [aria-invalid] {
+  border-color: #9f2c2c;
+}
+.clear-filters {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.clear-filters:hover {
+  text-decoration: underline;
+}
+
+.planting-table {
+  margin-top: 0.75rem;
+}
+.planting-table th,
+.planting-table td {
+  padding: 0.65rem 0.75rem;
+  vertical-align: middle;
+}
+.planting-table tbody th {
+  width: auto;
+}
+.planting-table tbody td:first-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.planting-sort,
+.row-trigger {
+  padding: 0.25rem 0.45rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.planting-sort {
+  margin: -0.25rem -0.45rem;
+}
+.planting-sort:hover,
+th[aria-sort] .planting-sort,
+.row-trigger:hover {
+  color: var(--green);
+  background: var(--pale);
+}
+
+.row-trigger {
+  border: 1px solid var(--border);
+  color: var(--green);
+}
+.row-operations {
+  position-area: block-end span-inline-start;
+  position-try-fallbacks: flip-block, flip-inline;
+  margin: 0.25rem 0;
+  padding: 0.3rem;
+  min-width: 8.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  color: inherit;
+  background: white;
+  box-shadow: 0 0.25rem 0.75rem rgb(20 38 29 / 14%);
+}
+
+.row-operations :is(a, button) {
+  display: block;
+  width: 100%;
+  padding: 0.3rem 0.55rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+}
+
+.row-operations :is(a, button):hover {
+  background: var(--pale);
+}
+.no-matches {
+  text-align: center;
+}

@@ -44,7 +44,7 @@ interface DetailInput {
     <header class="page-heading">
       <div><h1>資材施用紀錄</h1>@if (planting(); as item) { <p>{{ item.cropName }}</p> }</div>
       <div class="actions">
-        <a class="button button-outline" [routerLink]="backLink()" [queryParams]="backQuery()">返回{{ fromHistory ? '栽培詳情' : '作物栽培管理' }}</a>
+        <a class="button button-outline" [routerLink]="backLink()" [queryParams]="backQuery">返回{{ fromHistory ? '栽培詳情' : '作物栽培管理' }}</a>
         <a class="button button-outline" routerLink="/dashboard/materials">查看資材庫存</a>
         @if (!loading() && !loadError() && planting() && planting()?.status !== 'planned' && !editorOpen()) {
           <button class="button" type="button" (click)="open()">新增施用</button>
@@ -197,7 +197,7 @@ export class FertilizationPage {
   protected readonly backLink = computed(() => this.fromHistory
     ? ['/dashboard/planting-history', this.ids().fieldId, this.ids().plantingId]
     : ['/dashboard/plantings']);
-  protected readonly backQuery = computed(() => this.fromHistory ? {} : { fieldId: this.ids().fieldId });
+  protected readonly backQuery = this.fromHistory ? {} : { fieldId: this.route.snapshot.queryParamMap.get('fieldId') };
   protected readonly planting = signal<PlantingRsDto | null>(null);
   protected readonly operations = signal<MaterialApplicationRsDto[]>([]);
   protected readonly today = taipeiToday();

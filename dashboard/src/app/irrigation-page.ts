@@ -40,7 +40,7 @@ interface IrrigationInput {
     <header class="page-heading">
       <div><h1>灌溉紀錄</h1>@if (planting(); as item) { <p>{{ item.cropName }}</p> }</div>
       <div class="actions">
-        <a class="button button-outline" [routerLink]="backLink()" [queryParams]="backQuery()">
+        <a class="button button-outline" [routerLink]="backLink()" [queryParams]="backQuery">
           返回{{ fromHistory ? '栽培詳情' : '作物栽培管理' }}
         </a>
         @if (!loading() && !loadError() && canSave() && !editor()) {
@@ -160,7 +160,7 @@ export class IrrigationPage {
   protected readonly backLink = computed(() => this.fromHistory
     ? ['/dashboard/planting-history', this.ids().fieldId, this.ids().plantingId]
     : ['/dashboard/plantings']);
-  protected readonly backQuery = computed(() => this.fromHistory ? {} : { fieldId: this.ids().fieldId });
+  protected readonly backQuery = this.fromHistory ? {} : { fieldId: this.route.snapshot.queryParamMap.get('fieldId') };
   protected readonly labels = methodLabels;
   protected readonly methods = Object.values(IrrigationMethod);
   protected readonly today = signal(taipeiToday());
