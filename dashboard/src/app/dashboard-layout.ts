@@ -15,18 +15,8 @@ import { AuthSession } from './auth-session';
   template: `
     <div class="overview-layout">
       <aside class="sidebar">
-        <a routerLink="/" class="brand"
-          ><span class="brand-mark">C</span> CropPilot</a
-        >
+        <a routerLink="/dashboard" class="brand" title="田區總覽">CropPilot <small>田區總覽</small></a>
         <nav aria-label="農場管理">
-          <p>農場管理</p>
-          <a
-            routerLink="/dashboard"
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{ exact: true }"
-            ariaCurrentWhenActive="page"
-            >田區總覽</a
-          >
           <a
             routerLink="/dashboard/fields"
             routerLinkActive="active"
@@ -37,7 +27,7 @@ import { AuthSession } from './auth-session';
             routerLink="/dashboard/plantings"
             routerLinkActive="active"
             ariaCurrentWhenActive="page"
-            >作物栽培管理</a
+            >作物栽培</a
           >
           <a
             routerLink="/dashboard/materials"
@@ -49,7 +39,7 @@ import { AuthSession } from './auth-session';
             routerLink="/dashboard/planting-history"
             routerLinkActive="active"
             ariaCurrentWhenActive="page"
-            >栽培歷史</a
+            >栽培紀錄</a
           >
         </nav>
         <div class="sidebar-account">

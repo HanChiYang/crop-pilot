@@ -1,0 +1,248 @@
+<header class="page-heading">
+  <div>
+    <h1>作物栽培</h1>
+    <p>依田區管理栽培批次與田間作業</p>
+  </div>
+  @if (rows().length) {
+  <a
+    class="button"
+    routerLink="new"
+    [queryParams]="{ fieldId: selectedFieldId() || null }"
+  >
+    <span aria-hidden="true">＋</span> 新增栽培紀錄
+  </a>
+  }
+</header>
+
+@if (notice()) {
+<p class="field-success" role="status">{{ notice() }}</p>
+} @let result = state(); @switch (result.status) { @case ('loading') {
+<p class="panel empty-state" role="status">正在載入栽培紀錄…</p>
+} @case ('error') {
+<section class="panel empty-state">
+  <p class="error" role="alert">目前無法載入栽培紀錄。</p>
+  <button
+    class="button button-outline"
+    type="button"
+    (click)="reloadPlantings()"
+  >
+    重新載入
+  </button>
+</section>
+} @case ('ready') { @if (!rows().length) {
+<section class="panel empty-state">
+  <span class="empty-icon" aria-hidden="true">🌱</span>
+  <h2>目前還沒有栽培紀錄</h2>
+  <p>新增第一筆栽培紀錄，開始記錄田區的作物。</p>
+  <a class="button" routerLink="new" [queryParams]="{ fieldId: selectedFieldId() || null }"
+    ><span aria-hidden="true">＋</span> 新增栽培紀錄</a
+  >
+</section>
+} @else {
+<div
+  class="planting-search field-control"
+  role="search"
+  aria-label="搜尋栽培紀錄"
+>
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true"
+  >
+    <circle cx="10.5" cy="10.5" r="6.5" />
+    <path d="m16 16 4 4" />
+  </svg>
+  <input
+    #keyword
+    type="search"
+    aria-label="搜尋田區或作物名稱"
+    placeholder="搜尋田區或作物名稱"
+    [value]="search()"
+    (input)="search.set(keyword.value)"
+  />
+</div>
+<div class="planting-filters">
+  <div class="filter-control">
+    <label for="planting-field-filter">田區</label>
+    <select
+      #field
+      id="planting-field-filter"
+      [value]="selectedFieldId()"
+      (change)="selectField(field.value)"
+    >
+      <option value="">全部</option>
+      @for (item of result.fields; track item.id) {
+      <option [value]="item.id" [selected]="item.id === selectedFieldId()">
+        {{ item.name }}
+      </option>
+      }
+    </select>
+  </div>
+  <div class="filter-control">
+    <label for="planting-crop-filter">作物</label>
+    <select
+      #crop
+      id="planting-crop-filter"
+      [value]="cropName()"
+      (change)="cropName.set(crop.value)"
+    >
+      <option value="">全部</option>
+      @for (name of cropNames(); track name) {
+      <option [value]="name" [selected]="name === cropName()">
+        {{ name }}
+      </option>
+      }
+    </select>
+  </div>
+  <fieldset>
+    <legend>栽培日期</legend>
+    <input
+      #start
+      type="date"
+      aria-label="栽培日期起日"
+      [value]="startDate()"
+      [attr.aria-invalid]="invalidDates() || null"
+      (input)="startDate.set(start.value)"
+    />
+    <span aria-hidden="true">～</span>
+    <input
+      #end
+      type="date"
+      aria-label="栽培日期迄日"
+      [value]="endDate()"
+      [attr.aria-invalid]="invalidDates() || null"
+      (input)="endDate.set(end.value)"
+    />
+  </fieldset>
+  <button class="clear-filters" type="button" (click)="clearFilters()">
+    清除篩選
+  </button>
+</div>
+@if (invalidDates()) {
+<p class="error" role="alert">栽培日期的起日不可晚於迄日。</p>
+}
+<div class="panel field-table planting-table">
+  <table aria-label="栽培紀錄">
+    <thead>
+      <tr>
+        @for (column of columns; track column.key) { @let direction =
+        sort().column === column.key ? sort().direction : null;
+        <th scope="col" [attr.aria-sort]="direction">
+          <button
+            class="planting-sort"
+            type="button"
+            (click)="sortBy(column.key)"
+          >
+            {{ column.label }}
+            <span aria-hidden="true"
+              >{{ direction === 'ascending' ? '↑' : direction === 'descending' ?
+              '↓' : '↕' }}</span
+            >
+          </button>
+        </th>
+        }
+        <th scope="col">操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of visibleRows(); track row.id) {
+      <tr>
+        <td>{{ row.fieldName }}</td>
+        <th scope="row">{{ row.cropName }}</th>
+        <td>{{ row.areaSquareMeters | number:'1.0-4' }} m²</td>
+        <td>{{ row.plannedPlantingDate || '—' }}</td>
+        <td>{{ row.actualPlantingDate || '—' }}</td>
+        <td>{{ statusLabel[row.status] }}</td>
+        <td>
+          <button
+            class="row-trigger"
+            type="button"
+            [attr.popovertarget]="'operations-' + row.id"
+            [attr.aria-label]="'操作 ' + row.cropName + '（' + row.fieldName + '）'"
+          >
+            ☰
+          </button>
+          <div
+            #menu
+            popover
+            [id]="'operations-' + row.id"
+            class="row-operations"
+          >
+            @if (row.status !== 'planned') {
+            <a
+              [routerLink]="[row.fieldId, row.id, 'fertilizations']"
+              [queryParams]="{ fieldId: selectedFieldId() || null }"
+              >資材施用紀錄</a
+            >
+            <a
+              [routerLink]="[row.fieldId, row.id, 'irrigations']"
+              [queryParams]="{ fieldId: selectedFieldId() || null }"
+              >灌溉紀錄</a
+            >
+            }
+            <a
+              [routerLink]="[row.fieldId, row.id, 'edit']"
+              [queryParams]="{ fieldId: selectedFieldId() || null }"
+              [attr.aria-label]="'編輯 ' + row.cropName"
+              >編輯</a
+            >
+            @if (row.status === 'planned') {
+            <button
+              type="button"
+              class="error"
+              [attr.aria-label]="'刪除 ' + row.cropName"
+              (click)="confirmDelete(row, menu, deleteDialog)"
+            >
+              刪除
+            </button>
+            }
+          </div>
+        </td>
+      </tr>
+      } @empty {
+      <tr>
+        <td class="no-matches" colspan="7">
+          @if (!invalidDates()) {
+          <p role="status">查無符合條件的栽培紀錄。</p>
+          }
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+</div>
+} } }
+
+<dialog
+  #deleteDialog
+  class="field-delete-dialog"
+  aria-labelledby="planting-delete-title"
+  (cancel)="deleting() && $event.preventDefault()"
+>
+  <h2 id="planting-delete-title">刪除栽培紀錄</h2>
+  <p>確定刪除「{{ pendingDelete()?.cropName }}」？</p>
+  @if (deleteError()) {
+  <p class="error" role="alert">{{ deleteError() }}</p>
+  }
+  <div class="field-form-actions">
+    <button
+      class="button button-outline"
+      type="button"
+      autofocus
+      [disabled]="deleting()"
+      (click)="deleteDialog.close()"
+    >
+      取消
+    </button>
+    <button
+      class="button"
+      type="button"
+      [disabled]="deleting() || deleteConflict()"
+      (click)="deletePlanting(deleteDialog)"
+    >
+      {{ deleting() ? '刪除中…' : '確認刪除' }}
+    </button>
+  </div>
+</dialog>

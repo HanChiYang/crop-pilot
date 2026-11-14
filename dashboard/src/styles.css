@@ -88,15 +88,16 @@ button, input, textarea { font: inherit; }
 .google { width: 100%; color: #1f1f1f; }
 
 .overview-layout { display: grid; grid-template-columns: 13rem 1fr; min-height: 100vh; }
-.sidebar { display: flex; flex-direction: column; padding: 1.2rem; background: #fff; border-right: 1px solid var(--border); }
+.sidebar { display: flex; flex-direction: column; padding: 1.2rem; color: #f5f9f5; background: #15372a; border-right: 1px solid var(--border); }
+.sidebar .brand small { font-size: .75rem; font-weight: 400; }
 .sidebar nav { display: grid; gap: .45rem; margin-top: 1.8rem; }
-.sidebar nav p { font-size: .8rem; }
-.sidebar nav a, .sidebar nav span { padding: .55rem .65rem; border-radius: .45rem; }
-.sidebar nav a.active { color: var(--green); background: var(--pale); font-weight: 700; }
-.sidebar nav span { color: var(--muted); }
+.sidebar nav a { padding: .55rem .65rem; border-radius: .45rem; }
+.sidebar nav a:hover, .sidebar nav a.active { background: #2c5343; }
+.sidebar nav a.active { font-weight: 700; }
 .sidebar-account { display: grid; gap: .45rem; margin-top: auto; padding-top: 1.5rem; }
-.sidebar-account .button { justify-self: start; }
-.overview-main { min-width: 0; padding: 2rem; }
+.sidebar-account .button { justify-self: start; padding: 0; color: inherit; background: none; border: 0; text-decoration: underline; }
+.sidebar-account .error { color: #ffc3c3; }
+.overview-main { min-width: 0; padding: 2rem; background: #f1f4ec; }
 .page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
 .empty-state { display: grid; justify-items: center; gap: .55rem; margin-top: 1.5rem; padding: 3.2rem 1rem; text-align: center; }
 .empty-icon { width: 3rem; height: 3rem; color: var(--green); background: var(--pale); }

@@ -28,6 +28,8 @@ async function mockApi(page: Page, status: 'completed' | 'growing' | 'planned') 
         return route.fulfill({ json: { accessToken: 'test-token', sessionId: 'test-session' } });
       case '/api/v1/fields':
         return route.fulfill({ json: { fields: [field] } });
+      case '/api/v1/overview':
+        return route.fulfill({ json: [{ ...field, plantings: [record] }] });
       case fieldApi:
         return route.fulfill({ json: field });
       case fieldApi + '/plantings':
@@ -120,22 +122,27 @@ test('從栽培歷史補登灌溉、清空用水量並刪除紀錄', async ({ pa
   await expect(page).toHaveURL(historyPath);
 });
 
-for (const status of ['growing', 'planned'] as const) {
-  test(`作物栽培管理可開啟灌溉清單（${status}）並返回原田區`, async ({ page }) => {
-    await mockApi(page, status);
+test('栽培中的列操作可開啟灌溉清單並返回原田區', async ({ page }) => {
+    await mockApi(page, 'growing');
     await page.goto(managementPath);
-    await page.getByLabel('田間作業 番茄').click();
+    await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
     await page.getByRole('link', { name: '灌溉紀錄' }).click();
     await expect(page.getByRole('heading', { name: '灌溉紀錄' })).toBeVisible();
     const add = page.getByRole('button', { name: '新增灌溉' });
-    if (status === 'growing') {
-      await expect(add).toBeVisible();
-    } else {
-      await expect(page.getByText('開始栽培後即可新增灌溉紀錄。')).toBeVisible();
-      await expect(add).toHaveCount(0);
-    }
+    await expect(add).toBeVisible();
     await page.getByRole('link', { name: '返回作物栽培管理' }).click();
     await expect(page).toHaveURL(managementPath);
     await expect(page.getByLabel('田區', { exact: true })).toHaveValue(fieldId);
-  });
-}
+});
+
+test('規劃中的列操作只提供編輯和刪除，直接開啟灌溉頁也不可新增', async ({ page }) => {
+  await mockApi(page, 'planned');
+  await page.goto(managementPath);
+  await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
+  await expect(page.getByRole('link', { name: '編輯 番茄' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '刪除 番茄' })).toBeVisible();
+  await expect(page.getByRole('link', { name: '灌溉紀錄' })).toHaveCount(0);
+  await page.goto(`/dashboard/plantings/${fieldId}/${plantingId}/irrigations`);
+  await expect(page.getByText('開始栽培後即可新增灌溉紀錄。')).toBeVisible();
+  await expect(page.getByRole('button', { name: '新增灌溉' })).toHaveCount(0);
+});

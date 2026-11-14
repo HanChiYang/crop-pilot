@@ -1,9 +1,10 @@
 import { HttpErrorResponse } from "@angular/common/http";
+import { DecimalPipe } from "@angular/common";
 import { Component, DestroyRef, computed, inject, signal } from "@angular/core";
-import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
+import { takeUntilDestroyed, toObservable, toSignal } from "@angular/core/rxjs-interop";
 import { FormBuilder, ReactiveFormsModule } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import { finalize, forkJoin, of } from "rxjs";
+import { catchError, finalize, forkJoin, map, of, startWith, switchMap } from "rxjs";
 import { FieldsService } from "./generated/api/fields.service";
 import { PlantingsService } from "./generated/api/plantings.service";
 import { CreatePlantingRqDto } from "./generated/model/createPlantingRqDto";
@@ -16,22 +17,48 @@ type PlantingErrors = Partial<Record<keyof EditPlantingRqDto, string[]>>;
 
 @Component({
   selector: "app-planting-form-page",
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [DecimalPipe, ReactiveFormsModule, RouterLink],
   template: `
     <header class="page-heading">
       <div>
         <h1>{{ plantingId ? "編輯栽培紀錄" : "新增栽培紀錄" }}</h1>
-        @if (field(); as selected) {
+        @if (fixedFieldId && field(); as selected) {
           <p>田區　{{ selected.name }}</p>
         }
       </div>
     </header>
 
-    @if (field()) {
+    @if (!fixedFieldId && availableFields(); as fields) {
+      <div class="field-control planting-field-picker">
+        <label for="new-planting-field">選擇田區</label>
+        <select #picker id="new-planting-field" [disabled]="saving() || saved() || !fields.length"
+          (change)="selectField(picker.value)">
+          <option value="" [selected]="!field()">請選擇田區</option>
+          @for (item of fields; track item.id) {
+            <option [value]="item.id" [selected]="field()?.id === item.id">{{ item.name }}</option>
+          }
+        </select>
+      </div>
+      @if (!fields.length) {
+        <p>目前還沒有田區。<a class="button button-outline" routerLink="/dashboard/fields/new">前往新增田區</a></p>
+      }
+    }
+    @if (field(); as selected) {
+      @let area = fieldArea();
+      @if (area && area.id === selected.id) {
+        <p>田區總面積 {{ area.total | number:'1.0-4' }} m²、
+          已分配面積 {{ area.allocated | number:'1.0-4' }} m²、
+          剩餘面積 {{ area.remaining | number:'1.0-4' }} m²</p>
+      }
+    } @else if (availableFields()?.length) {
+      <p>選擇田區後可查看剩餘面積。</p>
+    }
+
+    @if (field() || availableFields()) {
       <form
         class="panel field-form"
         [formGroup]="form"
-        (ngSubmit)="save()"
+        (ngSubmit)="save(completeDialog)"
         novalidate
       >
         <fieldset [disabled]="saving() || saved()">
@@ -142,9 +169,6 @@ type PlantingErrors = Partial<Record<keyof EditPlantingRqDto, string[]>>;
             </p>
           </div>
           <div class="field-form-actions">
-            <button class="button" type="submit">
-              {{ saving() ? "儲存中…" : "儲存" }}
-            </button>
             <button
               class="button button-outline"
               type="button"
@@ -152,13 +176,16 @@ type PlantingErrors = Partial<Record<keyof EditPlantingRqDto, string[]>>;
             >
               取消
             </button>
+            <button class="button" type="submit" [disabled]="!field()">
+              {{ saving() ? "儲存中…" : "儲存" }}
+            </button>
           </div>
         </fieldset>
         @if (message()) {
           <p class="error field-form-message" role="alert">{{ message() }}</p>
         }
         @if (saved()) {
-          <a routerLink="/dashboard/plantings" [queryParams]="{ fieldId }"
+          <a routerLink="/dashboard/plantings" [queryParams]="returnQuery"
             >返回作物栽培管理</a
           >
         }
@@ -173,13 +200,21 @@ type PlantingErrors = Partial<Record<keyof EditPlantingRqDto, string[]>>;
         >
           重新載入
         </button>
-        <a routerLink="/dashboard/plantings" [queryParams]="{ fieldId }"
+        <a routerLink="/dashboard/plantings" [queryParams]="returnQuery"
           >返回作物栽培管理</a
         >
       </section>
     } @else {
       <p class="panel empty-state" role="status">正在載入田區…</p>
     }
+    <dialog #completeDialog class="field-delete-dialog" aria-labelledby="complete-title">
+      <h2 id="complete-title">確認結束栽培</h2>
+      <p>結束後，這筆紀錄會移至栽培紀錄，並釋放占用面積。</p>
+      <div class="field-form-actions">
+        <button type="button" class="button button-outline" autofocus (click)="completeDialog.close()">取消</button>
+        <button type="button" class="button" (click)="completeDialog.close(); save(completeDialog, true)">確認結束</button>
+      </div>
+    </dialog>
   `,
 })
 export class PlantingFormPage {
@@ -187,10 +222,29 @@ export class PlantingFormPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly fields = inject(FieldsService);
   private readonly plantings = inject(PlantingsService);
-  private readonly params = inject(ActivatedRoute).snapshot.paramMap;
-  protected readonly fieldId = this.params.get("fieldId")!;
-  protected readonly plantingId = this.params.get("plantingId");
+  private readonly route = inject(ActivatedRoute).snapshot;
+  protected readonly fixedFieldId = this.route.paramMap.get("fieldId");
+  protected readonly plantingId = this.route.paramMap.get("plantingId");
+  protected readonly returnQuery = {
+    fieldId: this.route.queryParamMap.get("fieldId") ?? (this.plantingId ? null : this.fixedFieldId),
+  };
   protected readonly field = signal<FieldDto | null>(null);
+  protected readonly availableFields = signal<FieldDto[] | null>(null);
+  private readonly selectedFieldId = computed(() => this.field()?.id);
+  protected readonly fieldArea = toSignal(toObservable(this.selectedFieldId).pipe(
+    switchMap((fieldId) => fieldId
+      ? this.plantings.listFieldPlantings({ fieldId }).pipe(
+          map((data) => ({
+            id: fieldId,
+            total: data.areaSquareMeters,
+            allocated: data.allocatedAreaSquareMeters,
+            remaining: data.remainingAreaSquareMeters,
+          })),
+          startWith(null),
+          catchError(() => of(null)),
+        )
+      : of(null)),
+  ));
   protected readonly saving = signal(false);
   protected readonly saved = signal(false);
   protected readonly errors = signal<PlantingErrors>({});
@@ -231,8 +285,19 @@ export class PlantingFormPage {
 
   protected loadField(): void {
     this.message.set("");
+    const fieldId = this.fixedFieldId;
+    if (!fieldId) {
+      this.fields.getFields().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: ({ fields }) => {
+          this.availableFields.set(fields);
+          this.selectField(this.returnQuery.fieldId ?? "");
+        },
+        error: (error: unknown) => this.showFailure(error, "目前無法載入田區，請再試一次。"),
+      });
+      return;
+    }
     forkJoin({
-      field: this.fields.getField({ fieldId: this.fieldId }),
+      field: this.fields.getField({ fieldId }),
       planting: this.plantingId
         ? this.plantings.getPlanting({ plantingId: this.plantingId })
         : of(null),
@@ -267,8 +332,15 @@ export class PlantingFormPage {
       });
   }
 
-  protected save(): void {
-    if (this.saving() || this.saved() || !this.field()) return;
+  protected selectField(fieldId: string): void {
+    this.field.set(this.availableFields()?.find((field) => field.id === fieldId) ?? null);
+    this.errors.set({});
+    this.message.set("");
+  }
+
+  protected save(completeDialog: HTMLDialogElement, confirmed = false): void {
+    const field = this.field();
+    if (this.saving() || this.saved() || !field) return;
     this.message.set("");
     const values = this.form.getRawValue();
     const cropName = values.cropName.trim();
@@ -293,6 +365,10 @@ export class PlantingFormPage {
       this.message.set("請檢查標示的欄位。");
       return;
     }
+    if (values.status === "completed" && !confirmed) {
+      completeDialog.showModal();
+      return;
+    }
 
     this.saving.set(true);
     const request: EditPlantingRqDto = {
@@ -313,7 +389,7 @@ export class PlantingFormPage {
           editPlantingRqDto: request,
         })
       : this.plantings.createPlanting({
-          fieldId: this.fieldId,
+          fieldId: field.id,
           createPlantingRqDto: {
             ...request,
             status: values.status as CreatePlantingRqDto.StatusEnum,
@@ -345,10 +421,13 @@ export class PlantingFormPage {
   }
 
   protected back(saved = false): void {
+    const fieldId = saved && !this.plantingId && this.returnQuery.fieldId
+      ? this.field()?.id
+      : this.returnQuery.fieldId;
     void this.router.navigate(["/dashboard/plantings"], {
-      queryParams: { fieldId: this.fieldId },
+      queryParams: { fieldId },
       info: saved
-        ? { fieldId: this.fieldId, edited: !!this.plantingId }
+        ? { edited: !!this.plantingId }
         : undefined,
     });
   }

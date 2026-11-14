@@ -201,7 +201,7 @@ test('田區列表載入失敗後可重試，空列表提供新增入口', async
     (route) => route.fulfill({ json: [] }),
     { times: 1 },
   );
-  await page.getByRole('link', { name: '田區總覽', exact: true }).click();
+  await page.getByRole('link', { name: 'CropPilot 田區總覽', exact: true }).click();
   await page.getByRole('link', { name: '＋ 新增田區' }).click();
   await expect(page.getByRole('heading', { name: '新增田區' })).toBeVisible();
   await page.getByRole('button', { name: '取消' }).click();
@@ -221,26 +221,18 @@ test('栽培超額保留輸入，編輯、刪除與結束後更新面積及總�
   await expect(
     page.getByRole('row').filter({ hasText: fieldName }),
   ).toBeVisible();
-  await page.getByRole('link', { name: '作物栽培管理', exact: true }).click();
-  const field = page.getByLabel('田區', { exact: true });
+  await page.route('**/api/v1/overview', (route) => route.fulfill({ status: 503 }), { times: 1 });
+  await page.getByRole('link', { name: '作物栽培', exact: true }).click();
   const add = page.getByRole('link', { name: '新增栽培紀錄', exact: true });
-  await expect(field).toHaveValue('');
-  await expect(add).toBeHidden();
-  await page.route(
-    '**/api/v1/fields/*/plantings',
-    (route) => route.fulfill({ status: 503 }),
-    { times: 1 },
-  );
-  const fieldId = (await field.selectOption({ label: fieldName }))[0];
   await expect(page.getByRole('alert')).toHaveText('目前無法載入栽培紀錄。');
-  await expect(field).toHaveValue(fieldId);
   await page.getByRole('button', { name: '重新載入' }).click();
-  await expect(page.getByText('這個田區還沒有栽培紀錄')).toBeVisible();
   await add.click();
+  const picker = page.getByLabel('選擇田區', { exact: true });
+  await expect(picker).toHaveValue('');
+  const fieldId = (await picker.selectOption({ label: fieldName }))[0];
   await page.getByRole('button', { name: '取消' }).click();
-  await expect(field).toHaveValue(fieldId);
-  await expect(page.getByText('這個田區還沒有栽培紀錄')).toBeVisible();
   await add.click();
+  await picker.selectOption(fieldId);
 
   const crop = page.getByLabel('作物名稱（必填）');
   const status = page.getByLabel('狀態', { exact: true });
@@ -268,10 +260,12 @@ test('栽培超額保留輸入，編輯、刪除與結束後更新面積及總�
   await expect(crop).toHaveValue('番茄');
   await expect(status).toHaveValue('harvesting');
   await save.click();
+  const field = page.getByLabel('田區', { exact: true });
+  await field.selectOption(fieldId);
   const planting = page.getByRole('row').filter({ hasText: '番茄' });
   await expect(field).toHaveValue(fieldId);
   await expect(planting).toContainText('採收中');
-  await expect(planting).toContainText('尚未設定');
+  await expect(planting.getByRole('cell', { name: '—', exact: true })).toHaveCount(2);
   await page.reload();
   await expect(planting).toBeVisible();
 
@@ -289,10 +283,11 @@ test('栽培超額保留輸入，編輯、刪除與結束後更新面積及總�
   await save.click();
   const planned = page.getByRole('row').filter({ hasText: '小白菜' });
   await expect(planned).toContainText('規劃中');
-  await expect(planned).toContainText('尚未設定');
+  await expect(planned.getByRole('cell', { name: '—', exact: true })).toHaveCount(2);
 
-  await page.getByRole('link', { name: '田區總覽', exact: true }).click();
-  const overview = page.getByRole('row').filter({ hasText: fieldName });
+  await page.getByRole('link', { name: 'CropPilot 田區總覽', exact: true }).click();
+  const overview = page.getByRole('table', { name: '田區總覽', exact: true })
+    .getByRole('row').filter({ hasText: fieldName });
   await expect(overview).toContainText('番茄');
   await expect(overview).toContainText('採收中');
   await expect(overview).toContainText('小白菜');
@@ -300,30 +295,41 @@ test('栽培超額保留輸入，編輯、刪除與結束後更新面積及總�
   await expect(overview).toContainText('尚未設定');
 
   await page.goto(`/dashboard/plantings?fieldId=${fieldId}`);
-  const remaining = page.locator('dl div').filter({ hasText: '剩餘面積' }).locator('dd');
-  await expect(remaining).toHaveText('0 m²');
+  const operations = (crop: string) => page.getByRole('button', { name: `操作 ${crop}（${fieldName}）` });
+  const remaining = page.getByText('剩餘面積', { exact: false });
+  await operations('小白菜').click();
   await planned.getByRole('link', { name: '編輯 小白菜' }).click();
+  await expect(remaining).toContainText('剩餘面積 0 m²');
   await expect(area).toHaveValue('30');
   await page.getByLabel('品種（選填）').fill('示意品種');
   await save.click();
-  await expect(planned).toContainText('示意品種');
+  await operations('小白菜').click();
+  await planned.getByRole('link', { name: '編輯 小白菜' }).click();
+  await expect(page.getByLabel('品種（選填）')).toHaveValue('示意品種');
+  await page.getByRole('button', { name: '取消' }).click();
   const remove = planned.getByRole('button', { name: '刪除 小白菜' });
   const confirmation = page.getByRole('dialog', { name: '刪除栽培紀錄' });
+  await operations('小白菜').click();
   await remove.click();
   await expect(confirmation).toContainText('小白菜');
   await confirmation.getByRole('button', { name: '取消' }).click();
   await expect(planned).toBeVisible();
+  await operations('小白菜').click();
   await remove.click();
   await confirmation.getByRole('button', { name: '確認刪除' }).click();
   await expect(planned).toBeHidden();
-  await expect(remaining).toHaveText('30 m²');
 
+  await operations('番茄').click();
   await planting.getByRole('link', { name: '編輯 番茄' }).click();
+  await expect(remaining).toContainText('剩餘面積 30 m²');
   await status.selectOption('completed');
   await page.getByLabel('實際栽種日（必填）').fill('2026-11-01');
   await save.click();
-  await expect(remaining).toHaveText('100 m²');
-  await page.getByRole('link', { name: '田區總覽', exact: true }).click();
+  await page.getByRole('button', { name: '確認結束' }).click();
+  await add.click();
+  await picker.selectOption(fieldId);
+  await expect(remaining).toContainText('剩餘面積 100 m²');
+  await page.getByRole('link', { name: 'CropPilot 田區總覽', exact: true }).click();
   await expect(overview).toBeVisible();
   await expect(overview).not.toContainText('番茄');
 });
@@ -383,7 +389,7 @@ test('新增田區後可重新載入，驗證錯誤和名稱衝突保留輸入',
     page.getByRole('row').filter({ hasText: secondName }),
   ).toContainText('未設定');
 
-  await page.getByRole('link', { name: '田區總覽' }).click();
+  await page.getByRole('link', { name: 'CropPilot 田區總覽' }).click();
   await expect(
     page.getByRole('row').filter({ hasText: secondName }),
   ).toBeVisible();
