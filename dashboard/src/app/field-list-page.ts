@@ -1,6 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
@@ -11,6 +11,10 @@ import { PlantingRsDto } from './generated/model/plantingRsDto';
 import { plantingDate, plantingStatusLabel } from './planting-display';
 
 type ListedField = FieldDto & { plantings?: PlantingRsDto[] };
+type FieldSortColumn = 'name' | 'areaSquareMeters';
+type FieldSortDirection = 'ascending' | 'descending';
+
+const fieldNameOrder = new Intl.Collator('zh-Hant-TW');
 
 type ListState =
   | { status: 'loading' }
@@ -20,6 +24,33 @@ type ListState =
 @Component({
   selector: 'app-field-list-page',
   imports: [DecimalPipe, RouterLink],
+  styles: `
+    .field-search {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .65rem;
+      margin-top: 1.5rem;
+    }
+    .field-search .field-control { width: min(100%, 22rem); }
+    .field-search + .field-table { margin-top: .75rem; }
+    .field-sort {
+      padding: .25rem .5rem;
+      margin: -.25rem -.5rem;
+      border: 0;
+      border-radius: .35rem;
+      color: inherit;
+      background: transparent;
+      font-weight: inherit;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .field-sort:hover, th[aria-sort] .field-sort {
+      color: var(--green);
+      background: var(--pale);
+    }
+    .field-no-matches { text-align: center; }
+  `,
   template: `
     <header class="page-heading">
       <div>
@@ -74,12 +105,51 @@ type ListState =
             }
           </section>
         } @else {
+          @if (!overview) {
+            <div class="field-search" role="search" aria-label="搜尋田區">
+              <div class="field-control">
+                <input
+                  #fieldSearch
+                  type="search"
+                  aria-label="搜尋田區名稱"
+                  placeholder="搜尋田區名稱"
+                  [value]="searchText()"
+                  (input)="searchText.set(fieldSearch.value)"
+                />
+              </div>
+              @if (searchText()) {
+                <button
+                  class="button button-outline"
+                  type="button"
+                  (click)="searchText.set(''); fieldSearch.focus()"
+                >
+                  清除搜尋
+                </button>
+              }
+              <p role="status">
+                @if (searchTerm()) { {{ visibleFields().length }} 筆結果 }
+              </p>
+            </div>
+          }
           <div class="panel field-table">
             <table [attr.aria-label]="overview ? '田區總覽' : '田區管理列表'">
               <thead>
                 <tr>
-                  <th scope="col">田區名稱</th>
-                  <th scope="col">面積</th>
+                  @if (overview) {
+                    <th scope="col">田區名稱</th>
+                    <th scope="col">面積</th>
+                  } @else {
+                    <th scope="col" [attr.aria-sort]="sortDirection('name')">
+                      <button class="field-sort" type="button" (click)="sortBy('name')">
+                        田區名稱 <span aria-hidden="true">{{ sortIndicator('name') }}</span>
+                      </button>
+                    </th>
+                    <th scope="col" [attr.aria-sort]="sortDirection('areaSquareMeters')">
+                      <button class="field-sort" type="button" (click)="sortBy('areaSquareMeters')">
+                        面積 <span aria-hidden="true">{{ sortIndicator('areaSquareMeters') }}</span>
+                      </button>
+                    </th>
+                  }
                   <th scope="col">座標（緯度、經度）</th>
                   @if (overview) {
                     <th scope="col">目前栽培</th>
@@ -89,7 +159,7 @@ type ListState =
                 </tr>
               </thead>
               <tbody>
-                @for (field of result.fields; track field.id) {
+                @for (field of visibleFields(); track field.id) {
                   <tr>
                     <th scope="row">
                       {{ field.name }}
@@ -144,6 +214,8 @@ type ListState =
                       </td>
                     }
                   </tr>
+                } @empty {
+                  <tr><td colspan="4" class="field-no-matches">找不到符合的田區。</td></tr>
                 }
               </tbody>
             </table>
@@ -196,6 +268,29 @@ export class FieldListPage {
   protected readonly overview =
     inject(ActivatedRoute).snapshot.data['overview'] === true;
   protected readonly state = signal<ListState>({ status: 'loading' });
+  protected readonly searchText = signal('');
+  protected readonly searchTerm = computed(() => this.searchText().trim().toLowerCase());
+  private readonly sort = signal<{ column: FieldSortColumn; direction: FieldSortDirection }>({
+    column: 'name',
+    direction: 'ascending',
+  });
+  protected readonly visibleFields = computed(() => {
+    const result = this.state();
+    if (result.status !== 'ready') return [];
+    if (this.overview) return result.fields;
+
+    const term = this.searchTerm();
+    const { column, direction } = this.sort();
+    return result.fields
+      .filter((field) => field.name.toLowerCase().includes(term))
+      .sort((left, right) => {
+        const byName = fieldNameOrder.compare(left.name, right.name);
+        const order = column === 'name'
+          ? byName
+          : left.areaSquareMeters - right.areaSquareMeters;
+        return order === 0 ? byName : direction === 'ascending' ? order : -order;
+      });
+  });
   protected readonly notice = signal(
     fieldSaveNotice(this.router.currentNavigation()?.extras.info),
   );
@@ -207,6 +302,28 @@ export class FieldListPage {
 
   ngOnInit(): void {
     this.load();
+  }
+
+  protected sortBy(column: FieldSortColumn): void {
+    this.sort.update((current) => ({
+      column,
+      direction: current.column === column && current.direction === 'ascending'
+        ? 'descending'
+        : 'ascending',
+    }));
+  }
+
+  protected sortDirection(column: FieldSortColumn): FieldSortDirection | null {
+    const sort = this.sort();
+    return sort.column === column ? sort.direction : null;
+  }
+
+  protected sortIndicator(column: FieldSortColumn): string {
+    switch (this.sortDirection(column)) {
+      case 'ascending': return '↑';
+      case 'descending': return '↓';
+      default: return '↕';
+    }
   }
 
   protected load(): void {
