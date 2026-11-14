@@ -27,6 +27,8 @@ test('新增農藥與兩種批次，施用後回查批次及主檔餘量', async
         return route.fulfill({ json: { accessToken: 'test-token', sessionId: 'test-session' } });
       case '/api/v1/fields':
         return route.fulfill({ json: { fields: [{ id: fieldId, name: '北側田', areaSquareMeters: 1000 }] } });
+      case '/api/v1/overview':
+        return route.fulfill({ json: [{ id: fieldId, name: '北側田', areaSquareMeters: 1000, plantings: [planting] }] });
       case '/api/v1/fields/' + fieldId:
         return route.fulfill({ json: { id: fieldId, name: '北側田', areaSquareMeters: 1000 } });
       case '/api/v1/fields/' + fieldId + '/plantings':
@@ -121,9 +123,8 @@ test('新增農藥與兩種批次，施用後回查批次及主檔餘量', async
   const materialRow = page.getByRole('row', { name: /^示例農藥 / });
   await expect(materialRow.getByRole('cell', { name: '800', exact: true })).toBeVisible();
 
-  await page.getByRole('link', { name: '作物栽培管理', exact: true }).click();
-  await page.getByLabel('田區', { exact: true }).selectOption(fieldId);
-  await page.getByLabel('田間作業 青江菜').click();
+  await page.getByRole('link', { name: '作物栽培', exact: true }).click();
+  await page.getByRole('button', { name: '操作 青江菜（北側田）' }).click();
   await page.getByRole('link', { name: '資材施用紀錄', exact: true }).click();
   await page.getByRole('button', { name: '新增施用', exact: true }).click();
   await page.getByLabel('施用日期').fill('2026-01-02');
