@@ -35,6 +35,65 @@ test('未登入直接開啟田區頁面時轉至登入', async ({ page }) => {
   }
 });
 
+test('田區管理可搜尋名稱並切換名稱和面積的排序', async ({ page }) => {
+  let listRequests = 0;
+  await page.route('**/api/v1/**', (route) => {
+    switch (new URL(route.request().url()).pathname) {
+      case '/api/v1/auth/csrf':
+      case '/api/v1/auth/session':
+        return route.fulfill({ status: 204 });
+      case '/api/v1/auth/refresh':
+        return route.fulfill({
+          json: { accessToken: 'test-token', sessionId: 'test-session' },
+        });
+      case '/api/v1/fields':
+        listRequests++;
+        return route.fulfill({
+          json: {
+            fields: [
+              { id: randomUUID(), name: '北側田 B', areaSquareMeters: 80 },
+              { id: randomUUID(), name: '南側田', areaSquareMeters: 100 },
+              { id: randomUUID(), name: '北側田 A', areaSquareMeters: 1200 },
+            ],
+          },
+        });
+      default:
+        return route.fulfill({ status: 404 });
+    }
+  });
+
+  await page.goto('/dashboard/fields');
+  const table = page.getByRole('table', { name: '田區管理列表' });
+  const rows = table.getByRole('rowheader');
+  const nameHeader = table.getByRole('columnheader', { name: '田區名稱' });
+  const areaHeader = table.getByRole('columnheader', { name: '面積' });
+  const search = page.getByRole('searchbox', { name: '搜尋田區名稱' });
+
+  await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+  const ascendingNames = ['北側田 A', '北側田 B', '南側田'];
+  await expect(rows).toHaveText(ascendingNames);
+  await nameHeader.getByRole('button').click();
+  await expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
+  await expect(rows).toHaveText(ascendingNames.toReversed());
+
+  await areaHeader.getByRole('button').click();
+  await expect(areaHeader).toHaveAttribute('aria-sort', 'ascending');
+  await expect(rows).toHaveText(['北側田 B', '南側田', '北側田 A']);
+  await search.fill(' 北側田 ');
+  await expect(page.getByRole('status')).toHaveText('2 筆結果');
+  await expect(rows).toHaveText(['北側田 B', '北側田 A']);
+  await areaHeader.getByRole('button').click();
+  await expect(areaHeader).toHaveAttribute('aria-sort', 'descending');
+  await expect(rows).toHaveText(['北側田 A', '北側田 B']);
+
+  await search.fill('東側田');
+  await expect(table.getByText('找不到符合的田區。')).toBeVisible();
+  await page.getByRole('button', { name: '清除搜尋' }).click();
+  await expect(search).toBeFocused();
+  await expect(rows).toHaveText(['北側田 A', '南側田', '北側田 B']);
+  expect(listRequests).toBe(1);
+});
+
 test('田區可編輯、取消刪除，確認後才刪除', async ({ page }) => {
   const original = `編輯測試 ${randomUUID()}`;
   const updated = `${original} 已更新`;
