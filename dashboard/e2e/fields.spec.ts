@@ -35,8 +35,14 @@ test('未登入直接開啟田區頁面時轉至登入', async ({ page }) => {
   }
 });
 
-test('田區管理可搜尋名稱並切換名稱和面積的排序', async ({ page }) => {
+test('田區管理可搜尋、排序並從列選單開啟編輯與刪除', async ({ page }) => {
   let listRequests = 0;
+  const northField = {
+    id: randomUUID(),
+    name: '北側田 A',
+    areaSquareMeters: 1200,
+    notes: '靠近灌溉水源',
+  };
   await page.route('**/api/v1/**', (route) => {
     switch (new URL(route.request().url()).pathname) {
       case '/api/v1/auth/csrf':
@@ -53,10 +59,14 @@ test('田區管理可搜尋名稱並切換名稱和面積的排序', async ({ pa
             fields: [
               { id: randomUUID(), name: '北側田 B', areaSquareMeters: 80 },
               { id: randomUUID(), name: '南側田', areaSquareMeters: 100 },
-              { id: randomUUID(), name: '北側田 A', areaSquareMeters: 1200 },
+              northField,
             ],
           },
         });
+      case `/api/v1/fields/${northField.id}`:
+        return route.request().method() === 'DELETE'
+          ? route.fulfill({ status: 204 })
+          : route.fulfill({ json: northField });
       default:
         return route.fulfill({ status: 404 });
     }
@@ -72,6 +82,10 @@ test('田區管理可搜尋名稱並切換名稱和面積的排序', async ({ pa
   await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
   const ascendingNames = ['北側田 A', '北側田 B', '南側田'];
   await expect(rows).toHaveText(ascendingNames);
+  await expect(table.getByRole('columnheader')).toHaveText([
+    '田區名稱 ↑', '面積 ↕', '座標（緯度、經度）', '備註', '操作',
+  ]);
+  await expect(table.getByRole('cell', { name: '靠近灌溉水源' })).toBeVisible();
   await nameHeader.getByRole('button').click();
   await expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
   await expect(rows).toHaveText(ascendingNames.toReversed());
@@ -92,6 +106,46 @@ test('田區管理可搜尋名稱並切換名稱和面積的排序', async ({ pa
   await expect(search).toBeFocused();
   await expect(rows).toHaveText(['北側田 A', '南側田', '北側田 B']);
   expect(listRequests).toBe(1);
+
+  const operations = table.getByRole('button', { name: '田區操作：北側田 A' });
+  const edit = table.getByRole('link', { name: '編輯田區：北側田 A', includeHidden: true });
+  const remove = table.getByRole('button', { name: '刪除田區：北側田 A', includeHidden: true });
+  await expect(edit).toBeHidden();
+  await operations.focus();
+  await operations.press('Enter');
+  await expect(edit).toBeVisible();
+  for (const action of [edit, remove]) {
+    await expect(action).toHaveCSS('font-size', '16px');
+    await expect(action).toHaveCSS('height', '36px');
+  }
+  await page.keyboard.press('Escape');
+  await expect(edit).toBeHidden();
+  await expect(operations).toBeFocused();
+
+  await operations.click();
+  await remove.click();
+  const dialog = page.getByRole('dialog', { name: '刪除田區' });
+  await expect(dialog).toContainText('北側田 A');
+  await dialog.getByRole('button', { name: '取消' }).click();
+  await expect(remove).toBeHidden();
+  await expect(operations).toBeFocused();
+
+  await operations.click();
+  await edit.click();
+  await expect(page).toHaveURL(`/dashboard/fields/${northField.id}/edit`);
+  await expect(page.getByLabel('備註（選填）')).toHaveValue(northField.notes);
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+
+  await operations.click();
+  await remove.click();
+  const deletion = page.waitForResponse((response) =>
+    response.url().endsWith(`/api/v1/fields/${northField.id}`) &&
+    response.request().method() === 'DELETE',
+  );
+  await dialog.getByRole('button', { name: '確認刪除' }).click();
+  expect((await deletion).status()).toBe(204);
+  await expect(operations).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: '已刪除田區' })).toContainText(northField.name);
 });
 
 test('田區可編輯、取消刪除，確認後才刪除', async ({ page }) => {
@@ -109,6 +163,7 @@ test('田區可編輯、取消刪除，確認後才刪除', async ({ page }) => 
   await notes.fill('舊備註');
   await save.click();
 
+  await page.getByRole('button', { name: `田區操作：${original}`, exact: true }).click();
   await page
     .getByRole('link', { name: `編輯田區：${original}`, exact: true })
     .click();
@@ -128,8 +183,10 @@ test('田區可編輯、取消刪除，確認後才刪除', async ({ page }) => 
   await page.reload();
   await expect(row).toBeVisible();
 
+  const operations = row.getByRole('button', { name: `田區操作：${updated}` });
   const remove = row.getByRole('button', { name: `刪除田區：${updated}` });
   const dialog = page.getByRole('dialog', { name: '刪除田區' });
+  await operations.click();
   await remove.click();
   await expect(dialog).toContainText(updated);
   await dialog.getByRole('button', { name: '取消' }).click();
@@ -142,6 +199,7 @@ test('田區可編輯、取消刪除，確認後才刪除', async ({ page }) => 
     (route) => route.fulfill({ status: 409 }),
     { times: 1 },
   );
+  await operations.click();
   await remove.click();
   await dialog.getByRole('button', { name: '確認刪除' }).click();
   await expect(dialog.getByRole('alert')).toHaveText(
@@ -150,6 +208,7 @@ test('田區可編輯、取消刪除，確認後才刪除', async ({ page }) => 
   await dialog.getByRole('button', { name: '取消' }).click();
   await expect(row).toBeVisible();
 
+  await operations.click();
   await remove.click();
   await dialog.getByRole('button', { name: '確認刪除' }).click();
   await expect(dialog).toBeHidden();
