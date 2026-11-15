@@ -157,19 +157,25 @@
         <td>{{ statusLabel[row.status] }}</td>
         <td>
           <button
-            class="row-trigger"
+            class="button button-outline row-action-trigger"
             type="button"
             [attr.popovertarget]="'operations-' + row.id"
             [attr.aria-label]="'操作 ' + row.cropName + '（' + row.fieldName + '）'"
           >
-            ☰
+            <span aria-hidden="true">☰</span>
           </button>
           <div
             #menu
             popover
             [id]="'operations-' + row.id"
-            class="row-operations"
+            class="row-action-menu"
           >
+            <a
+              [routerLink]="[row.fieldId, row.id, 'edit']"
+              [queryParams]="{ fieldId: selectedFieldId() || null }"
+              [attr.aria-label]="'編輯 ' + row.cropName"
+              >編輯</a
+            >
             @if (row.status !== 'planned') {
             <a
               [routerLink]="[row.fieldId, row.id, 'fertilizations']"
@@ -182,16 +188,10 @@
               >灌溉紀錄</a
             >
             }
-            <a
-              [routerLink]="[row.fieldId, row.id, 'edit']"
-              [queryParams]="{ fieldId: selectedFieldId() || null }"
-              [attr.aria-label]="'編輯 ' + row.cropName"
-              >編輯</a
-            >
             @if (row.status === 'planned') {
             <button
               type="button"
-              class="error"
+              class="row-action-danger"
               [attr.aria-label]="'刪除 ' + row.cropName"
               (click)="confirmDelete(row, menu, deleteDialog)"
             >

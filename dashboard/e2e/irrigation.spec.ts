@@ -126,6 +126,8 @@ test('栽培中的列操作可開啟灌溉清單並返回原田區', async ({ pa
     await mockApi(page, 'growing');
     await page.goto(managementPath);
     await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
+    const row = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: '番茄' }) });
+    await expect(row.getByRole('link')).toHaveText(['編輯', '資材施用紀錄', '灌溉紀錄']);
     await page.getByRole('link', { name: '灌溉紀錄' }).click();
     await expect(page.getByRole('heading', { name: '灌溉紀錄' })).toBeVisible();
     const add = page.getByRole('button', { name: '新增灌溉' });

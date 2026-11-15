@@ -130,8 +130,46 @@ button, input, textarea { font: inherit; }
 .field-coordinates > p { margin-top: .35rem; font-size: .875rem; }
 .field-form-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.2rem; }
 .field-form-message { margin-top: .65rem; }
-.field-row-actions { display: flex; gap: .5rem; }
-.field-row-actions .button { padding: .35rem .65rem; }
+.row-action-trigger {
+  width: 2.65rem;
+  min-height: 2.35rem;
+  padding: .15rem;
+  font-weight: 400;
+}
+.row-action-trigger:hover, .row-action-trigger:has(+ :popover-open) {
+  background: var(--pale);
+}
+.row-action-menu {
+  position-area: block-end span-inline-start;
+  position-try-fallbacks: flip-block, flip-inline;
+  min-width: 8.5rem;
+  margin: .25rem 0;
+  padding: .3rem;
+  border: 1px solid var(--border);
+  border-radius: .55rem;
+  color: inherit;
+  background: #fff;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  box-shadow: 0 .25rem .75rem rgb(20 38 29 / 14%);
+}
+.row-action-menu > :is(a, button) {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: .3rem .55rem;
+  border: 0;
+  border-radius: .3rem;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.row-action-menu > :is(a, button):hover { background: var(--pale); }
+.row-action-menu > .row-action-danger { color: #9f2c2c; }
 .field-delete-dialog {
   width: min(28rem, calc(100% - 2rem));
   padding: 1.5rem;
