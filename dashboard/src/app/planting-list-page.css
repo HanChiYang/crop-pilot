@@ -84,8 +84,8 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.planting-sort,
-.row-trigger {
+.planting-sort {
+  margin: -0.25rem -0.45rem;
   padding: 0.25rem 0.45rem;
   border: 0;
   border-radius: 0.35rem;
@@ -96,47 +96,12 @@
   cursor: pointer;
 }
 
-.planting-sort {
-  margin: -0.25rem -0.45rem;
-}
 .planting-sort:hover,
-th[aria-sort] .planting-sort,
-.row-trigger:hover {
+th[aria-sort] .planting-sort {
   color: var(--green);
   background: var(--pale);
 }
 
-.row-trigger {
-  border: 1px solid var(--border);
-  color: var(--green);
-}
-.row-operations {
-  position-area: block-end span-inline-start;
-  position-try-fallbacks: flip-block, flip-inline;
-  margin: 0.25rem 0;
-  padding: 0.3rem;
-  min-width: 8.5rem;
-  border: 1px solid var(--border);
-  border-radius: 0.55rem;
-  color: inherit;
-  background: white;
-  box-shadow: 0 0.25rem 0.75rem rgb(20 38 29 / 14%);
-}
-
-.row-operations :is(a, button) {
-  display: block;
-  width: 100%;
-  padding: 0.3rem 0.55rem;
-  border: 0;
-  border-radius: 0.3rem;
-  background: transparent;
-  text-align: start;
-  cursor: pointer;
-}
-
-.row-operations :is(a, button):hover {
-  background: var(--pale);
-}
 .no-matches {
   text-align: center;
 }

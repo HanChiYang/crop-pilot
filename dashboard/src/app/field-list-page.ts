@@ -32,8 +32,50 @@ type ListState =
       gap: .65rem;
       margin-top: 1.5rem;
     }
-    .field-search .field-control { width: min(100%, 22rem); }
+    .field-search .field-control {
+      position: relative;
+      width: min(100%, 20rem);
+    }
+    .field-search input { padding-inline-start: 2.25rem; }
+    .field-search-icon {
+      position: absolute;
+      inset-inline-start: .85rem;
+      inset-block-start: 50%;
+      width: .75rem;
+      height: .75rem;
+      transform: translateY(-60%);
+      border: 1.5px solid currentColor;
+      border-radius: 50%;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .field-search-icon::after {
+      content: '';
+      position: absolute;
+      inset-inline-end: -.29rem;
+      inset-block-end: -.13rem;
+      width: .38rem;
+      height: 1.5px;
+      transform: rotate(45deg);
+      background: currentColor;
+    }
     .field-search + .field-table { margin-top: .75rem; }
+    .field-management-table { padding-inline: 1rem; }
+    .field-management-table table { min-width: 37rem; }
+    .field-management-table :is(th, td) {
+      padding-inline: .65rem;
+      vertical-align: middle;
+    }
+    .field-management-table :is(th, td):first-child { padding-inline-start: 0; }
+    .field-management-table :is(th, td):last-child { padding-inline-end: 0; }
+    .field-management-table thead th { white-space: nowrap; }
+    .field-management-table tbody th { width: 21%; }
+    .field-management-table td.field-list-notes {
+      width: 28%;
+      color: var(--muted);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
     .field-sort {
       padding: .25rem .5rem;
       margin: -.25rem -.5rem;
@@ -62,10 +104,7 @@ type ListState =
         </p>
       </div>
       @if (!overview && state().status === 'ready') {
-        <div class="field-row-actions">
-          <a class="button button-outline" routerLink="/dashboard/plantings">前往作物栽培管理</a>
-          <a class="button" routerLink="/dashboard/fields/new">＋ 新增田區</a>
-        </div>
+        <a class="button" routerLink="/dashboard/fields/new">＋ 新增田區</a>
       }
     </header>
 
@@ -108,6 +147,7 @@ type ListState =
           @if (!overview) {
             <div class="field-search" role="search" aria-label="搜尋田區">
               <div class="field-control">
+                <span class="field-search-icon" aria-hidden="true"></span>
                 <input
                   #fieldSearch
                   type="search"
@@ -131,7 +171,7 @@ type ListState =
               </p>
             </div>
           }
-          <div class="panel field-table">
+          <div class="panel field-table" [class.field-management-table]="!overview">
             <table [attr.aria-label]="overview ? '田區總覽' : '田區管理列表'">
               <thead>
                 <tr>
@@ -154,6 +194,7 @@ type ListState =
                   @if (overview) {
                     <th scope="col">目前栽培</th>
                   } @else {
+                    <th scope="col">備註</th>
                     <th scope="col">操作</th>
                   }
                 </tr>
@@ -163,7 +204,7 @@ type ListState =
                   <tr>
                     <th scope="row">
                       {{ field.name }}
-                      @if (field.notes) {
+                      @if (overview && field.notes) {
                         <p class="field-notes">{{ field.notes }}</p>
                       }
                     </th>
@@ -190,10 +231,19 @@ type ListState =
                         }
                       </td>
                     } @else {
+                      <td class="field-list-notes">{{ field.notes }}</td>
                       <td>
-                        <div class="field-row-actions">
+                        <button
+                          #actionTrigger
+                          class="button button-outline row-action-trigger"
+                          type="button"
+                          [attr.popovertarget]="'field-actions-' + field.id"
+                          [attr.aria-label]="'田區操作：' + field.name"
+                        >
+                          <span aria-hidden="true">☰</span>
+                        </button>
+                        <div #actionMenu popover [id]="'field-actions-' + field.id" class="row-action-menu">
                           <a
-                            class="button button-outline"
                             [routerLink]="[
                               '/dashboard/fields',
                               field.id,
@@ -203,10 +253,10 @@ type ListState =
                             >編輯</a
                           >
                           <button
-                            class="button button-outline"
+                            class="row-action-danger"
                             type="button"
                             [attr.aria-label]="'刪除田區：' + field.name"
-                            (click)="confirmDelete(field, deleteDialog)"
+                            (click)="actionMenu.hidePopover(); actionTrigger.focus(); confirmDelete(field, deleteDialog)"
                           >
                             刪除
                           </button>
@@ -215,7 +265,7 @@ type ListState =
                     }
                   </tr>
                 } @empty {
-                  <tr><td colspan="4" class="field-no-matches">找不到符合的田區。</td></tr>
+                  <tr><td colspan="5" class="field-no-matches">找不到符合的田區。</td></tr>
                 }
               </tbody>
             </table>
