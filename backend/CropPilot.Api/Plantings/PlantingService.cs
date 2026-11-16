@@ -89,12 +89,26 @@ public sealed class PlantingService(PlantingRepository repository)
         }, cancellationToken);
     }
 
-    /// <summary>只刪除儲存當下仍為規劃中的紀錄。</summary>
-    internal Task<PlantingWriteResult> DeleteAsync(Guid accountId, Guid plantingId,
-        CancellationToken cancellationToken) =>
-        repository.WriteAsync(accountId, null, plantingId, (current, _) =>
-            new(current!.Status == Planting.Planned ? PlantingWriteStatus.Success : PlantingWriteStatus.Conflict),
-            cancellationToken);
+    /// <summary>查詢帳號擁有的栽培將刪除的作業與批次用量。</summary>
+    internal async Task<(PlantingWriteStatus Status, PlantingDeletion? Deletion)> GetDeletePreviewAsync(Guid accountId,
+        Guid plantingId, CancellationToken ct)
+    {
+        var deletion = await repository.ReadDeletionAsync(accountId, plantingId, ct);
+        if (deletion is null)
+            return (PlantingWriteStatus.NotFound, null);
+        return deletion.Planting.Status == Planting.Completed
+            ? (PlantingWriteStatus.Conflict, null)
+            : (PlantingWriteStatus.Success, deletion);
+    }
+
+    /// <summary>只有預覽版本相符且栽培未結束時，才刪除栽培及其作業。</summary>
+    internal Task<PlantingWriteStatus> DeleteAsync(Guid accountId, Guid plantingId, string previewVersion,
+        CancellationToken ct) => repository.DeleteWithOperationsAsync(accountId, plantingId, deletion =>
+    {
+        if (deletion.Planting.Status == Planting.Completed)
+            return PlantingWriteStatus.Conflict;
+        return deletion.Version() == previewVersion ? PlantingWriteStatus.Success : PlantingWriteStatus.PreviewChanged;
+    }, ct);
 
     /// <summary>檢查未結束紀錄能否維持原狀態或沿栽培流程前進。</summary>
     private static bool CanTransition(string current, string next) => (current, next) switch
@@ -190,7 +204,7 @@ public sealed class PlantingService(PlantingRepository repository)
 }
 
 /// <summary>表示栽培寫入的可預期結果。</summary>
-internal enum PlantingWriteStatus { Success, InvalidInput, NotFound, Conflict }
+internal enum PlantingWriteStatus { Success, InvalidInput, NotFound, Conflict, PreviewChanged }
 
 /// <summary>包含寫入狀態、儲存後的紀錄或欄位錯誤。</summary>
 internal sealed record PlantingWriteResult(PlantingWriteStatus Status, Planting? Planting = null,

@@ -79,10 +79,6 @@ public sealed class IrrigationService(IrrigationRepository repository)
         {
             return new(IrrigationWriteStatus.NotFound);
         }
-        if (status == Planting.Planned)
-        {
-            return new(IrrigationWriteStatus.Conflict, Message: ErrorMessages.IrrigationPlantingPlanned);
-        }
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
         if (request.OperationDate == default || request.OperationDate > today)
@@ -128,4 +124,4 @@ internal sealed record IrrigationWriteResult(IrrigationWriteStatus Status, Field
     string? Message = null, string? Field = null);
 
 /// <summary>灌溉寫入的成功或預期失敗類型。</summary>
-internal enum IrrigationWriteStatus { Success, NotFound, Invalid, Conflict }
+internal enum IrrigationWriteStatus { Success, NotFound, Invalid }

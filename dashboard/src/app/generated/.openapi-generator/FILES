@@ -46,7 +46,9 @@ model/models.ts
 model/pesticideLotRsDto.ts
 model/pesticideMaterialRsDto.ts
 model/pesticideStockUnit.ts
+model/plantingDeletePreviewRsDto.ts
 model/plantingHistoryItemDto.ts
+model/plantingInventoryReturnDto.ts
 model/plantingRsDto.ts
 model/plantingStatus.ts
 model/saveIrrigationRqDto.ts

@@ -5,12 +5,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, forkJoin, Observable } from 'rxjs';
+import { FieldsService } from './generated/api/fields.service';
 import { PlantingsService } from './generated/api/plantings.service';
 import { IrrigationMethod } from './generated/model/irrigationMethod';
 import { IrrigationRsDto } from './generated/model/irrigationRsDto';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
 import { SaveIrrigationRqDto } from './generated/model/saveIrrigationRqDto';
-import { operationError, parseOperationDecimal, taipeiToday } from './operation-form';
+import { compareOperationValues, nextOperationSort, OperationSort, operationError, parseOperationDecimal, taipeiToday } from './operation-form';
+import { plantingStatusLabel } from './planting-display';
+
+type IrrigationSort = 'operationDate' | 'method' | 'waterVolumeLiters';
 
 const methodLabels = {
   drip: '滴灌',
@@ -38,7 +42,10 @@ interface IrrigationInput {
   `,
   template: `
     <header class="page-heading">
-      <div><h1>灌溉紀錄</h1>@if (planting(); as item) { <p>{{ item.cropName }}</p> }</div>
+      <div>
+        <h1>{{ editor() ? (editor()?.id ? '編輯灌溉紀錄' : '新增灌溉紀錄') : '灌溉紀錄' }}</h1>
+        @if (planting(); as item) { <p>{{ fieldName() }}・{{ item.cropName }}・{{ statusLabel[item.status] }}</p> }
+      </div>
       <div class="actions">
         <a class="button button-outline" [routerLink]="backLink()" [queryParams]="backQuery">
           返回{{ fromHistory ? '栽培詳情' : '作物栽培管理' }}
@@ -60,7 +67,6 @@ interface IrrigationInput {
       </section>
     } @else if (editor(); as input) {
       <form class="panel field-form" (ngSubmit)="save(input)">
-        <h2>{{ input.id ? '編輯灌溉' : '新增灌溉' }}</h2>
         <fieldset [disabled]="busy()">
           <div class="field-form-grid">
             <div class="field-control">
@@ -97,16 +103,25 @@ interface IrrigationInput {
         </fieldset>
       </form>
     } @else if (!operations().length) {
-      <p class="panel empty-state">{{ canSave() ? '目前沒有灌溉紀錄。' : '開始栽培後即可新增灌溉紀錄。' }}</p>
+      <section class="panel empty-state">
+        <strong>尚無灌溉紀錄</strong>
+        <p>選擇「新增灌溉」登記一筆灌溉作業。</p>
+      </section>
     } @else {
       <div class="panel field-table">
         <table aria-label="灌溉紀錄清單">
           <thead><tr>
-            <th scope="col">灌溉日期</th><th scope="col">灌溉方式</th>
-            <th scope="col">用水量</th><th scope="col">備註</th><th scope="col">操作</th>
+            @for (column of sortableColumns; track column.key) {
+              <th scope="col" [attr.aria-sort]="sort().column === column.key ? sort().direction : null">
+                <button class="operation-sort" type="button" (click)="sortBy(column.key)">
+                  {{ column.label }} <span aria-hidden="true">{{ sortArrow(column.key) }}</span>
+                </button>
+              </th>
+            }
+            <th scope="col">備註</th><th scope="col">操作</th>
           </tr></thead>
           <tbody>
-            @for (operation of operations(); track operation.id) {
+            @for (operation of visibleOperations(); track operation.id) {
               <tr>
                 <td>{{ operation.operationDate }}</td>
                 <td>{{ labels[operation.method] }}</td>
@@ -116,13 +131,13 @@ interface IrrigationInput {
                 </td>
                 <td class="description">{{ operation.description || '—' }}</td>
                 <td>
-                  <div class="actions">
-                    @if (canSave()) {
-                      <button class="button button-outline" type="button" [disabled]="busy()"
-                        (click)="open(operation)">編輯</button>
-                    }
-                    <button class="button button-outline" type="button" [disabled]="busy()"
-                      (click)="confirmDelete(operation, deleteDialog)">刪除</button>
+                  <button class="button button-outline row-action-trigger" type="button" [disabled]="busy()"
+                    [attr.popovertarget]="'irrigation-actions-' + operation.id"
+                    [attr.aria-label]="'操作 ' + operation.operationDate + ' 的灌溉紀錄'">☰</button>
+                  <div #menu popover class="row-action-menu" [id]="'irrigation-actions-' + operation.id">
+                    <button type="button" (click)="menu.hidePopover(); open(operation)">編輯</button>
+                    <button class="row-action-danger" type="button"
+                      (click)="menu.hidePopover(); confirmDelete(operation, deleteDialog)">刪除</button>
                   </div>
                 </td>
               </tr>
@@ -133,16 +148,21 @@ interface IrrigationInput {
     }
     <dialog #deleteDialog class="field-delete-dialog" aria-labelledby="irrigation-delete-title"
       (cancel)="busy() && $event.preventDefault()">
-      <h2 id="irrigation-delete-title">刪除灌溉紀錄</h2>
+      <h2 id="irrigation-delete-title">刪除灌溉紀錄？</h2>
       @if (pendingDelete(); as operation) {
-        <p>確定刪除 {{ operation.operationDate }} 的{{ labels[operation.method] }}紀錄？</p>
+        @if (planting(); as item) { <p>{{ fieldName() }}・{{ item.cropName }}・{{ statusLabel[item.status] }}</p> }
+        <p>{{ operation.operationDate }}・{{ labels[operation.method] }}・
+          @if (operation.waterVolumeLiters == null) { 用水量未記錄 }
+          @else { {{ operation.waterVolumeLiters | number:'1.0-6' }} 公升 }
+        </p>
+        <p>這筆灌溉紀錄將從清單移除。</p>
         @if (deleteError()) {
           <p class="error" role="alert">{{ deleteError() }}</p>
         }
         <div class="field-form-actions">
           <button class="button button-outline" type="button" autofocus [disabled]="busy()"
             (click)="deleteDialog.close()">取消</button>
-          <button class="button" type="button" [disabled]="busy()" (click)="remove(operation, deleteDialog)">
+          <button class="button button-danger" type="button" [disabled]="busy()" (click)="remove(operation, deleteDialog)">
             {{ busy() ? '刪除中…' : '確認刪除' }}
           </button>
         </div>
@@ -153,6 +173,7 @@ interface IrrigationInput {
 export class IrrigationPage {
   private readonly route = inject(ActivatedRoute);
   private readonly plantings = inject(PlantingsService);
+  private readonly fields = inject(FieldsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly ids = signal({ fieldId: '', plantingId: '' });
 
@@ -165,7 +186,21 @@ export class IrrigationPage {
   protected readonly methods = Object.values(IrrigationMethod);
   protected readonly today = signal(taipeiToday());
   protected readonly planting = signal<PlantingRsDto | null>(null);
-  protected readonly canSave = computed(() => this.planting() !== null && this.planting()?.status !== 'planned');
+  protected readonly canSave = computed(() => this.planting() !== null);
+  protected readonly fieldName = signal('');
+  protected readonly statusLabel = plantingStatusLabel;
+  protected readonly sortableColumns = [
+    { key: 'operationDate', label: '灌溉日期' },
+    { key: 'method', label: '灌溉方式' },
+    { key: 'waterVolumeLiters', label: '用水量' },
+  ] as const;
+  protected readonly sort = signal<OperationSort<IrrigationSort>>({ column: 'operationDate', direction: 'descending' });
+  protected readonly visibleOperations = computed(() => {
+    const { column, direction } = this.sort();
+    return this.operations().slice().sort((a, b) => column === 'method'
+      ? compareOperationValues(this.labels[a.method], this.labels[b.method], direction)
+      : compareOperationValues(a[column], b[column], direction));
+  });
   protected readonly operations = signal<IrrigationRsDto[]>([]);
   protected readonly editor = signal<IrrigationInput | null>(null);
   protected readonly pendingDelete = signal<IrrigationRsDto | null>(null);
@@ -192,6 +227,7 @@ export class IrrigationPage {
     this.loadError.set('');
     try {
       const data = await firstValueFrom(forkJoin({
+        field: this.fields.getField({ fieldId: ids.fieldId }),
         planting: this.plantings.getPlanting({ plantingId: ids.plantingId }),
         operations: this.plantings.listIrrigations({ plantingId: ids.plantingId }),
       }).pipe(takeUntilDestroyed(this.destroyRef)));
@@ -205,6 +241,7 @@ export class IrrigationPage {
         return;
       }
       this.planting.set(data.planting);
+      this.fieldName.set(data.field.name);
       this.operations.set(data.operations);
     } catch (error) {
       if (ids === this.ids()) {
@@ -215,6 +252,15 @@ export class IrrigationPage {
     } finally {
       if (ids === this.ids()) this.loading.set(false);
     }
+  }
+
+  protected sortBy(column: IrrigationSort): void {
+    this.sort.update(current => nextOperationSort(current, column));
+  }
+
+  protected sortArrow(column: IrrigationSort): string {
+    const sort = this.sort();
+    return sort.column !== column ? '↕' : sort.direction === 'ascending' ? '↑' : '↓';
   }
 
   protected open(operation?: IrrigationRsDto): void {

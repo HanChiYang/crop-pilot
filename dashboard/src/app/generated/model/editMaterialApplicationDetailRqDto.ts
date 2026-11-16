@@ -7,19 +7,13 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { MaterialApplicationMethod } from './materialApplicationMethod';
 
 
 export interface EditMaterialApplicationDetailRqDto { 
     id?: string;
     materialPurchaseLotId: string;
-    applicationMethod: MaterialApplicationMethod;
     /**
      * 依批次庫存單位填寫實際施用的資材用量，最多六位小數。
      */
     quantity: number;
 }
-export namespace EditMaterialApplicationDetailRqDto {
-}
-
-

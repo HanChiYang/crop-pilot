@@ -1,3 +1,4 @@
+using System.Data;
 using CropPilot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,7 +7,7 @@ namespace CropPilot.Api.Plantings;
 /// <summary>依田區的擁有者帳號讀寫栽培紀錄。</summary>
 public sealed class PlantingRepository(CropPilotDbContext database)
 {
-    /// <summary>鎖定田區後取得目前紀錄與可分配面積。業務驗證成功時提交新增、編輯或刪除。</summary>
+    /// <summary>鎖定田區後取得目前紀錄與可分配面積。業務驗證成功時提交新增或編輯。</summary>
     internal async Task<PlantingWriteResult> WriteAsync(Guid accountId, Guid? requestedFieldId, Guid? plantingId,
         Func<Planting?, decimal, PlantingWriteResult> apply, CancellationToken cancellationToken)
     {
@@ -46,13 +47,87 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         {
             database.Plantings.Add(result.Planting!);
         }
-        else if (result.Planting is null)
-        {
-            database.Plantings.Remove(current);
-        }
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return result;
+    }
+
+    /// <summary>從同一資料庫快照讀取栽培與作業，供刪除確認使用。</summary>
+    internal async Task<PlantingDeletion?> ReadDeletionAsync(Guid accountId, Guid plantingId, CancellationToken ct)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+        var planting = await FindForDeletionAsync(accountId, plantingId, ct);
+        var deletion = planting is null ? null : await ReadDeletionAsync(planting, ct);
+        await transaction.CommitAsync(ct);
+        return deletion;
+    }
+
+    /// <summary>鎖定田區、栽培及批次，確認摘要後原子刪除栽培與作業。</summary>
+    internal async Task<PlantingWriteStatus> DeleteWithOperationsAsync(Guid accountId, Guid plantingId,
+        Func<PlantingDeletion, PlantingWriteStatus> validate, CancellationToken ct)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(ct);
+        var fieldId = await OwnedPlantings(accountId).Where(value => value.Id == plantingId)
+            .Select(value => (Guid?)value.FieldId).SingleOrDefaultAsync(ct);
+        if (fieldId is not Guid id || await FieldAreaQueries.LockAsync(database, accountId, id, ct) is null)
+            return PlantingWriteStatus.NotFound;
+
+        await database.Database.ExecuteSqlInterpolatedAsync(
+            $"""SELECT id FROM plantings WHERE id = {plantingId} AND field_id = {id} FOR UPDATE""", ct);
+        var planting = await FindForDeletionAsync(accountId, plantingId, ct);
+        if (planting is null)
+            return PlantingWriteStatus.NotFound;
+
+        var lots = await database.MaterialApplicationDetails
+            .Where(detail => detail.Application.FieldOperation.PlantingId == plantingId)
+            .Select(detail => detail.MaterialPurchaseLotId).Distinct().ToListAsync(ct);
+        foreach (var lotId in lots.Order())
+        {
+            await database.Database.ExecuteSqlInterpolatedAsync(
+                $"""SELECT id FROM material_purchase_lots WHERE id = {lotId} FOR UPDATE""", ct);
+        }
+
+        var deletion = await ReadDeletionAsync(planting, ct);
+        var status = validate(deletion);
+        if (status != PlantingWriteStatus.Success)
+            return status;
+
+        await database.FieldOperations.Where(value => value.PlantingId == plantingId).ExecuteDeleteAsync(ct);
+        await database.Plantings.Where(value => value.Id == plantingId).ExecuteDeleteAsync(ct);
+        await transaction.CommitAsync(ct);
+        return PlantingWriteStatus.Success;
+    }
+
+    /// <summary>取得確認視窗需要的栽培及田區名稱。</summary>
+    private Task<Planting?> FindForDeletionAsync(Guid accountId, Guid plantingId, CancellationToken ct) =>
+        OwnedPlantings(accountId).AsNoTracking().Include(value => value.Field)
+            .SingleOrDefaultAsync(value => value.Id == plantingId, ct);
+
+    /// <summary>讀取作業版本及各明細所屬批次的摘要資料。</summary>
+    private async Task<PlantingDeletion> ReadDeletionAsync(Planting planting, CancellationToken ct)
+    {
+        var operations = await database.FieldOperations.AsNoTracking()
+            .Where(value => value.PlantingId == planting.Id).OrderBy(value => value.Id)
+            .Select(value => new PlantingOperationVersion(value.Id, value.OperationType, value.UpdatedAt))
+            .ToListAsync(ct);
+        var details = await database.MaterialApplicationDetails.AsNoTracking()
+            .Where(value => value.Application.FieldOperation.PlantingId == planting.Id)
+            .OrderBy(value => value.Id)
+            .Select(value => new
+            {
+                value.MaterialPurchaseLotId, value.MaterialName, value.Unit, value.Quantity,
+                value.Lot.Source, value.Lot.AvailableFrom
+            }).ToListAsync(ct);
+
+        var inventory = details.GroupBy(value => value.MaterialPurchaseLotId).Select(group =>
+        {
+            var first = group.First();
+            return new PlantingInventoryReturn(group.Key, first.MaterialName, first.Source, first.AvailableFrom,
+                group.Sum(value => value.Quantity), first.Unit);
+        }).OrderBy(value => value.MaterialName, StringComparer.Ordinal).ThenBy(value => value.AvailableFrom)
+            .ThenBy(value => value.LotId).ToList();
+
+        return new(planting, operations, inventory);
     }
 
     /// <summary>依栽培識別碼查詢一筆登入帳號的栽培紀錄。</summary>

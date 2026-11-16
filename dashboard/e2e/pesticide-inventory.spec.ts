@@ -102,13 +102,17 @@ test('同名農藥依包裝分開登記進貨與扣量，既有期初庫存仍�
       case plantingApi + '/material-applications': {
         if (request.method() === 'GET') return route.fulfill({ json: operations });
         const body = request.postDataJSON();
-        expect(body.details).toEqual([{ materialPurchaseLotId: openingLotId, applicationMethod: 'broadcast', quantity: 10 }]);
+        expect(body.applicationMethod).toBe('broadcast');
+        expect(body.details).toEqual([{ materialPurchaseLotId: openingLotId, quantity: 10 }]);
         const lot = lots.find(lot => lot.id === openingLotId)!;
         lot.remainingQuantity -= 10;
         materials[0].remainingQuantity -= 10;
         const operation = {
           id: 'operation',
           operationDate: body.operationDate,
+          applicationMethod: body.applicationMethod,
+          sprayWaterVolumeLiters: null,
+          description: null,
           details: [{ ...body.details[0], id: 'detail', materialId, materialType: 'pesticide',
             materialName: materials[0].name, unit: '毫升', unitPrice: null, currencyCode: 'TWD' }],
         };
@@ -168,7 +172,7 @@ test('同名農藥依包裝分開登記進貨與扣量，既有期初庫存仍�
 
   await page.getByRole('link', { name: '作物栽培', exact: true }).click();
   await page.getByRole('button', { name: '操作 青江菜（北側田）' }).click();
-  await page.getByRole('link', { name: '資材施用紀錄', exact: true }).click();
+  await page.getByRole('link', { name: '資材施用', exact: true }).click();
   await page.getByRole('button', { name: '新增施用', exact: true }).click();
   await page.getByLabel('施用日期').fill('2026-01-02');
   await page.getByLabel('資材類別').selectOption('pesticide');
@@ -179,10 +183,12 @@ test('同名農藥依包裝分開登記進貨與扣量，既有期初庫存仍�
   const batches = page.getByLabel('庫存批次 1');
   await expect(batches.getByRole('option')).toHaveCount(2);
   await batches.selectOption(openingLotId);
-  await page.getByLabel('施用方式').selectOption('broadcast');
+  await page.getByRole('radio', { name: '撒施' }).check();
   await page.getByLabel('用量').fill('10');
   await save.click();
-  await expect(page.getByRole('region', { name: '資材施用紀錄清單' })).toContainText('10 毫升');
+  const applications = page.getByRole('table', { name: '資材施用紀錄清單' });
+  await expect(applications).toContainText('10 毫升');
+  await applications.getByRole('button', { name: /操作.*資材施用/ }).click();
   await page.getByRole('button', { name: '編輯', exact: true }).click();
   await expect(batches).toHaveValue(openingLotId);
   await expect(page.getByLabel('用量')).toHaveValue('10');

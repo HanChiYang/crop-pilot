@@ -50,8 +50,8 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var operationsUrl = await CreateCompletedPlantingAsync(client);
         using var usage = await client.PostAsJsonAsync(operationsUrl, new
         {
-            operationDate = Today,
-            details = new[] { new { materialPurchaseLotId = smallLotId, applicationMethod = "spray", quantity = 25m } }
+            operationDate = Today, applicationMethod = "spray",
+            details = new[] { new { materialPurchaseLotId = smallLotId, quantity = 25m } }
         });
         await ReadAsync(usage, HttpStatusCode.Created);
 
@@ -136,20 +136,20 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
 
         using var invalid = await client.PostAsJsonAsync(operationsUrl, new
         {
-            operationDate = Today, sprayWaterVolumeLiters = 20m,
-            details = new[] { new { materialPurchaseLotId = fertilizerLot, applicationMethod = "broadcast", quantity = 1m } }
+            operationDate = Today, applicationMethod = "broadcast", sprayWaterVolumeLiters = 20m,
+            details = new[] { new { materialPurchaseLotId = fertilizerLot, quantity = 1m } }
         });
         var problem = await ReadAsync(invalid, HttpStatusCode.BadRequest);
         Assert.True(problem.GetProperty("errors").TryGetProperty("sprayWaterVolumeLiters", out _));
 
         using var insufficient = await client.PostAsJsonAsync(operationsUrl, new
         {
-            operationDate = Today,
+            operationDate = Today, applicationMethod = "spray",
             details = new[]
             {
-                new { materialPurchaseLotId = fertilizerLot, applicationMethod = "spray", quantity = 2m },
-                new { materialPurchaseLotId = pesticideLot, applicationMethod = "spray", quantity = 101m },
-                new { materialPurchaseLotId = pesticideLot, applicationMethod = "broadcast", quantity = 1m }
+                new { materialPurchaseLotId = fertilizerLot, quantity = 2m },
+                new { materialPurchaseLotId = pesticideLot, quantity = 101m },
+                new { materialPurchaseLotId = pesticideLot, quantity = 1m }
             }
         });
         var conflict = await ReadAsync(insufficient, HttpStatusCode.Conflict);
@@ -157,16 +157,19 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         Assert.Equal(100m, (await client.GetFromJsonAsync<JsonElement>(lotsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
         Assert.Equal(10m, (await client.GetFromJsonAsync<JsonElement>(MaterialsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
 
+        var remarks = string.Concat(Enumerable.Repeat("🌱", 500));
         using var created = await client.PostAsJsonAsync(operationsUrl, new
         {
-            operationDate = Today, sprayWaterVolumeLiters = 20m,
+            operationDate = Today, applicationMethod = "spray", sprayWaterVolumeLiters = 20m, description = remarks,
             details = new[]
             {
-                new { materialPurchaseLotId = pesticideLot, applicationMethod = "spray", quantity = 15m },
-                new { materialPurchaseLotId = fertilizerLot, applicationMethod = "spray", quantity = 2m }
+                new { materialPurchaseLotId = pesticideLot, quantity = 15m },
+                new { materialPurchaseLotId = fertilizerLot, quantity = 2m }
             }
         });
         var operation = await ReadAsync(created, HttpStatusCode.Created);
+        Assert.Equal("spray", operation.GetProperty("applicationMethod").GetString());
+        Assert.Equal(remarks, operation.GetProperty("description").GetString());
         Assert.Equal(20m, operation.GetProperty("sprayWaterVolumeLiters").GetDecimal());
         Assert.Equal("pesticide", operation.GetProperty("details")[0].GetProperty("materialType").GetString());
         Assert.Equal("fertilizer", operation.GetProperty("details")[1].GetProperty("materialType").GetString());
@@ -216,9 +219,9 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
 
         using var created = await client.PostAsJsonAsync(operationsUrl, new
         {
-            operationDate = Today,
-            details = new[] { new { materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 5m },
-                new { materialPurchaseLotId = otherLot, applicationMethod = "broadcast", quantity = 2m } }
+            operationDate = Today, applicationMethod = "broadcast",
+            details = new[] { new { materialPurchaseLotId = lot, quantity = 5m },
+                new { materialPurchaseLotId = otherLot, quantity = 2m } }
         });
         var operation = await ReadAsync(created, HttpStatusCode.Created);
         var details = operation.GetProperty("details");
@@ -236,16 +239,16 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var detailId = details[0].GetProperty("id").GetGuid();
         using var invalidDetail = await client.PutAsJsonAsync($"/api/v1/material-applications/{operationId}", new
         {
-            operationDate = Today,
-            details = new[] { new { id = Guid.Empty, materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 1m } }
+            operationDate = Today, applicationMethod = "broadcast",
+            details = new[] { new { id = Guid.Empty, materialPurchaseLotId = lot, quantity = 1m } }
         });
         Assert.Equal(HttpStatusCode.BadRequest, invalidDetail.StatusCode);
 
         using var edited = await client.PutAsJsonAsync($"/api/v1/material-applications/{operationId}", new
         {
-            operationDate = Today,
-            details = new object[] { new { id = detailId, materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 7m },
-                new { materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 1m } }
+            operationDate = Today, applicationMethod = "broadcast",
+            details = new object[] { new { id = detailId, materialPurchaseLotId = lot, quantity = 7m },
+                new { materialPurchaseLotId = lot, quantity = 1m } }
         });
         var updated = await ReadAsync(edited, HttpStatusCode.OK);
         var updatedDetails = updated.GetProperty("details");
@@ -276,8 +279,8 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var lot = await CreateLotAsync(client, material, 5, 10);
         var request = new
         {
-            operationDate = Today,
-            details = new[] { new { materialPurchaseLotId = lot, applicationMethod = "broadcast", quantity = 4m } }
+            operationDate = Today, applicationMethod = "broadcast",
+            details = new[] { new { materialPurchaseLotId = lot, quantity = 4m } }
         };
 
         using var foreignLots = await otherClient.GetAsync($"{MaterialsUrl}/{material}/lots");
@@ -291,8 +294,8 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var otherLot = await CreateLotAsync(otherClient, otherMaterial, 5, 10);
         using var foreignCreate = await otherClient.PostAsJsonAsync(firstPlanting, new
         {
-            operationDate = Today,
-            details = new[] { new { materialPurchaseLotId = otherLot, applicationMethod = "broadcast", quantity = 4m } }
+            operationDate = Today, applicationMethod = "broadcast",
+            details = new[] { new { materialPurchaseLotId = otherLot, quantity = 4m } }
         });
         Assert.Equal(HttpStatusCode.NotFound, foreignCreate.StatusCode);
 

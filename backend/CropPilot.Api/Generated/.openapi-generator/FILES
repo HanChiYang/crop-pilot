@@ -41,7 +41,9 @@ CropPilot.Contract/Models/MaterialPackageUnit.cs
 CropPilot.Contract/Models/PesticideLotRsDto.cs
 CropPilot.Contract/Models/PesticideMaterialRsDto.cs
 CropPilot.Contract/Models/PesticideStockUnit.cs
+CropPilot.Contract/Models/PlantingDeletePreviewRsDto.cs
 CropPilot.Contract/Models/PlantingHistoryItemDto.cs
+CropPilot.Contract/Models/PlantingInventoryReturnDto.cs
 CropPilot.Contract/Models/PlantingRsDto.cs
 CropPilot.Contract/Models/PlantingStatus.cs
 CropPilot.Contract/Models/SaveIrrigationRqDto.cs

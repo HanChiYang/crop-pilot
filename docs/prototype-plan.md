@@ -2,6 +2,22 @@
 
 ## UX 草案審查記錄
 
+**2026-11-16 · 作物栽培列操作與整筆刪除 · 靜態稿已確認**
+
+作物栽培各狀態的列操作固定為「編輯」「資材施用」「灌溉紀錄」「刪除」，刪除置於選單底部並以紅字呈現。規劃中的栽培也可登記實際發生的田間作業，栽培狀態維持規劃中。刪除無作業紀錄的栽培時，確認視窗顯示田區、作物、狀態與將釋放的面積。有作業紀錄時，加列資材施用與灌溉筆數、各原庫存批次與恢復用量，並提示保留歷史的做法。栽培中或採收中可將狀態改為「已結束」。[番茄選單](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=297-1397) · [青江菜選單](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=297-1499) · [小白菜選單](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=297-1299) · [刪除栽培・無作業紀錄](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=551-15) · [刪除栽培・有作業紀錄](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=551-138)
+
+**2026-11-16 · 資材施用與灌溉紀錄的編輯及刪除 · 靜態稿已確認**
+
+兩種紀錄的編輯表單帶入各自清單第一筆資料。資材施用沿用整筆選擇施用方式的設計，以噴施作業示意，帶入日期、噴施總水量、庫存批次與各項用量。灌溉帶入日期、方式、用水量和備註。兩張刪除確認稿皆保留所屬清單作為背景，並列出所選紀錄摘要。資材施用額外列出各項用量並提示刪除後會退回原庫存批次。[資材施用編輯](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=546-2) · [資材施用刪除](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=545-2) · [灌溉編輯](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=544-2) · [灌溉刪除](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=543-2)
+
+**2026-11-16 · 新增資材施用與新增灌溉紀錄 · 靜態稿已確認**
+
+新增表單皆沿用作物栽培側欄，並顯示「南側田・青江菜・採收中」。資材施用靜態稿改為整筆選擇噴施或撒施，明細填寫資材、庫存批次與用量。噴施稿提供選填的噴施總水量，撒施稿省略水量欄位。本輪契約同步改為整筆單選。灌溉以空白表單示意，灌溉日期與方式必填，用水量（公升）及備註選填。點擊流程待靜態稿審查後接線。[新增資材施用・噴施](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=541-94) · [新增資材施用・撒施](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=541-407) · [新增灌溉紀錄](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=541-2)
+
+**2026-11-16 · 作物栽培列操作與資材施用紀錄 · 靜態稿已確認**
+
+番茄、青江菜與小白菜的展開選單依序顯示「編輯」「資材施用」「灌溉紀錄」。資材施用的空清單已確認。資材施用有紀錄時與灌溉紀錄各自直接顯示該筆栽培的清單，兩張靜態稿都以田區管理的表頭、列線與列操作為參考，資料皆屬於「南側田・青江菜・採收中」。資材施用清單示意農藥與肥料混用、純施肥、純用藥及「搜尋資材名稱」欄位。每項明細並列資材名稱、用量與單位，表頭新增噴施總水量排序樣式。資材施用與灌溉清單的列操作都提供「編輯」與「刪除」。點擊流程待靜態稿審查後接線。[番茄選單](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=297-1397) · [青江菜選單](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=297-1499) · [小白菜選單](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=297-1299) · [空清單](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=247-3) · [資材施用紀錄](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=529-2) · [灌溉紀錄](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=529-55) · [灌溉空清單](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=538-2) · [資材施用列操作](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=540-132) · [灌溉列操作](https://www.figma.com/design/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=540-207)
+
 **2026-11-11 · 肥料庫存、灌溉與農藥管理 · 待審查**
 
 作物栽培管理的列操作選單包含施肥、灌溉與用藥紀錄。肥料新增資材有獨立播放入口。施肥清單可查看多批庫存，編輯示範將已用的 3 公斤改為 2 公斤、退回 1 公斤，並可試走超過批次可用量的提示。[三類作業原型](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=182-141&starting-point-node-id=182%3A141&scaling=scale-down) · [新增肥料資材](https://www.figma.com/proto/BwXm9ifVg4hZyteraSpuvc/CropPilot?node-id=182-306&starting-point-node-id=182%3A306&scaling=scale-down)

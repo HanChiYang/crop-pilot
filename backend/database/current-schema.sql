@@ -1,5 +1,5 @@
 -- CropPilot current PostgreSQL 18 schema.
--- Source: EF Core migrations through 20261115092315_AddMaterialPackageSpecifications.
+-- Source: EF Core migrations through 20261116073756_MoveMaterialApplicationMethod.
 -- Regenerate after every schema migration.
 
 --
@@ -168,14 +168,12 @@ CREATE TABLE public.material_application_details (
     material_application_id uuid NOT NULL,
     material_purchase_lot_id uuid NOT NULL,
     material_name character varying(100) NOT NULL,
-    application_method character varying(24) NOT NULL,
     quantity numeric(15,6) NOT NULL,
     unit character varying(20) NOT NULL,
     unit_price numeric(15,6),
     currency_code character(3) NOT NULL,
     sort_order integer NOT NULL,
     CONSTRAINT ck_material_application_details_currency CHECK ((currency_code = 'TWD'::bpchar)),
-    CONSTRAINT ck_material_application_details_method CHECK (((application_method)::text = ANY ((ARRAY['spray'::character varying, 'broadcast'::character varying])::text[]))),
     CONSTRAINT ck_material_application_details_price CHECK (((unit_price >= (0)::numeric) AND (unit_price <= 999999999.999999))),
     CONSTRAINT ck_material_application_details_quantity CHECK (((quantity >= 0.000001) AND (quantity <= 999999999.999999))),
     CONSTRAINT ck_material_application_details_sort_order CHECK ((sort_order >= 0))
@@ -190,7 +188,9 @@ CREATE TABLE public.material_applications (
     id uuid NOT NULL,
     field_operation_id uuid NOT NULL,
     spray_water_volume_liters numeric(15,6),
-    CONSTRAINT ck_material_applications_water CHECK (((spray_water_volume_liters >= 0.000001) AND (spray_water_volume_liters <= 999999999.999999)))
+    application_method character varying(24) NOT NULL,
+    CONSTRAINT ck_material_applications_method CHECK (application_method IN ('spray', 'broadcast')),
+    CONSTRAINT ck_material_applications_water CHECK (spray_water_volume_liters IS NULL OR (application_method = 'spray' AND spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999))
 );
 
 
@@ -639,4 +639,5 @@ INSERT INTO public.ef_migrations_history (migration_id, product_version) VALUES
     ('20261111131045_AddFertilizationInventory', '10.0.13'),
     ('20261112000309_AddIrrigationRecords', '10.0.13'),
     ('20261112085516_ReplaceFertilizationWithMaterialApplications', '10.0.13'),
-    ('20261115092315_AddMaterialPackageSpecifications', '10.0.13');
+    ('20261115092315_AddMaterialPackageSpecifications', '10.0.13'),
+    ('20261116073756_MoveMaterialApplicationMethod', '10.0.13');

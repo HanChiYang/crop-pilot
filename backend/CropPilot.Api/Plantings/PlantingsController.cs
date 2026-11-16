@@ -38,14 +38,26 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
         return result.Planting is { } planting ? Ok(PlantingDtoMapper.ToDto(planting)) : WriteProblem(result);
     }
 
-    /// <summary>刪除規劃中的紀錄，成功時回傳 HTTP 204。</summary>
-    public override async Task<IActionResult> DeletePlanting(Guid plantingId)
+    /// <summary>顯示栽培刪除後將移除的田間作業與回復的庫存用量。</summary>
+    public override async Task<IActionResult> GetPlantingDeletePreview(Guid plantingId)
     {
-        var result = await plantings.DeleteAsync(AccountId, plantingId, HttpContext.RequestAborted);
-        return result.Status switch
+        var (status, deletion) = await plantings.GetDeletePreviewAsync(AccountId, plantingId, HttpContext.RequestAborted);
+        if (deletion is not null)
+            return Ok(PlantingDtoMapper.ToDeletePreviewDto(deletion));
+        return status == PlantingWriteStatus.NotFound ? NotFound()
+            : Problem(statusCode: StatusCodes.Status409Conflict, detail: ErrorMessages.PlantingDeleteInvalid);
+    }
+
+    /// <summary>核對使用者確認過的預覽版本，刪除栽培及其作業。</summary>
+    public override async Task<IActionResult> DeletePlanting(string previewVersion, Guid plantingId)
+    {
+        var status = await plantings.DeleteAsync(AccountId, plantingId, previewVersion, HttpContext.RequestAborted);
+        return status switch
         {
             PlantingWriteStatus.Success => NoContent(),
             PlantingWriteStatus.NotFound => NotFound(),
+            PlantingWriteStatus.PreviewChanged => Problem(statusCode: StatusCodes.Status409Conflict,
+                detail: ErrorMessages.PlantingDeletePreviewChanged),
             _ => Problem(statusCode: StatusCodes.Status409Conflict, detail: ErrorMessages.PlantingDeleteInvalid)
         };
     }
@@ -174,8 +186,6 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
                 return StatusCode(successStatus, IrrigationDtoMapper.ToDto(result.Operation!));
             case IrrigationWriteStatus.NotFound:
                 return NotFound();
-            case IrrigationWriteStatus.Conflict:
-                return Problem(statusCode: StatusCodes.Status409Conflict, detail: result.Message);
             default:
                 ModelState.AddModelError(result.Field!, result.Message!);
                 return ValidationProblem(ModelState);

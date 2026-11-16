@@ -53,12 +53,13 @@ internal sealed class FieldOperation
     public IrrigationDetail? IrrigationDetail { get; set; }
 }
 
-/// <summary>保存一次資材施用共用的噴施水量。</summary>
+/// <summary>保存整筆資材施用的施用方式與噴施水量。</summary>
 internal sealed class MaterialApplication
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid FieldOperationId { get; init; }
     public FieldOperation FieldOperation { get; init; } = null!;
+    public string ApplicationMethod { get; set; } = null!;
     public decimal? SprayWaterVolumeLiters { get; set; }
     public List<MaterialApplicationDetail> Details { get; } = [];
 }
@@ -72,7 +73,6 @@ internal sealed class MaterialApplicationDetail
     public Guid MaterialPurchaseLotId { get; set; }
     public MaterialPurchaseLot Lot { get; set; } = null!;
     public required string MaterialName { get; set; }
-    public required string ApplicationMethod { get; set; }
     public decimal Quantity { get; set; }
     public required string Unit { get; set; }
     public decimal? UnitPrice { get; set; }

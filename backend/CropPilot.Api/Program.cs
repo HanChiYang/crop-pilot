@@ -100,6 +100,7 @@ builder.Services.AddControllers(options =>
     var serializer = options.JsonSerializerOptions;
     serializer.Converters.Add(new ContractEnumJsonConverter<CreatePlantingRqDto.StatusEnum>(ErrorMessages.PlantingStatusInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<PlantingStatus>(ErrorMessages.PlantingStatusInvalid));
+    serializer.Converters.Add(new ContractEnumJsonConverter<PlantingInventoryReturnDto.SourceEnum>(ErrorMessages.FertilizerSourceInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<CreateFertilizerLotRqDto.SourceEnum>(ErrorMessages.FertilizerSourceInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<FertilizerLotRsDto.SourceEnum>(ErrorMessages.FertilizerSourceInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<FertilizerLotRsDto.CurrencyCodeEnum>(ErrorMessages.FertilizerCurrencyInvalid));

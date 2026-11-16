@@ -498,8 +498,18 @@ paths:
     delete:
       tags: [Plantings]
       operationId: deletePlanting
-      summary: 刪除單筆規劃中栽培紀錄
-      description: 刪除登入帳號所屬田區的一筆規劃中栽培紀錄，並釋放該筆紀錄占用的面積。
+      summary: 刪除單筆栽培及所屬作業紀錄
+      description: 規劃中、栽培中與採收中的栽培可刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。
+      parameters:
+        - name: previewVersion
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 64
+            maxLength: 64
+            pattern: '^[0-9A-F]{64}$'
+          description: 本次確認的刪除預覽版本。
       security:
         - BearerAuth: []
       responses:
@@ -514,7 +524,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: 只有規劃中的紀錄可以刪除
+          description: 預覽版本已變更或栽培已結束。
           content:
             application/problem+json:
               schema:
@@ -603,6 +613,37 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+  /api/v1/plantings/{plantingId}/delete-preview:
+    parameters:
+      - $ref: '#/components/parameters/PlantingId'
+    get:
+      tags: [Plantings]
+      operationId: getPlantingDeletePreview
+      summary: 查詢刪除栽培的影響
+      description: 回傳作業筆數、將釋放的面積、按庫存批次加總的恢復用量及預覽版本。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 刪除摘要及其版本
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlantingDeletePreviewRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 已結束的栽培保留於栽培歷史。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /api/v1/plantings/{plantingId}/irrigations:
     parameters:
       - $ref: '#/components/parameters/PlantingId'
@@ -638,7 +679,7 @@ paths:
       summary: 新增灌溉作業
       security:
         - BearerAuth: []
-      description: 栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。
+      description: 規劃中、栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。
       requestBody:
         required: true
         content:
@@ -660,9 +701,6 @@ paths:
           $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-          description: 所屬栽培為規劃中。
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -675,7 +713,7 @@ paths:
       summary: 編輯灌溉作業
       security:
         - BearerAuth: []
-      description: 更新完整表單。省略選填欄位或傳入 null 會清除原值。日期與栽培狀態限制同新增。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+      description: 更新完整表單。省略選填欄位或傳入 null 會清除原值。日期限制同新增。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
       requestBody:
         required: true
         content:
@@ -697,9 +735,6 @@ paths:
           $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-          description: 所屬栽培為規劃中。
         '500':
           $ref: '#/components/responses/ServerError'
     delete:
@@ -708,7 +743,7 @@ paths:
       summary: 刪除灌溉作業
       security:
         - BearerAuth: []
-      description: 栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+      description: 規劃中、栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
       responses:
         '204':
           description: 已刪除灌溉作業
@@ -994,7 +1029,7 @@ paths:
       summary: 新增施用作業
       security:
         - BearerAuth: []
-      description: 栽培中、採收中及已結束的批次均可登記。實際施用日不得早於所選庫存批次的生效日，也不得晚於台北當日。同一筆可包含農藥與肥料。同日同栽培可登記多筆。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
+      description: 規劃中、栽培中、採收中及已結束的批次均可登記。實際施用日不得早於所選庫存批次的生效日，也不得晚於台北當日。同一筆可包含農藥與肥料。同日同栽培可登記多筆。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
       requestBody:
         required: true
         content:
@@ -1018,7 +1053,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: 所屬栽培為規劃中，或批次餘量不足。餘量錯誤以 errors 中的 details[i].quantity 標示。
+          description: 批次餘量不足。餘量錯誤以 errors 中的 details[i].quantity 標示。
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1031,7 +1066,7 @@ paths:
       summary: 編輯施用作業
       security:
         - BearerAuth: []
-      description: 更新完整表單。省略噴施總水量或傳 null 時清除原值。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。實際施用日不得早於所選批次生效日，也不得晚於台北當日。可用量包含原作業已扣用量，超過時回傳 409。
+      description: 更新完整表單。省略噴施總水量或傳 null 時清除原值。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。規劃中、栽培中、採收中及已結束的批次均可修正。實際施用日不得早於所選批次生效日，也不得晚於台北當日。可用量包含原作業已扣用量，超過時回傳 409。
       requestBody:
         required: true
         content:
@@ -1055,7 +1090,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: 所屬栽培為規劃中，或批次餘量不足。餘量錯誤以 errors 中的 details[i].quantity 標示。
+          description: 批次餘量不足。餘量錯誤以 errors 中的 details[i].quantity 標示。
         '500':
           $ref: '#/components/responses/ServerError'
     delete:
@@ -1064,7 +1099,7 @@ paths:
       summary: 刪除施用作業
       security:
         - BearerAuth: []
-      description: 栽培中、採收中及已結束的批次可刪除施用紀錄。作業及明細一併刪除，用量退回各原批次。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+      description: 規劃中、栽培中、採收中及已結束的批次可刪除施用紀錄。作業及明細一併刪除，用量退回各原批次。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
       responses:
         '204':
           description: 已刪除施用作業
@@ -1698,7 +1733,7 @@ components:
       description: spray 為噴施，broadcast 為撒施。
     CreateMaterialApplicationRqDto:
       type: object
-      required: [operationDate, details]
+      required: [operationDate, applicationMethod, details]
       if:
         required: [sprayWaterVolumeLiters]
         properties:
@@ -1706,24 +1741,24 @@ components:
             type: number
       then:
         properties:
-          details:
-            contains:
-              type: object
-              required: [applicationMethod]
-              properties:
-                applicationMethod:
-                  const: spray
+          applicationMethod:
+            const: spray
       properties:
         operationDate:
           type: string
           format: date
           description: 實際施用日期。寫入不得晚於台北當日。
+        applicationMethod:
+          $ref: '#/components/schemas/MaterialApplicationMethod'
+        description:
+          type: [string, 'null']
+          description: 選填施用備註，最多 500 個 Unicode 碼點。編輯時省略或傳 null 清除原值。
         sprayWaterVolumeLiters:
           type: [number, 'null']
           exclusiveMinimum: 0
           exclusiveMaximum: 1000000000
           multipleOf: 0.000001
-          description: 本次噴施明細共用的總水量，單位為公升。至少有一筆噴施明細時才可填寫。null 表示未記錄或無噴施。
+          description: 整筆噴施作業的總水量，單位為公升。僅噴施可填寫。null 表示未記錄或撒施。
         details:
           type: array
           minItems: 1
@@ -1731,7 +1766,7 @@ components:
             $ref: '#/components/schemas/MaterialApplicationDetailRqDto'
     EditMaterialApplicationRqDto:
       type: object
-      required: [operationDate, details]
+      required: [operationDate, applicationMethod, details]
       if:
         required: [sprayWaterVolumeLiters]
         properties:
@@ -1739,24 +1774,24 @@ components:
             type: number
       then:
         properties:
-          details:
-            contains:
-              type: object
-              required: [applicationMethod]
-              properties:
-                applicationMethod:
-                  const: spray
+          applicationMethod:
+            const: spray
       properties:
         operationDate:
           type: string
           format: date
           description: 實際施用日期。寫入不得晚於台北當日。
+        applicationMethod:
+          $ref: '#/components/schemas/MaterialApplicationMethod'
+        description:
+          type: [string, 'null']
+          description: 選填施用備註，最多 500 個 Unicode 碼點。編輯時省略或傳 null 清除原值。
         sprayWaterVolumeLiters:
           type: [number, 'null']
           exclusiveMinimum: 0
           exclusiveMaximum: 1000000000
           multipleOf: 0.000001
-          description: 本次噴施明細共用的總水量，單位為公升。至少有一筆噴施明細時才可填寫。null 表示未記錄或無噴施。
+          description: 整筆噴施作業的總水量，單位為公升。僅噴施可填寫。null 表示未記錄或撒施。
         details:
           type: array
           minItems: 1
@@ -1764,7 +1799,7 @@ components:
             $ref: '#/components/schemas/EditMaterialApplicationDetailRqDto'
     MaterialApplicationRsDto:
       type: object
-      required: [id, operationDate, sprayWaterVolumeLiters, details]
+      required: [id, operationDate, applicationMethod, sprayWaterVolumeLiters, description, details]
       properties:
         id:
           type: string
@@ -1773,12 +1808,17 @@ components:
           type: string
           format: date
           description: 實際施用日期。寫入不得晚於台北當日。
+        applicationMethod:
+          $ref: '#/components/schemas/MaterialApplicationMethod'
+        description:
+          type: [string, 'null']
+          description: 選填施用備註，最多 500 個 Unicode 碼點。編輯時省略或傳 null 清除原值。
         sprayWaterVolumeLiters:
           type: [number, 'null']
           exclusiveMinimum: 0
           exclusiveMaximum: 1000000000
           multipleOf: 0.000001
-          description: 本次噴施明細共用的總水量，單位為公升。至少有一筆噴施明細時才可填寫。null 表示未記錄或無噴施。
+          description: 整筆噴施作業的總水量，單位為公升。僅噴施可填寫。null 表示未記錄或撒施。
         details:
           type: array
           minItems: 1
@@ -1786,13 +1826,11 @@ components:
             $ref: '#/components/schemas/MaterialApplicationDetailRsDto'
     MaterialApplicationDetailRqDto:
       type: object
-      required: [materialPurchaseLotId, applicationMethod, quantity]
+      required: [materialPurchaseLotId, quantity]
       properties:
         materialPurchaseLotId:
           type: string
           format: uuid
-        applicationMethod:
-          $ref: '#/components/schemas/MaterialApplicationMethod'
         quantity:
           type: number
           exclusiveMinimum: 0
@@ -1800,7 +1838,7 @@ components:
           description: 依批次庫存單位填寫實際施用的資材用量，最多六位小數。
     EditMaterialApplicationDetailRqDto:
       type: object
-      required: [materialPurchaseLotId, applicationMethod, quantity]
+      required: [materialPurchaseLotId, quantity]
       properties:
         id:
           type: string
@@ -1808,8 +1846,6 @@ components:
         materialPurchaseLotId:
           type: string
           format: uuid
-        applicationMethod:
-          $ref: '#/components/schemas/MaterialApplicationMethod'
         quantity:
           type: number
           exclusiveMinimum: 0
@@ -1817,7 +1853,7 @@ components:
           description: 依批次庫存單位填寫實際施用的資材用量，最多六位小數。
     MaterialApplicationDetailRsDto:
       type: object
-      required: [id, materialId, materialPurchaseLotId, materialType, materialName, applicationMethod, quantity, unit, unitPrice, currencyCode]
+      required: [id, materialId, materialPurchaseLotId, materialType, materialName, quantity, unit, unitPrice, currencyCode]
       properties:
         id:
           type: string
@@ -1836,8 +1872,6 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-        applicationMethod:
-          $ref: '#/components/schemas/MaterialApplicationMethod'
         quantity:
           type: number
           exclusiveMinimum: 0
@@ -2073,6 +2107,53 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PlantingRsDto'
+    PlantingDeletePreviewRsDto:
+      type: object
+      required: [plantingId, fieldName, cropName, status, releasedAreaSquareMeters, materialApplicationCount, irrigationCount, inventoryReturns, previewVersion]
+      properties:
+        plantingId:
+          type: string
+          format: uuid
+        fieldName:
+          type: string
+        cropName:
+          type: string
+        status:
+          $ref: '#/components/schemas/PlantingStatus'
+        releasedAreaSquareMeters:
+          type: number
+        materialApplicationCount:
+          type: integer
+          minimum: 0
+        irrigationCount:
+          type: integer
+          minimum: 0
+        inventoryReturns:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlantingInventoryReturnDto'
+        previewVersion:
+          type: string
+          pattern: '^[0-9A-F]{64}$'
+    PlantingInventoryReturnDto:
+      type: object
+      required: [lotId, materialName, source, availableFrom, quantity, unit]
+      properties:
+        lotId:
+          type: string
+          format: uuid
+        materialName:
+          type: string
+        source:
+          type: string
+          enum: [purchase, openingStock]
+        availableFrom:
+          type: string
+          format: date
+        quantity:
+          type: number
+        unit:
+          type: string
     PlantingRsDto:
       type: object
       required: [id, fieldId, cropName, variety, plannedPlantingDate, actualPlantingDate, status, notes, areaSquareMeters]

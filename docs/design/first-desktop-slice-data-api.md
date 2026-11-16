@@ -90,7 +90,9 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 列表回傳 `areaSquareMeters`、`allocatedAreaSquareMeters`、`remainingAreaSquareMeters` 與 `plantings`。空田區仍有面積摘要，`plantings` 為空陣列。每筆紀錄的 `areaSquareMeters` 對應 `plantings.area_square_meters`。新增或更新超額時回傳 `409`，`errors.areaSquareMeters` 包含當下可分配面積，表單保留輸入。
 
-單筆操作透過栽培紀錄的所屬田區核對登入帳號。單筆編輯與刪除分別使用 `PUT` 與 `DELETE /api/v1/plantings/{plantingId}`。未結束紀錄可以保留原狀態或沿規劃、栽培、採收、結束的順序前進，栽培中也可直接結束。無法轉換時回傳 `409` 並提供 `errors.status`。只有規劃中可以刪除，成功回傳 `204`，其餘狀態回傳 `409`。
+單筆操作透過栽培紀錄的所屬田區核對登入帳號。單筆編輯與刪除分別使用 `PUT` 與 `DELETE /api/v1/plantings/{plantingId}`。未結束紀錄可以保留原狀態或沿規劃、栽培、採收、結束的順序前進，栽培中也可直接結束。無法轉換時回傳 `409` 並提供 `errors.status`。
+
+刪除前以 `GET /api/v1/plantings/{plantingId}/delete-preview` 取得田區、作物、狀態、釋放面積、兩類作業筆數、各原庫存批次的恢復用量及 `previewVersion`。前端確認後，將該版本以查詢參數送至 `DELETE /api/v1/plantings/{plantingId}`。交易內依序鎖定田區、栽培和受影響的批次，再核對版本。摘要改變或栽培已結束回 `409`，未找到或不屬於帳號回 `404`。刪除成功回 `204`。
 
 只填必填欄位即可建立田區。以下請求送往 `POST /api/v1/fields`，兩個座標欄位會存為 `null`。
 
@@ -162,7 +164,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 回應包含同樣四個欄位及 `field_operations.id`。日期與備註存於 `field_operations`；方式與用水量存於 `irrigation_details`。
 
-沿用 Bearer 與 `USER` 角色。清單和新增透過栽培查所屬田區；編輯和刪除先以作業 ID 和 `IRRIGATION` 定位，再透過該筆作業的栽培查所屬田區。各端點都核對田區是否屬於登入主帳號。資源不存在、作業類型不符或帳號歸屬不符回 `404`。欄位錯誤回 `400`。栽培中、採收中及已結束可新增、編輯及刪除，規劃中新增或編輯沿用共用 `409 Conflict`。清單中的刪除動作先顯示作業日期與方式，確認後送出請求。
+沿用 Bearer 與 `USER` 角色。清單和新增透過栽培查所屬田區；編輯和刪除先以作業 ID 和 `IRRIGATION` 定位，再透過該筆作業的栽培查所屬田區。各端點都核對田區是否屬於登入主帳號。資源不存在、作業類型不符或帳號歸屬不符回 `404`。欄位錯誤回 `400`。規劃中、栽培中、採收中及已結束均可新增、編輯及刪除作業，寫入維持原栽培狀態。清單中的刪除動作先顯示作業日期與方式，確認後送出請求。
 
 ### 資材施用
 
@@ -175,30 +177,32 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 端點使用 Bearer 與 `USER` 角色。清單及新增透過栽培及田區核對主帳號。編輯及刪除使用作業 ID 和 `MATERIAL_APPLICATION` 定位，再核對所屬栽培和田區。伺服器以明細的 `materialPurchaseLotId` 查詢庫存批次，驗證是同一主帳號的農藥或肥料資材。資源或批次不存在、類型不符或屬於其他帳號時回傳 `404`。
 
-栽培中、採收中及已結束都可新增和編輯。歷史補登保留栽培的已結束狀態。規劃中新增或編輯回傳 `409`。實際施用日最晚為台北當日，且不得早於任何所選批次的生效日。欄位驗證失敗回傳 `400`，批次生效日使用 `details[i].materialPurchaseLotId` 定位錯誤。批次餘量不足回傳 `409`，以 `details[i].quantity` 指向超量批次的明細。任一明細失敗時整筆作業與庫存用量一起回滾。
+規劃中、栽培中、採收中及已結束都可新增和編輯，寫入維持原栽培狀態。實際施用日最晚為台北當日，且不得早於任何所選批次的生效日。欄位驗證失敗回傳 `400`，批次生效日使用 `details[i].materialPurchaseLotId` 定位錯誤。批次餘量不足回傳 `409`，以 `details[i].quantity` 指向超量批次的明細。任一明細失敗時整筆作業與庫存用量一起回滾。
 
 | JSON 欄位 | 資料來源與行為 |
 | --- | --- |
 | `id`、`operationDate` | `field_operations.id`、`operation_date`。 |
+| `applicationMethod` | `material_applications.application_method`。整筆必填，`spray` 為噴施，`broadcast` 為撒施。 |
+| `description` | `field_operations.description`。選填備註，最多 500 字。 |
 | `sprayWaterVolumeLiters` | `material_applications.spray_water_volume_liters`。選填，單位為公升。省略或傳 `null` 時保存為 NULL，回應以 `null` 表示未記錄或無噴施。 |
 | `details[].id` | `material_application_details.id`。編輯時帶原 ID 保留該明細，省略 ID 新增明細。未送回的原明細移除。重複或不屬於本作業的明細 ID 回 `400`。 |
 | `details[].materialPurchaseLotId`、`quantity` | `material_application_details.material_purchase_lot_id`、`quantity`。依庫存單位記錄取用量。同一批次多筆明細合計驗證餘量。 |
 | `details[].materialId`、`details[].materialType` | 從批次取得資材 ID 及類別。回應以 `pesticide`、`fertilizer` 對應主檔的 `PESTICIDE`、`FERTILIZER`。 |
-| `details[].applicationMethod` | `material_application_details.application_method`。每筆必填，`spray` 為噴施，`broadcast` 為撒施。 |
 | `details[].materialName`、`unit`、`unitPrice`、`currencyCode` | `material_application_details` 的名稱、單位、單價與幣別快照。新增明細或換批次時取新批次當下值，保留原批次時沿用原快照。單位回傳快照字串。 |
 
-一筆作業至少有一項明細，依表單列順序回傳。同一次作業可混合噴施與撒施，有噴施明細才可填噴施總水量。全為撒施卻填了水量時回 `400`，以 `sprayWaterVolumeLiters` 定位欄位。噴施總水量及各筆用量必須大於零、小於 10 億且最多六位小數。扣量以各明細的資材用量計算。同日同栽培可分開登記多筆，每筆各有自己的水量和明細。
+一筆作業至少有一項明細，依表單列順序回傳。噴施與撒施分開登記。撒施若填了水量回 `400`，以 `sprayWaterVolumeLiters` 定位欄位。噴施總水量及各筆用量必須大於零、小於 10 億且最多六位小數。扣量以各明細的資材用量計算。同日同栽培可分開登記多筆，每筆各有自己的水量和明細。
 
-以下範例的前兩筆是農藥，第三筆是葉肥，三筆共用一次噴施水量。純撒施的表單可省略水量。歷史清單依明細判斷，純撒施顯示「不適用」，有噴施且水量為 `null` 時顯示「未記錄」。
+以下範例的前兩筆是農藥，第三筆是葉肥，三筆共用一次噴施水量。純撒施的表單可省略水量。清單以「—」表示撒施的水量，噴施且水量為 `null` 時顯示「未記錄」。
 
 ```json
 {
   "operationDate": "2026-11-12",
+  "applicationMethod": "spray",
   "sprayWaterVolumeLiters": 20,
   "details": [
-    { "materialPurchaseLotId": "20808d11-3535-476a-846c-325e14d3c017", "applicationMethod": "spray", "quantity": 15 },
-    { "materialPurchaseLotId": "3e3742d7-f9a9-451d-8f5e-5933a291745b", "applicationMethod": "spray", "quantity": 10 },
-    { "materialPurchaseLotId": "9bebf361-ec33-46cf-a9f9-b085b7391d3c", "applicationMethod": "spray", "quantity": 30 }
+    { "materialPurchaseLotId": "20808d11-3535-476a-846c-325e14d3c017", "quantity": 15 },
+    { "materialPurchaseLotId": "3e3742d7-f9a9-451d-8f5e-5933a291745b", "quantity": 10 },
+    { "materialPurchaseLotId": "9bebf361-ec33-46cf-a9f9-b085b7391d3c", "quantity": 30 }
   ]
 }
 ```

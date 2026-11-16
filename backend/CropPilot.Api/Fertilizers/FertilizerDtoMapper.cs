@@ -48,7 +48,10 @@ internal static class FertilizerDtoMapper
     {
         Id = operation.Id,
         OperationDate = operation.OperationDate,
-        SprayWaterVolumeLiters = operation.Application!.SprayWaterVolumeLiters,
+        Description = operation.Description,
+        ApplicationMethod = operation.Application!.ApplicationMethod == "spray"
+            ? MaterialApplicationMethod.SprayEnum : MaterialApplicationMethod.BroadcastEnum,
+        SprayWaterVolumeLiters = operation.Application.SprayWaterVolumeLiters,
         Details = operation.Application.Details.OrderBy(x => x.SortOrder).Select(x => new MaterialApplicationDetailRsDto
         {
             Id = x.Id,
@@ -58,8 +61,6 @@ internal static class FertilizerDtoMapper
             MaterialType = x.Lot.Material.MaterialType == AgriculturalMaterial.Pesticide
                 ? MaterialApplicationDetailRsDto.MaterialTypeEnum.PesticideEnum
                 : MaterialApplicationDetailRsDto.MaterialTypeEnum.FertilizerEnum,
-            ApplicationMethod = x.ApplicationMethod == "spray"
-                ? MaterialApplicationMethod.SprayEnum : MaterialApplicationMethod.BroadcastEnum,
             Quantity = x.Quantity,
             Unit = x.Unit,
             UnitPrice = x.UnitPrice,

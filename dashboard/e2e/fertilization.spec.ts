@@ -48,16 +48,19 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
       case plantingApi + '/material-applications':
       case '/api/v1/material-applications/' + operationId: {
         if (request.method() === 'GET') return route.fulfill({ json: operations });
-        const { operationDate, details } = request.postDataJSON();
+        const { operationDate, applicationMethod, sprayWaterVolumeLiters, description, details } = request.postDataJSON();
         if (conflict) {
           conflict = false;
           return route.fulfill({ status: 409, json: { errors: { 'details[0].quantity': ['此批次的庫存餘量不足。'] } } });
         }
         const editing = request.method() === 'PUT';
+        expect(applicationMethod).toBe('broadcast');
+        expect(sprayWaterVolumeLiters).toBeNull();
+        expect(description).toBe('整地');
         expect(details).toEqual([{ ...(editing ? { id: detailId } : {}), materialPurchaseLotId: lotId,
-          applicationMethod: 'broadcast', quantity: editing ? 2 : 3 }]);
+          quantity: editing ? 2 : 3 }]);
         remaining = 8 - details[0].quantity;
-        const operation = { id: operationId, operationDate, details: [{ ...details[0], id: detailId,
+        const operation = { id: operationId, operationDate, applicationMethod, sprayWaterVolumeLiters, description, details: [{ ...details[0], id: detailId,
           materialId, materialType: 'fertilizer', materialName: material.name, unit: material.stockUnit, unitPrice: null, currencyCode: 'TWD' }] };
         operations = [operation];
         return route.fulfill({ status: editing ? 200 : 201, json: operation });
@@ -69,24 +72,39 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
 
   await page.goto(historyPath);
   await page.getByRole('link', { name: '資材施用紀錄', exact: true }).click();
-  await expect(page.getByText('目前沒有資材施用紀錄。')).toBeVisible();
+  await expect(page.getByText('尚無資材施用紀錄')).toBeVisible();
   await page.getByRole('button', { name: '新增施用', exact: true }).click();
   await page.getByLabel('施用日期').fill('2026-01-03');
   await page.getByLabel('資材 1', { exact: true }).selectOption(materialId);
   const batches = page.getByLabel('庫存批次 1');
   await expect(batches.getByRole('option')).toHaveCount(2);
   await batches.selectOption(lotId);
-  await page.getByLabel('施用方式').selectOption('broadcast');
+  await page.getByRole('radio', { name: '噴施' }).check();
+  await page.getByLabel('噴施總水量（公升）').fill('20');
+  await page.getByRole('radio', { name: '撒施' }).check();
+  await expect(page.getByLabel('噴施總水量（公升）')).toHaveCount(0);
+  await page.getByRole('radio', { name: '噴施' }).check();
+  await expect(page.getByLabel('噴施總水量（公升）')).toHaveValue('');
+  await page.getByRole('radio', { name: '撒施' }).check();
+  await page.getByLabel('備註（選填）').fill('整地');
   await page.getByLabel('用量').fill('3');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
   await expect(page.locator('.detail').getByRole('alert')).toContainText('庫存餘量不足');
   await expect(page.getByLabel('用量')).toHaveValue('3');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
-  const list = page.getByRole('region', { name: '資材施用紀錄清單' });
+  const list = page.getByRole('table', { name: '資材施用紀錄清單' });
   await expect(list).toContainText('3 公斤');
   await expect(list).toContainText('成本待補');
+  const keyword = page.getByRole('searchbox', { name: '關鍵字搜尋' });
+  await keyword.fill('農藥');
+  await expect(list).toContainText('查無符合');
+  await keyword.fill('有機肥');
+  await expect(list).toContainText('3 公斤');
 
+  await list.getByRole('button', { name: /操作.*資材施用/ }).click();
   await page.getByRole('button', { name: '編輯', exact: true }).click();
+  await expect(page.getByRole('radio', { name: '撒施' })).toBeChecked();
+  await expect(page.getByLabel('備註（選填）')).toHaveValue('整地');
   await expect(page.getByLabel('施用日期')).toHaveValue('2026-01-03');
   await expect(batches).toHaveValue(lotId);
   await expect(batches.getByRole('option').nth(1)).toContainText('可用 8 公斤');

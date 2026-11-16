@@ -23,7 +23,8 @@ internal static class ErrorMessages
     internal const string PlantingActualDateRequired = "栽培中或已結束須填寫實際栽種日。";
     internal const string PlantingStatusInvalid = "栽培狀態不正確。";
     internal const string PlantingTransitionInvalid = "目前的栽培狀態無法變更為所選狀態。";
-    internal const string PlantingDeleteInvalid = "只有規劃中的栽培紀錄可以刪除。";
+    internal const string PlantingDeleteInvalid = "已結束的栽培紀錄保留於栽培歷史。";
+    internal const string PlantingDeletePreviewChanged = "作業或庫存批次已變更。請重新確認刪除摘要。";
     internal const string PlantingAreaInvalid = "占用面積須大於 0，最多四位小數，且不得超過 9999999999.9999 m²。";
     internal const string PlantingAreaExceedsAvailable = "占用面積超過可分配的 {0:0.####} m²。";
     internal const string FieldAreaBelowAllocated = "田區面積不得小於已分配面積。";
@@ -41,11 +42,11 @@ internal static class ErrorMessages
     internal const string FertilizerDateInvalid = "請填寫符合日期限制的日期。";
     internal const string FertilizerQuantityBelowUsed = "批次數量不得低於已施用量。";
     internal const string FertilizerLotDateInUse = "批次生效日不得晚於最早的施肥日期。";
-    internal const string FertilizerPlantingPlanned = "規劃中的栽培無法登記施肥。";
     internal const string FertilizerDetailsRequired = "請至少填寫一項資材明細。";
     internal const string FertilizerDetailInvalid = "資材施用明細不存在或重複。";
+    internal const string MaterialApplicationDescriptionInvalid = "施用備註最多 500 字，且不可包含空字元。";
     internal const string MaterialApplicationMethodInvalid = "請選擇噴施或撒施。";
-    internal const string MaterialApplicationWaterInvalid = "噴施總水量須大於零、小於 10 億且最多六位小數，並至少有一項噴施明細。";
+    internal const string MaterialApplicationWaterInvalid = "只有噴施可填寫總水量，數值須大於零、小於 10 億且最多六位小數。";
     internal const string PesticideUnitInvalid = "農藥庫存單位須為公升、毫升、公斤或公克。";
     internal const string MaterialTypeInvalid = "資材類別須為農藥或肥料。";
     internal const string FertilizerSourceInvalid = "請選擇進貨或期初庫存。";
@@ -54,7 +55,6 @@ internal static class ErrorMessages
     internal const string IrrigationDateInvalid = "請填寫實際灌溉日期，最晚為台北當日。";
     internal const string IrrigationVolumeInvalid = "用水量須大於零、小於 10 億公升，且最多六位小數。";
     internal const string IrrigationDescriptionInvalid = "灌溉備註最多 500 字，且不可包含空字元。";
-    internal const string IrrigationPlantingPlanned = "規劃中的栽培無法登記或編輯灌溉。";
     internal const string FertilizerLotUnavailable = "施肥日期不得早於批次生效日。";
     internal const string FertilizerStockInsufficient = "此批次的庫存餘量不足。";
 }

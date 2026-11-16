@@ -176,19 +176,16 @@
               [attr.aria-label]="'編輯 ' + row.cropName"
               >編輯</a
             >
-            @if (row.status !== 'planned') {
             <a
               [routerLink]="[row.fieldId, row.id, 'fertilizations']"
               [queryParams]="{ fieldId: selectedFieldId() || null }"
-              >資材施用紀錄</a
+              >資材施用</a
             >
             <a
               [routerLink]="[row.fieldId, row.id, 'irrigations']"
               [queryParams]="{ fieldId: selectedFieldId() || null }"
               >灌溉紀錄</a
             >
-            }
-            @if (row.status === 'planned') {
             <button
               type="button"
               class="row-action-danger"
@@ -197,7 +194,6 @@
             >
               刪除
             </button>
-            }
           </div>
         </td>
       </tr>
@@ -217,32 +213,65 @@
 
 <dialog
   #deleteDialog
-  class="field-delete-dialog"
+  class="field-delete-dialog planting-delete-dialog"
   aria-labelledby="planting-delete-title"
   (cancel)="deleting() && $event.preventDefault()"
+  (close)="resetDelete()"
 >
-  <h2 id="planting-delete-title">刪除栽培紀錄</h2>
-  <p>確定刪除「{{ pendingDelete()?.cropName }}」？</p>
+  <h2 id="planting-delete-title">刪除栽培紀錄？</h2>
   @if (deleteError()) {
-  <p class="error" role="alert">{{ deleteError() }}</p>
+    <p class="error" role="alert">{{ deleteError() }}</p>
+  }
+  @if (loadingDeletePreview()) {
+    <p role="status">正在載入刪除摘要…</p>
+  } @else if (deletePreview(); as preview) {
+    <p class="delete-context">{{ preview.fieldName }}・{{ preview.cropName }}・{{ statusLabel[preview.status] }}</p>
+    @if (preview.materialApplicationCount || preview.irrigationCount) {
+      <section class="delete-summary" aria-labelledby="delete-operation-summary">
+        <h3 id="delete-operation-summary">同時刪除的作業紀錄</h3>
+        <p>資材施用 {{ preview.materialApplicationCount }} 筆　灌溉紀錄 {{ preview.irrigationCount }} 筆</p>
+      </section>
+      @if (preview.inventoryReturns.length) {
+        <h3>原庫存批次與恢復用量</h3>
+        <div class="field-table delete-summary">
+          <table aria-label="原庫存批次與恢復用量">
+            <thead>
+              <tr><th scope="col">資材</th><th scope="col">庫存批次</th><th scope="col">恢復用量</th></tr>
+            </thead>
+            <tbody>
+              @for (item of preview.inventoryReturns; track item.lotId) {
+                <tr>
+                  <td>{{ item.materialName }}</td>
+                  <td>
+                    {{ item.availableFrom }} {{ item.source === 'purchase' ? '進貨' : '期初庫存' }}
+                    @if (duplicateBatchLabels().has(item.lotId)) { <small class="batch-id">批次 {{ item.lotId.slice(0, 8) }}</small> }
+                  </td>
+                  <td>{{ item.quantity | number:'1.0-6' }} {{ item.unit }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    } @else {
+      <p>此栽培尚無作業紀錄。</p>
+    }
+    <p>刪除後將釋放 {{ preview.releasedAreaSquareMeters | number:'1.0-4' }} m² 的占用面積，此操作無法復原。</p>
+    @if (deleteHasOperations()) {
+      @if (preview.status === 'planned') {
+        <p class="delete-context">若要保留已登記的作業，請取消刪除。</p>
+      } @else {
+        <p class="delete-context">如果這輪栽培已完成，可將狀態改為「已結束」以保留歷史。</p>
+      }
+    }
   }
   <div class="field-form-actions">
-    <button
-      class="button button-outline"
-      type="button"
-      autofocus
-      [disabled]="deleting()"
-      (click)="deleteDialog.close()"
-    >
-      取消
-    </button>
-    <button
-      class="button"
-      type="button"
-      [disabled]="deleting() || deleteConflict()"
-      (click)="deletePlanting(deleteDialog)"
-    >
-      {{ deleting() ? '刪除中…' : '確認刪除' }}
+    <button class="button button-outline" type="button" autofocus [disabled]="deleting()" (click)="deleteDialog.close()">取消</button>
+    @if (retryDeletePreview()) {
+      <button class="button button-outline" type="button" (click)="loadDeletePreview()">重試載入摘要</button>
+    }
+    <button class="button button-danger" type="button" [disabled]="deleting() || !deletePreview()" (click)="deletePlanting(deleteDialog)">
+      {{ deleting() ? '刪除中…' : (deleteHasOperations() ? '刪除栽培及作業紀錄' : '刪除栽培紀錄') }}
     </button>
   </div>
 </dialog>

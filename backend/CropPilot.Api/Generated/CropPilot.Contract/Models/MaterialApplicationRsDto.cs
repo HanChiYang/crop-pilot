@@ -42,9 +42,24 @@ namespace CropPilot.Contract.Models
         public DateOnly OperationDate { get; set; }
 
         /// <summary>
-        /// 本次噴施明細共用的總水量，單位為公升。至少有一筆噴施明細時才可填寫。null 表示未記錄或無噴施。
+        /// Gets or Sets ApplicationMethod
         /// </summary>
-        /// <value>本次噴施明細共用的總水量，單位為公升。至少有一筆噴施明細時才可填寫。null 表示未記錄或無噴施。</value>
+        [Required]
+        [DataMember(Name="applicationMethod", EmitDefaultValue=true)]
+        public MaterialApplicationMethod ApplicationMethod { get; set; }
+
+        /// <summary>
+        /// 選填施用備註，最多 500 個 Unicode 碼點。編輯時省略或傳 null 清除原值。
+        /// </summary>
+        /// <value>選填施用備註，最多 500 個 Unicode 碼點。編輯時省略或傳 null 清除原值。</value>
+        [Required]
+        [DataMember(Name="description", EmitDefaultValue=true)]
+        public string Description { get; set; }
+
+        /// <summary>
+        /// 整筆噴施作業的總水量，單位為公升。僅噴施可填寫。null 表示未記錄或撒施。
+        /// </summary>
+        /// <value>整筆噴施作業的總水量，單位為公升。僅噴施可填寫。null 表示未記錄或撒施。</value>
         [Required]
         [Range(0, 1000000000)]
         [DataMember(Name="sprayWaterVolumeLiters", EmitDefaultValue=true)]
@@ -67,6 +82,8 @@ namespace CropPilot.Contract.Models
             sb.Append("class MaterialApplicationRsDto {\n");
             sb.Append("  Id: ").Append(Id).Append("\n");
             sb.Append("  OperationDate: ").Append(OperationDate).Append("\n");
+            sb.Append("  ApplicationMethod: ").Append(ApplicationMethod).Append("\n");
+            sb.Append("  Description: ").Append(Description).Append("\n");
             sb.Append("  SprayWaterVolumeLiters: ").Append(SprayWaterVolumeLiters).Append("\n");
             sb.Append("  Details: ").Append(Details).Append("\n");
             sb.Append("}\n");
@@ -116,6 +133,16 @@ namespace CropPilot.Contract.Models
                     OperationDate.Equals(other.OperationDate)
                 ) && 
                 (
+                    ApplicationMethod == other.ApplicationMethod ||
+
+                    ApplicationMethod.Equals(other.ApplicationMethod)
+                ) &&
+                (
+                    Description == other.Description ||
+                    Description != null &&
+                    Description.Equals(other.Description)
+                ) &&
+                (
                     SprayWaterVolumeLiters == other.SprayWaterVolumeLiters ||
                     SprayWaterVolumeLiters != null &&
                     SprayWaterVolumeLiters.Equals(other.SprayWaterVolumeLiters)
@@ -142,6 +169,10 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + Id.GetHashCode();
                     
                     hashCode = hashCode * 59 + OperationDate.GetHashCode();
+
+                    hashCode = hashCode * 59 + ApplicationMethod.GetHashCode();
+                    if (Description != null)
+                    hashCode = hashCode * 59 + Description.GetHashCode();
                     if (SprayWaterVolumeLiters != null)
                     hashCode = hashCode * 59 + SprayWaterVolumeLiters.GetHashCode();
                     if (Details != null)
