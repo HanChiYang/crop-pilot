@@ -1,0 +1,100 @@
+.inventory { margin-top: .6rem; }
+
+.views {
+  display: flex;
+  gap: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.views button {
+  padding: .6rem .3rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.views button[aria-pressed="true"] {
+  border-bottom-color: var(--green);
+  color: var(--green);
+  font-weight: 700;
+}
+
+.list-heading { align-items: flex-start; margin-top: 1.15rem; }
+.list-heading p { margin-top: .25rem; font-size: .9rem; }
+.list-heading .button { min-height: 2.45rem; gap: .25rem; }
+.material-search { position: relative; width: min(100%, 20rem); margin-top: .55rem; }
+.material-search input { padding-inline-start: 2.2rem; }
+.search-icon {
+  position: absolute;
+  inset-inline-start: .8rem;
+  inset-block-start: 50%;
+  width: .7rem;
+  height: .7rem;
+  transform: translateY(-60%);
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  color: var(--muted);
+  pointer-events: none;
+}
+.search-icon::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: -.24rem;
+  inset-block-end: -.14rem;
+  width: .35rem;
+  height: 1.5px;
+  transform: rotate(45deg);
+  background: currentColor;
+}
+.field-table { margin-top: 1rem; padding: .7rem; }
+.field-table table { min-width: 39rem; }
+.field-table :is(th, td) { padding: .65rem .75rem; vertical-align: middle; }
+.field-table tbody th { width: auto; }
+.field-table tbody tr:first-child { border-top: 0; }
+.field-table thead th { padding-block: .25rem; background: #f3f6f1; white-space: nowrap; }
+.field-table thead th:first-child { border-radius: .45rem 0 0 .45rem; }
+.field-table thead th:last-child { border-radius: 0 .45rem .45rem 0; }
+.spec-name-column { width: 26%; }
+.stock-name-column { width: 26%; }
+.column-sort {
+  margin-inline: -.45rem;
+  padding: .25rem .45rem;
+  border: 0;
+  border-radius: .35rem;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.column-sort span { margin-inline-start: .3rem; }
+.column-sort:hover, th[aria-sort] .column-sort { color: var(--green); background: var(--pale); }
+.available-quantity { color: var(--green); font-weight: 700; }
+.list-note { margin-top: 1.25rem; font-size: .9rem; }
+.row-action-trigger { width: 2.6rem; min-height: 2.35rem; }
+.secondary { display: block; color: var(--muted); font-weight: 400; }
+.exhausted { color: var(--muted); background: #edf0eb; }
+.lot-actions { white-space: nowrap; }
+.lot-actions .button { min-height: 2.25rem; padding: .25rem .6rem; }
+.lot-actions .button + .button { margin-inline-start: .35rem; }
+.lot-delete { color: #9a382a; background: #fff7f5; border-color: #e6bdb5; }
+.lot-delete:disabled { color: #617269; background: #f3f5f1; border-color: #dce5dd; opacity: 1; }
+.row-action-menu button:disabled { opacity: .5; cursor: default; }
+.field-form legend { padding: 0; font-size: 1.25rem; }
+.field-control output { color: var(--green); font-weight: 700; }
+small { color: var(--muted); }
+
+.spec-heading { margin-top: 1rem; }
+.spec-heading p { margin-top: .2rem; font-size: .9rem; }
+.spec-form { max-width: none; margin-top: 1rem; }
+.spec-fields { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 5fr); }
+.spec-name { grid-column: 1 / -1; }
+.spec-note { margin-top: 1.25rem; padding: .75rem; border-radius: .5rem; background: #f3f6f1; font-size: .875rem; }
+.spec-form .field-form-actions { justify-content: flex-end; padding-top: .85rem; border-top: 1px solid var(--border); }
+
+@media (max-width: 650px) {
+  .spec-fields { grid-template-columns: minmax(0, 1fr); }
+}

@@ -99,11 +99,14 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
   await expect(page.getByRole('region', { name: '栽培紀錄資料' })).toContainText('已結束');
 });
 
-test('肥料庫存可精確登記六位小數的期初餘量及未知單價', async ({ page }) => {
+test('肥料進貨支援六位小數及未知價格，既有期初批次仍可維護', async ({ page }) => {
   const maximum = 999999999.999999;
-  const openingStock = { ...lot, receivedQuantity: maximum, remainingQuantity: maximum };
-  let materials: (typeof material)[] = [];
+  const legacyId = '9d2cf07b-d8d2-4308-9d36-f0ce10504737';
+  const legacyMaterial = { ...material, id: legacyId, stockUnit: '袋', remainingQuantity: 0 };
+  const openingStock = { ...lot, materialId: legacyId, remainingQuantity: 0 };
+  let materials = [legacyMaterial];
   let batches: (typeof lot)[] = [];
+  let failLoading = true;
   await page.route('**/api/v1/**', async route => {
     const request = route.request();
     switch (new URL(request.url()).pathname) {
@@ -114,39 +117,76 @@ test('肥料庫存可精確登記六位小數的期初餘量及未知單價', as
         return route.fulfill({ json: { accessToken: 'test-token', sessionId: 'test-session' } });
       case materialsApi:
         if (request.method() === 'GET') return route.fulfill({ json: materials });
-        expect(request.postDataJSON()).toEqual({ name: '有機肥', stockUnit: '公斤' });
-        materials = [{ ...material, remainingQuantity: 0 }];
-        return route.fulfill({ status: 201, json: materials[0] });
+        expect(request.postDataJSON()).toEqual({
+          name: '有機肥', stockUnit: '公斤', package: { quantity: 20, unit: 'kilogram' },
+        });
+        const created = { ...material, ...request.postDataJSON(), remainingQuantity: 0 };
+        materials.push(created);
+        return route.fulfill({ status: 201, json: created });
+      case materialsApi + '/' + legacyId + '/lots':
+        if (failLoading) {
+          failLoading = false;
+          return route.fulfill({ status: 503 });
+        }
+        return route.fulfill({ json: [openingStock] });
       case materialsApi + '/' + materialId + '/lots':
         if (request.method() === 'GET') return route.fulfill({ json: batches });
-        expect(request.postDataJSON()).toMatchObject({
-          source: 'openingStock', receivedQuantity: maximum, purchasedOn: null, unitPrice: null,
+        expect(request.postDataJSON()).toEqual({
+          source: 'purchase', receivedQuantity: maximum, purchasedOn: '2026-01-03', unitPrice: null,
         });
-        materials = [{ ...material, remainingQuantity: maximum }];
-        batches = [openingStock];
-        return route.fulfill({ status: 201, json: openingStock });
+        materials[1].remainingQuantity = maximum;
+        batches = [{ ...lot, ...request.postDataJSON(), id: depletedId, availableFrom: '2026-01-03', remainingQuantity: maximum }];
+        return route.fulfill({ status: 201, json: batches[0] });
+      case '/api/v1/fertilizer-lots/' + depletedId:
+        expect(request.method()).toBe('DELETE');
+        materials[1].remainingQuantity = 0;
+        batches = [];
+        return route.fulfill({ status: 204 });
       default:
         return route.fulfill({ status: 404 });
     }
   });
 
   await page.goto('/dashboard/fertilizers');
-  await page.getByRole('button', { name: '新增肥料資材' }).click();
-  await page.getByLabel('肥料名稱').fill('有機肥');
-  await page.getByLabel('庫存單位').fill('公斤');
-  await page.getByRole('button', { name: '儲存', exact: true }).click();
-  await page.getByRole('button', { name: '新增批次' }).click();
-  await page.getByLabel('批次來源').selectOption('openingStock');
-  await page.getByLabel(/盤點剩餘量/).fill('999999999.9999991');
+  await expect(page.getByRole('alert')).toContainText('無法載入肥料規格及庫存');
+  await page.getByRole('button', { name: '重新載入' }).click();
+  const legacyRow = page.getByRole('row').filter({ hasText: '未設定包裝' });
+  await expect(legacyRow).toContainText('已用完');
+  await expect(legacyRow.getByRole('cell', { name: '袋', exact: true })).toBeVisible();
+  await legacyRow.getByRole('button', { name: /^操作/ }).click();
+  await expect(legacyRow.locator('[popover]').getByRole('button')).toHaveText(['登記進貨', '刪除規格']);
+  await expect(page.getByRole('button', { name: '刪除規格' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '新增肥料規格' }).click();
+  const stockUnit = page.getByRole('combobox', { name: '庫存單位', exact: true });
+  await expect(stockUnit.getByRole('option')).toHaveText(['請選擇庫存單位', '公升', '毫升', '公斤', '公克']);
+  await stockUnit.selectOption({ label: '公斤' });
+  await page.getByLabel('每件容量或重量').fill('20');
+  await page.getByRole('combobox', { name: '規格單位', exact: true }).selectOption('kilogram');
+  await page.getByRole('textbox', { name: '肥料名稱', exact: true }).fill('有機肥');
+  await page.getByRole('button', { name: '儲存規格', exact: true }).click();
+  await expect(page.getByRole('row').filter({ hasText: '20 公斤' })).toContainText('待進貨');
+  await page.getByRole('button', { name: '進貨與庫存' }).click();
+  await expect(page.getByRole('button', { name: '登記期初庫存' })).toHaveCount(0);
+  await page.getByRole('button', { name: '登記進貨' }).click();
+  await page.getByLabel('資材規格').selectOption({ label: '有機肥 · 20 公斤' });
+  await page.getByLabel('購買日期').fill('2026-01-03');
+  await page.getByLabel(/進貨量/).fill('999999999.9999991');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('最多六位小數');
-  await page.getByLabel(/盤點剩餘量/).fill('999999999.999999');
+  await page.getByLabel(/進貨量/).fill('999999999.999999');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
-  await expect(page.getByRole('region', { name: '肥料資材清單' })).toContainText('999,999,999.999999 公斤');
-  const stock = page.getByRole('region', { name: '有機肥的庫存批次' });
-  await expect(stock).toContainText('期初庫存');
-  await expect(stock).toContainText('成本待補');
-  await expect(stock.getByRole('button', { name: '刪除資材' })).toBeDisabled();
-  await stock.getByRole('button', { name: '編輯', exact: true }).click();
-  await expect(page.getByLabel(/盤點剩餘量/)).toHaveValue('999999999.999999');
+  const purchaseRow = page.getByRole('row').filter({ hasText: '2026/01/03' });
+  await expect(purchaseRow.getByRole('button')).toHaveText(['編輯', '刪除']);
+  await expect(purchaseRow.getByRole('cell', { name: '999,999,999.999999 公斤' })).toHaveCount(2);
+  await expect(purchaseRow.getByRole('cell', { name: '未填', exact: true })).toHaveCount(2);
+  const openingRow = page.getByRole('row').filter({ hasText: '期初庫存' });
+  await expect(openingRow.getByRole('cell', { name: '0 袋', exact: true })).toBeVisible();
+  await expect(openingRow.getByRole('button', { name: '刪除', exact: true })).toBeDisabled();
+  await purchaseRow.getByRole('button', { name: '刪除', exact: true }).click();
+  await page.getByRole('button', { name: '確認刪除', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '已刪除批次' })).toBeVisible();
+  await expect(purchaseRow).toHaveCount(0);
+  await openingRow.getByRole('button', { name: '編輯', exact: true }).click();
+  await expect(page.getByLabel(/盤點剩餘量/)).toHaveValue('8');
 });

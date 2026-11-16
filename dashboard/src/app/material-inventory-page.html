@@ -1,0 +1,229 @@
+<section class="inventory" [attr.aria-label]="materialType + '資材管理'">
+  <div class="views" role="group" [attr.aria-label]="materialType + '管理頁面'">
+    <button type="button" [attr.aria-pressed]="view() === 'specs'" [disabled]="busy()"
+      (click)="selectView('specs')">規格管理</button>
+    <button type="button" [attr.aria-pressed]="view() === 'stock'" [disabled]="busy()"
+      (click)="selectView('stock')">進貨與庫存</button>
+  </div>
+
+  @if (feedback()) { <p class="field-success" role="status">{{ feedback() }}</p> }
+  @if (loading()) {
+    <p class="panel empty-state" role="status">正在載入{{ materialType }}規格及庫存…</p>
+  } @else if (loadError()) {
+    <section class="panel empty-state">
+      <p class="error" role="alert">無法載入{{ materialType }}規格及庫存。</p>
+      <button class="button button-outline" type="button" (click)="load()">重新載入</button>
+    </section>
+  } @else if (editor(); as form) {
+    @if (form.kind === 'spec') {
+      <header class="spec-heading">
+        <h2 id="spec-form-title">新增{{ materialType }}規格</h2>
+        <p id="spec-form-description">填寫每件包裝的容量或重量，以及庫存扣量所用的單位。</p>
+      </header>
+    }
+    <form class="panel field-form" [class.spec-form]="form.kind === 'spec'"
+      [attr.aria-labelledby]="form.kind === 'spec' ? 'spec-form-title' : null"
+      [attr.aria-describedby]="form.kind === 'spec' ? 'spec-form-description' : null" (ngSubmit)="save(form)">
+      <fieldset [disabled]="busy()">
+        @if (form.kind === 'spec') {
+          <div class="field-form-grid spec-fields">
+            <div class="field-control spec-name">
+              <label for="material-name">{{ materialType }}名稱 <span aria-hidden="true">*</span></label>
+              <input id="material-name" name="materialName" required [(ngModel)]="name">
+            </div>
+            <div class="field-control">
+              <label for="package-quantity">每件容量或重量 <span aria-hidden="true">*</span></label>
+              <input id="package-quantity" name="packageQuantity" inputmode="decimal"
+                required [(ngModel)]="packageQuantity">
+            </div>
+            <div class="field-control">
+              <label for="package-unit">規格單位 <span aria-hidden="true">*</span></label>
+              <select id="package-unit" name="packageUnit" required [(ngModel)]="packageUnit">
+                <option value="">請選擇規格單位</option>
+                @for (unit of units; track unit) { <option [value]="unit">{{ unitLabels[unit] }}</option> }
+              </select>
+            </div>
+            <div class="field-control">
+              <label for="stock-unit">庫存單位 <span aria-hidden="true">*</span></label>
+              <select id="stock-unit" name="stockUnit" required [(ngModel)]="stockUnit">
+                <option value="">請選擇庫存單位</option>
+                @for (option of stockUnitOptions; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <p class="spec-note">儲存規格後即可登記進貨。進貨後有餘量的批次可在作物栽培選用。</p>
+        } @else {
+          @let spec = selectedSpec();
+          @let opening = form.kind === 'lot' && form.lot.source === 'openingStock';
+          @let priceRequired = pesticide && !opening;
+          <legend>{{ form.kind === 'lot' ? '編輯批次' : '登記進貨' }}</legend>
+          <div class="field-form-grid">
+            <div class="field-control">
+              <label for="material-spec">資材規格</label>
+              <select id="material-spec" name="materialId" required [disabled]="form.kind === 'lot'" [(ngModel)]="materialId">
+                <option value="">請選擇{{ materialType }}規格</option>
+                @for (item of specs(); track item.id) {
+                  <option [value]="item.id">{{ item.name }} · {{ item.package ? packageLabel(item.package) : '未設定包裝' }}</option>
+                }
+              </select>
+            </div>
+            <div class="field-control">
+              <label for="purchase-date">購買日期{{ opening ? '（選填）' : '' }}</label>
+              <input id="purchase-date" name="purchasedOn" type="date" [max]="today" [required]="!opening" [(ngModel)]="purchasedOn">
+            </div>
+            @if (opening) {
+              <div class="field-control">
+                <label for="available-date">盤點日期</label>
+                <input id="available-date" name="availableFrom" type="date" [max]="today" required [(ngModel)]="availableFrom">
+              </div>
+            }
+            <div class="field-control">
+              <label for="received-quantity">{{ opening ? '盤點剩餘量' : '進貨量' }}{{ spec ? '（' + stockUnitLabel(spec) + '）' : '' }}</label>
+              <input id="received-quantity" name="receivedQuantity" inputmode="decimal" required [(ngModel)]="receivedQuantity">
+            </div>
+            <div class="field-control">
+              <label for="price">{{ form.kind === 'purchase' ? '進貨總價' : '單價' }}（TWD{{ priceRequired ? '' : '，選填' }}）</label>
+              <input id="price" name="price" inputmode="decimal" [required]="priceRequired" [(ngModel)]="price">
+            </div>
+            @if (form.kind === 'purchase') {
+              <div class="field-control">
+                <label for="unit-price-preview">換算單價</label>
+                <output id="unit-price-preview">{{ previewUnitPrice() === null ? '—' : 'NT$' + (previewUnitPrice() | number:'1.0-6') }}</output>
+                <small>單價取六位小數。清單上的總價由進貨量與單價換算。</small>
+              </div>
+            }
+          </div>
+        }
+        @if (message()) { <p class="error field-form-message" role="alert">{{ message() }}</p> }
+        <div class="field-form-actions">
+          <button class="button button-outline" type="button" (click)="closeEditor()">取消</button>
+          <button class="button" type="submit">{{ form.kind === 'spec' ? '儲存規格' : '儲存' }}</button>
+        </div>
+      </fieldset>
+    </form>
+  } @else if (deletion(); as target) {
+    <section class="panel field-form" aria-labelledby="inventory-delete-title">
+      <h2 id="inventory-delete-title">確認刪除{{ target.lot ? '批次' : '規格' }}</h2>
+      <p>要刪除「{{ target.spec.name }}{{ target.spec.package ? ' · ' + packageLabel(target.spec.package) : '' }}」的{{ target.lot ? '這筆批次' : '規格' }}嗎？</p>
+      @if (target.lot; as lot) {
+        <p>{{ lot.purchasedOn ? '進貨日期' : '生效日期' }} {{ (lot.purchasedOn ?? lot.availableFrom).replaceAll('-', '/') }}，
+          登記量 {{ lot.receivedQuantity | number:'1.0-6' }} {{ stockUnitLabel(target.spec) }}。</p>
+      }
+      @if (message()) { <p class="error" role="alert">{{ message() }}</p> }
+      <div class="field-form-actions">
+        <button class="button button-outline" type="button" [disabled]="busy()" (click)="closeEditor()">取消</button>
+        <button class="button" type="button" [disabled]="busy()" (click)="remove(target)">確認刪除</button>
+      </div>
+    </section>
+  } @else {
+    <header class="page-heading list-heading">
+      <div>
+        <h2>{{ materialType }}{{ view() === 'specs' ? '規格' : '進貨與庫存' }}</h2>
+        <p>{{ view() === 'specs' ? '先建立規格，再登記第一筆進貨。' : '每次登記進貨會新增一筆庫存批次。' }}</p>
+      </div>
+      @if (view() === 'specs') {
+        <button class="button" type="button" (click)="openSpec()"><span aria-hidden="true">＋</span> 新增{{ materialType }}規格</button>
+      } @else {
+        <button class="button" type="button" [disabled]="!specs().length" (click)="openPurchase()"><span aria-hidden="true">＋</span> 登記進貨</button>
+      }
+    </header>
+    @if (!specs().length) {
+      <p class="panel empty-state">目前沒有{{ materialType }}規格。{{ view() === 'stock' ? '請先新增規格。' : '' }}</p>
+    } @else {
+      <div class="field-control material-search" role="search" [attr.aria-label]="'搜尋' + materialType">
+        <span class="search-icon" aria-hidden="true"></span>
+        <input type="search" [attr.aria-label]="'搜尋' + materialType + '名稱'"
+          [placeholder]="'搜尋' + materialType + '名稱'" [ngModel]="filter()" (ngModelChange)="filter.set($event)">
+      </div>
+      @if (view() === 'specs') {
+        @if (!visibleSpecs().length) {
+          <p class="panel empty-state">沒有符合條件的規格。</p>
+        } @else {
+          <section class="panel field-table" [attr.aria-label]="materialType + '規格清單'">
+            <table>
+              <thead><tr>
+                <th scope="col" class="spec-name-column" [attr.aria-sort]="specSort().column === 'name' ? specSort().direction : null">
+                  <button class="column-sort" type="button" (click)="sortBy(specSort, 'name')">
+                    名稱 <span aria-hidden="true">{{ sortIndicator(specSort(), 'name') }}</span>
+                  </button>
+                </th>
+                <th scope="col">容量或重量／包裝</th>
+                <th scope="col">庫存單位</th>
+                <th scope="col" [attr.aria-sort]="specSort().column === 'status' ? specSort().direction : null">
+                  <button class="column-sort" type="button" (click)="sortBy(specSort, 'status')">
+                    使用狀態 <span aria-hidden="true">{{ sortIndicator(specSort(), 'status') }}</span>
+                  </button>
+                </th>
+                <th scope="col">操作</th>
+              </tr></thead>
+              <tbody>
+                @for (spec of visibleSpecs(); track spec.id) {
+                  <tr>
+                    <th scope="row">{{ spec.name }}</th>
+                    <td>{{ spec.package ? packageLabel(spec.package) : '未設定包裝' }}</td>
+                    <td>{{ stockUnitLabel(spec) }}</td>
+                    <td><span class="tag" [class.planned]="status(spec) === '待進貨'" [class.exhausted]="status(spec) === '已用完'">{{ status(spec) }}</span></td>
+                    <td>
+                      <button type="button" class="button button-outline row-action-trigger" [attr.popovertarget]="'spec-actions-' + spec.id"
+                        [attr.aria-label]="'操作 ' + spec.name + (spec.package ? ' · ' + packageLabel(spec.package) : '')">☰</button>
+                      <div [id]="'spec-actions-' + spec.id" class="row-action-menu" popover>
+                        <button type="button" (click)="openPurchase(spec)">登記進貨</button>
+                        <button type="button" class="row-action-danger" [disabled]="!!spec.lots.length"
+                          [title]="spec.lots.length ? '已有庫存批次' : ''" (click)="confirmDelete(spec)">刪除規格</button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
+      } @else if (!stockRows().length) {
+        <p class="panel empty-state">{{ filter().trim() ? '沒有符合條件的批次。' : '目前沒有庫存批次。' }}</p>
+      } @else {
+        <section class="panel field-table" [attr.aria-label]="materialType + '進貨與庫存清單'">
+          <table>
+            <thead><tr>
+              @for (column of stockColumns; track column.key) {
+                <th scope="col" [class.stock-name-column]="column.key === 'name'"
+                  [attr.aria-sort]="stockSort().column === column.key ? stockSort().direction : null">
+                  <button class="column-sort" type="button" (click)="sortBy(stockSort, column.key, column.key === 'name' ? 'ascending' : 'descending')">
+                    {{ column.label }} <span aria-hidden="true">{{ sortIndicator(stockSort(), column.key) }}</span>
+                  </button>
+                </th>
+              }
+              <th scope="col">操作</th>
+            </tr></thead>
+            <tbody>
+              @for (row of stockRows(); track row.lot.id) {
+                <tr>
+                  <td>
+                    {{ row.date.replaceAll('-', '/') }}
+                    @if (row.lot.source === 'openingStock') { <small class="secondary">期初庫存</small> }
+                  </td>
+                  <th scope="row">
+                    {{ row.spec.name }}／{{ row.spec.package ? packageLabel(row.spec.package) : '未設定包裝' }}
+                  </th>
+                  <td>{{ row.lot.receivedQuantity | number:'1.0-6' }} {{ stockUnitLabel(row.spec) }}</td>
+                  <td [class.available-quantity]="row.remaining > 0">{{ row.lot.remainingQuantity | number:'1.0-6' }} {{ stockUnitLabel(row.spec) }}</td>
+                  <td>{{ row.total === null ? '未填' : 'NT$' + (row.total | number:'1.0-12') }}</td>
+                  <td>{{ row.unit === null ? '未填' : 'NT$' + (row.unit | number:'1.0-6') + '／' + stockUnitLabel(row.spec) }}</td>
+                  <td class="lot-actions">
+                    <button type="button" class="button button-outline" (click)="openLot(row.spec, row.lot)">編輯</button>
+                    @let inUse = row.remaining < row.lot.receivedQuantity;
+                    <button type="button" class="button button-outline lot-delete" [disabled]="inUse"
+                      [attr.title]="inUse ? '批次已被資材施用紀錄引用，無法刪除。' : null"
+                      (click)="confirmDelete(row.spec, row.lot)">刪除</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+      }
+      <p class="list-note">{{ view() === 'specs' ? '批次已生效且仍有餘量時，才可在作物栽培選用。' : '作物栽培會列出施用當日已生效且仍有餘量的批次。' }}</p>
+    }
+  }
+</section>
