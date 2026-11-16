@@ -40,6 +40,8 @@ model/materialApplicationDetailRqDto.ts
 model/materialApplicationDetailRsDto.ts
 model/materialApplicationMethod.ts
 model/materialApplicationRsDto.ts
+model/materialPackageDto.ts
+model/materialPackageUnit.ts
 model/models.ts
 model/pesticideLotRsDto.ts
 model/pesticideMaterialRsDto.ts

@@ -214,9 +214,13 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `name` | `varchar(100)` | NOT NULL、去除首尾空白後非空 | 資材名稱。 |
 | `material_type` | `varchar(24)` | NOT NULL、CHECK 允許 `FERTILIZER`、`PESTICIDE` | 資材類別。 |
 | `stock_unit` | `varchar(20)` | NOT NULL、去除首尾空白後非空 | 批次與施用共用的單位。已有批次後固定。 |
+| `package_quantity` | `numeric(15,6)` | 與 `package_unit` 同時有值或同時為 NULL。有值時介於 0.000001 和 999999999.999999。 | 每件包裝的容量或重量。舊資料可留空。已有批次後固定。 |
+| `package_unit` | `varchar(10)` | 有值時為 `liter`、`milliliter`、`kilogram` 或 `gram`。 | 原始包裝的單位。已有批次後固定。 |
 | `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 建立時間。 |
 
-`(main_account_id, material_type, name)` 唯一。名稱以去除首尾空白後的文字精確比較。
+有包裝規格的資料以 `(main_account_id, material_type, name, package_quantity, package_unit)` 唯一。名稱以去除首尾空白後的文字精確比較。包裝採原始數值與單位比對，1 公升與 1,000 毫升可各自建立。未填包裝的資料以原有的 `(main_account_id, material_type, name)` 唯一。各規格以自己的 ID 關聯批次並彙總庫存。
+
+升版保留既有資材與批次的 ID，既有資材的包裝欄位留空。新增同名規格後，舊版名稱唯一索引會在降版時產生衝突並使交易回滾。若要降版，須先處理會衝突的同名規格。
 
 農藥的 `stock_unit` 以依類型適用的 CHECK 限制為公升、毫升、公斤、公克。既有肥料單位沿用原有約束。
 
@@ -292,6 +296,8 @@ erDiagram
         varchar name
         varchar material_type
         varchar stock_unit
+        numeric package_quantity
+        varchar package_unit
         timestamptz created_at
     }
     material_purchase_lots {

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization.Metadata;
 using CropPilot.Api.Data;
 using CropPilot.Contract.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -7,12 +8,22 @@ namespace CropPilot.Api.Fertilizers;
 /// <summary>將庫存與施肥資料轉換為 OpenAPI 回應。</summary>
 internal static class FertilizerDtoMapper
 {
-    /// <summary>回傳資材及即時餘量。</summary>
+    /// <summary>在規格回應中省略舊資料尚未填寫的包裝欄位。</summary>
+    /// <param name="type">目前設定的 JSON 契約型別。</param>
+    internal static void ConfigurePackageSerialization(JsonTypeInfo type)
+    {
+        if (type.Type == typeof(FertilizerMaterialRsDto) || type.Type == typeof(PesticideMaterialRsDto))
+            type.Properties.Single(property => property.Name == "package").ShouldSerialize = (_, value) => value is not null;
+    }
+
+    /// <summary>回傳肥料規格及即時餘量。</summary>
+    /// <param name="stock">肥料主檔及按規格彙總的餘量。</param>
     internal static FertilizerMaterialRsDto ToDto(MaterialStock stock) => new()
     {
         Id = stock.Material.Id,
         Name = stock.Material.Name,
         StockUnit = stock.Material.StockUnit,
+        Package = ToPackageDto(stock.Material),
         RemainingQuantity = stock.Remaining
     };
 
@@ -56,7 +67,8 @@ internal static class FertilizerDtoMapper
         }).ToList()
     };
 
-    /// <summary>回傳農藥主檔、契約庫存單位及合計餘量。</summary>
+    /// <summary>回傳農藥規格、契約庫存單位及合計餘量。</summary>
+    /// <param name="stock">農藥主檔及按規格彙總的餘量。</param>
     internal static PesticideMaterialRsDto ToPesticideDto(MaterialStock stock) => new()
     {
         Id = stock.Material.Id,
@@ -69,8 +81,26 @@ internal static class FertilizerDtoMapper
             "公克" => PesticideStockUnit.GramEnum,
             _ => throw new InvalidOperationException()
         },
+        Package = ToPackageDto(stock.Material),
         RemainingQuantity = stock.Remaining
     };
+
+    /// <summary>將主檔上的每件包裝資料轉成契約欄位。</summary>
+    /// <param name="material">可能沒有包裝資料的資材主檔。</param>
+    /// <returns>包裝規格，舊資料缺少規格時回傳空值。</returns>
+    private static MaterialPackageDto? ToPackageDto(AgriculturalMaterial material) =>
+        material.PackageQuantity is { } quantity ? new()
+        {
+            Quantity = quantity,
+            Unit = material.PackageUnit switch
+            {
+                "liter" => MaterialPackageUnit.LiterEnum,
+                "milliliter" => MaterialPackageUnit.MilliliterEnum,
+                "kilogram" => MaterialPackageUnit.KilogramEnum,
+                "gram" => MaterialPackageUnit.GramEnum,
+                _ => throw new InvalidOperationException()
+            }
+        } : null;
 
     /// <summary>回傳農藥批次、剩餘量及可計算的整批成本。</summary>
     internal static PesticideLotRsDto ToPesticideDto(LotStock stock) => new()

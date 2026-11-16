@@ -752,7 +752,7 @@ paths:
       tags: [Materials]
       operationId: createFertilizerMaterial
       summary: 新增肥料資材
-      description: 為登入帳號建立肥料資材並設定庫存單位。同一帳號已有同名資材時回傳 409。
+      description: 為登入帳號建立肥料規格並設定庫存單位。同名資材可依包裝分開建立。重複以原規格數值與單位比對。
       security:
         - BearerAuth: []
       requestBody:
@@ -776,7 +776,7 @@ paths:
           $ref: '#/components/responses/FieldAccessForbidden'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: 帳號已有同名肥料資材。
+          description: 帳號已有同名且包裝相同的肥料規格，或已有同名且未填包裝的肥料資材。
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -846,7 +846,7 @@ paths:
       tags: [Materials]
       operationId: editFertilizerMaterial
       summary: 編輯肥料資材
-      description: 更新名稱與庫存單位。已有批次的資材只可修改名稱。同帳號名稱重複回傳 409。
+      description: 更新名稱、包裝與庫存單位。已有批次的資材只可修改名稱。省略包裝時沿用原值。
       security:
         - BearerAuth: []
       requestBody:
@@ -1108,7 +1108,7 @@ paths:
       tags: [Materials]
       operationId: createPesticideMaterial
       summary: 新增農藥資材
-      description: 為登入帳號建立農藥資材並設定庫存單位。同一帳號已有同名資材時回傳 409。
+      description: 為登入帳號建立農藥規格並設定庫存單位。同名資材可依包裝分開建立。重複以原規格數值與單位比對。
       security:
         - BearerAuth: []
       requestBody:
@@ -1132,7 +1132,34 @@ paths:
           $ref: '#/components/responses/FieldAccessForbidden'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: 帳號已有同名農藥資材。
+          description: 帳號已有同名且包裝相同的農藥規格，或已有同名且未填包裝的農藥資材。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/pesticides/{materialId}:
+    parameters:
+      - $ref: '#/components/parameters/MaterialId'
+    delete:
+      tags: [Materials]
+      operationId: deletePesticideMaterial
+      summary: 刪除農藥規格
+      description: 只允許刪除登入帳號擁有且沒有庫存批次的農藥規格。
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 已刪除
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 規格仍有庫存批次。
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1193,6 +1220,66 @@ paths:
           $ref: '#/components/responses/FieldAccessForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/pesticide-lots/{lotId}:
+    parameters:
+      - $ref: '#/components/parameters/LotId'
+    put:
+      tags: [Materials]
+      operationId: editPesticideLot
+      summary: 編輯農藥庫存批次
+      description: 更新原批次的日期、登記量及單價，來源固定。進貨單價必填。登記量不得小於已用量，生效日不得晚於任一關聯施用日。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditFertilizerLotRqDto'
+      responses:
+        '200':
+          description: 更新後的農藥庫存批次
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PesticideLotRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 新登記量或生效日與既有資材施用明細衝突。
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Materials]
+      operationId: deletePesticideLot
+      summary: 刪除農藥庫存批次
+      description: 只允許刪除登入帳號擁有且未被資材施用明細引用的農藥批次。
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 已刪除
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 批次已被資材施用明細引用。
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1445,6 +1532,7 @@ components:
           maxLength: 1000
     CreateFertilizerMaterialRqDto:
       type: object
+      description: 舊版請求可省略包裝規格，更新時省略則沿用原規格。
       required: [name, stockUnit]
       properties:
         name:
@@ -1455,6 +1543,8 @@ components:
           type: string
           minLength: 1
           maxLength: 20
+        package:
+          $ref: '#/components/schemas/MaterialPackageDto'
     FertilizerMaterialRsDto:
       type: object
       required: [id, name, stockUnit, remainingQuantity]
@@ -1470,6 +1560,8 @@ components:
           type: string
           minLength: 1
           maxLength: 20
+        package:
+          $ref: '#/components/schemas/MaterialPackageDto'
         remainingQuantity:
           type: number
           minimum: 0
@@ -1768,8 +1860,25 @@ components:
       type: string
       enum: [liter, milliliter, kilogram, gram]
       description: 依序對應公升、毫升、公斤、公克。
+    MaterialPackageDto:
+      type: object
+      required: [quantity, unit]
+      properties:
+        quantity:
+          type: number
+          minimum: 0.000001
+          maximum: 999999999.999999
+          multipleOf: 0.000001
+          description: 每件包裝的容量或重量。
+        unit:
+          $ref: '#/components/schemas/MaterialPackageUnit'
+    MaterialPackageUnit:
+      type: string
+      enum: [liter, milliliter, kilogram, gram]
+      description: 規格單位，依序對應公升、毫升、公斤、公克。
     CreatePesticideMaterialRqDto:
       type: object
+      description: 舊版請求可省略包裝規格。
       required: [name, stockUnit]
       properties:
         name:
@@ -1778,6 +1887,8 @@ components:
           maxLength: 100
         stockUnit:
           $ref: '#/components/schemas/PesticideStockUnit'
+        package:
+          $ref: '#/components/schemas/MaterialPackageDto'
     PesticideMaterialRsDto:
       type: object
       required: [id, name, stockUnit, remainingQuantity]
@@ -1791,6 +1902,8 @@ components:
           maxLength: 100
         stockUnit:
           $ref: '#/components/schemas/PesticideStockUnit'
+        package:
+          $ref: '#/components/schemas/MaterialPackageDto'
         remainingQuantity:
           type: number
           minimum: 0

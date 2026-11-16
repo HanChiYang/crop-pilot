@@ -11,7 +11,7 @@ import { FertilizerLotRsDto } from './generated/model/fertilizerLotRsDto';
 import { FertilizerMaterialRsDto } from './generated/model/fertilizerMaterialRsDto';
 import { MaterialApplicationMethod } from './generated/model/materialApplicationMethod';
 import { PesticideLotRsDto } from './generated/model/pesticideLotRsDto';
-import { pesticideUnits } from './pesticide-units';
+import { materialPackageLabel, pesticideUnits } from './pesticide-units';
 import { HttpErrorResponse } from '@angular/common/http';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
 import { operationError, parseOperationDecimal, taipeiToday } from './operation-form';
@@ -94,7 +94,7 @@ interface DetailInput {
                     [ngModel]="row.materialId" (ngModelChange)="selectMaterial(row, $event)">
                     <option value="">請選擇資材</option>
                     @for (material of availableMaterials(row.materialType); track material.id) {
-                      <option [value]="material.id">{{ material.name }}</option>
+                      <option [value]="material.id">{{ material.name }}{{ material.package ? ' · ' + packageLabel(material.package) : '' }}</option>
                     }
                     @if (row.materialId && !availableMaterialIds().has(row.materialId)) {
                       <option [value]="row.materialId" disabled>原選資材於該日無可用批次</option>
@@ -194,6 +194,7 @@ export class FertilizationPage {
   private readonly inventory = signal<{ material: FertilizerMaterialRsDto; type: MaterialType; lots: (FertilizerLotRsDto | PesticideLotRsDto)[] }[]>([]);
 
   protected readonly fromHistory = this.route.snapshot.data['fromHistory'] === true;
+  protected readonly packageLabel = materialPackageLabel;
   protected readonly backLink = computed(() => this.fromHistory
     ? ['/dashboard/planting-history', this.ids().fieldId, this.ids().plantingId]
     : ['/dashboard/plantings']);

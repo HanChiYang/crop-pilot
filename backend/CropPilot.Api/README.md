@@ -2,7 +2,25 @@
 
 使用 .NET 10、ASP.NET Core Identity、官方 OpenID Connect 中介軟體與 PostgreSQL。帳密登入、Google 登入、工作階段查詢、防偽權杖與登出依照 OpenAPI 契約。[OpenAPI](../../docs/openapi/openapi.yaml)
 
-## 在本機執行
+## 用 Docker Compose 啟動手動測試環境
+
+每次手動測試都用全新的 PostgreSQL 18 資料庫。先核對 [DDL](../database/current-schema.sql)及 `ef_migrations_history` 與目前分支的 EF Core migrations 同步。若有差異，先從已套用全部 migrations 的 PostgreSQL 18 測試庫重新匯出結構，核對資料表、欄位、索引和約束，並更新 DDL 的 migration 歷史。
+
+在專案根目錄執行以下指令。第一行會刪除 `croppilot-backend` 專用資料卷中的上一次手動測試資料。
+
+```powershell
+docker compose -p croppilot-backend -f backend/compose.yaml down --volumes
+if ($LASTEXITCODE -ne 0) { throw '無法重建手動測試資料庫。' }
+docker compose -p croppilot-backend -f backend/compose.yaml up -d --build
+```
+
+API 使用 `http://localhost:7081`，Angular 開發伺服器會轉送 API 請求到此位址。啟動 Angular 後，在 `http://localhost:4200/login` 以測試帳號 `Farmer01`、密碼 `password` 登入。
+
+PostgreSQL 會依序載入 DDL 及[測試登入資料](../database/init-test-login.sql)。API 等 `migrate` 服務成功才啟動。全新資料庫的 `migrate` 日誌應顯示結構已是最新版。啟動後確認可用測試帳號登入。
+
+測試資料存於 `croppilot-backend_postgres_data`，直到下一次啟動手動測試環境時清除。PostgreSQL 預設綁定 `127.0.0.1:5432`。若本機已有 PostgreSQL，可設定 `CROPPILOT_POSTGRES_PORT` 避開連接埠衝突。Google 登入可透過 `CROPPILOT_GOOGLE_CLIENT_ID` 和 `CROPPILOT_GOOGLE_CLIENT_SECRET` 設定。
+
+## 在本機執行 .NET 後端
 
 在本機 PostgreSQL 準備開發資料庫，並建立可操作其結構的資料庫帳號。若要搭配 Angular 開發伺服器使用 Google 登入，在 Google Cloud 的 Web application OAuth 用戶端註冊 `http://localhost:4200/signin-google`。從後端直接啟動 Google 登入時，回呼網址使用 `http://localhost:7081/signin-google`。以下指令在 `backend/` 目錄執行，將角括號中的文字替換成本機設定值。
 

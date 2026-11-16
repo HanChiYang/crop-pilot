@@ -13,9 +13,7 @@ import { PlantingHistoryPage } from './planting-history-page';
 import { PlantingHistoryDetailPage } from './planting-history-detail-page';
 import { FertilizationPage } from './fertilization-page';
 import { IrrigationPage } from './irrigation-page';
-import { FertilizerInventoryPage } from './fertilizer-inventory-page';
 import { MaterialInventory } from './material-inventory';
-import { PesticideInventoryPage } from './pesticide-inventory-page';
 
 const redirectSignedIn: CanActivateFn = () => {
   const auth = inject(AuthService);
@@ -68,8 +66,17 @@ export const routes: Routes = [
         component: MaterialInventory,
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'pesticides' },
-          { path: 'pesticides', component: PesticideInventoryPage, title: '農藥庫存｜CropPilot' },
-          { path: 'fertilizers', component: FertilizerInventoryPage, title: '肥料庫存｜CropPilot' },
+          {
+            path: 'pesticides',
+            loadComponent: () => import('./material-inventory-page').then(m => m.MaterialInventoryPage),
+            data: { pesticide: true },
+            title: '農藥資材管理｜CropPilot',
+          },
+          {
+            path: 'fertilizers',
+            loadComponent: () => import('./material-inventory-page').then(m => m.MaterialInventoryPage),
+            title: '肥料資材管理｜CropPilot',
+          },
         ],
       },
       {

@@ -77,6 +77,16 @@ export interface DeleteFertilizerMaterialRequestParams {
     materialId: string;
 }
 
+export interface DeletePesticideLotRequestParams {
+    /** 肥料庫存批次的 UUID。 */
+    lotId: string;
+}
+
+export interface DeletePesticideMaterialRequestParams {
+    /** 肥料資材識別碼。 */
+    materialId: string;
+}
+
 export interface EditFertilizerLotRequestParams {
     /** 肥料庫存批次的 UUID。 */
     lotId: string;
@@ -87,6 +97,12 @@ export interface EditFertilizerMaterialRequestParams {
     /** 肥料資材識別碼。 */
     materialId: string;
     createFertilizerMaterialRqDto: CreateFertilizerMaterialRqDto;
+}
+
+export interface EditPesticideLotRequestParams {
+    /** 肥料庫存批次的 UUID。 */
+    lotId: string;
+    editFertilizerLotRqDto: EditFertilizerLotRqDto;
 }
 
 export interface ListFertilizerLotsRequestParams {
@@ -187,7 +203,7 @@ export class MaterialsService extends BaseService {
 
     /**
      * 新增肥料資材
-     * 為登入帳號建立肥料資材並設定庫存單位。同一帳號已有同名資材時回傳 409。
+     * 為登入帳號建立肥料規格並設定庫存單位。同名資材可依包裝分開建立。重複以原規格數值與單位比對。
      * @endpoint post /api/v1/fertilizers
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -335,7 +351,7 @@ export class MaterialsService extends BaseService {
 
     /**
      * 新增農藥資材
-     * 為登入帳號建立農藥資材並設定庫存單位。同一帳號已有同名資材時回傳 409。
+     * 為登入帳號建立農藥規格並設定庫存單位。同名資材可依包裝分開建立。重複以原規格數值與單位比對。
      * @endpoint post /api/v1/pesticides
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -528,6 +544,128 @@ export class MaterialsService extends BaseService {
     }
 
     /**
+     * 刪除農藥庫存批次
+     * 只允許刪除登入帳號擁有且未被資材施用明細引用的農藥批次。
+     * @endpoint delete /api/v1/pesticide-lots/{lotId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public deletePesticideLot(requestParameters: DeletePesticideLotRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
+    public deletePesticideLot(requestParameters: DeletePesticideLotRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
+    public deletePesticideLot(requestParameters: DeletePesticideLotRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
+    public deletePesticideLot(requestParameters: DeletePesticideLotRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const lotId = requestParameters?.lotId;
+        if (lotId === null || lotId === undefined) {
+            throw new Error('Required parameter lotId was null or undefined when calling deletePesticideLot.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/pesticide-lots/${this.configuration.encodeParam({name: "lotId", value: lotId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 刪除農藥規格
+     * 只允許刪除登入帳號擁有且沒有庫存批次的農藥規格。
+     * @endpoint delete /api/v1/pesticides/{materialId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public deletePesticideMaterial(requestParameters: DeletePesticideMaterialRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
+    public deletePesticideMaterial(requestParameters: DeletePesticideMaterialRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
+    public deletePesticideMaterial(requestParameters: DeletePesticideMaterialRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
+    public deletePesticideMaterial(requestParameters: DeletePesticideMaterialRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const materialId = requestParameters?.materialId;
+        if (materialId === null || materialId === undefined) {
+            throw new Error('Required parameter materialId was null or undefined when calling deletePesticideMaterial.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/pesticides/${this.configuration.encodeParam({name: "materialId", value: materialId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
      * 編輯肥料庫存批次
      * 更新整份表單。來源固定。已用於資材施用的批次可更正單價，登記量不得小於已用量，生效日不得晚於任一關聯施用日。
      * @endpoint put /api/v1/fertilizer-lots/{lotId}
@@ -605,7 +743,7 @@ export class MaterialsService extends BaseService {
 
     /**
      * 編輯肥料資材
-     * 更新名稱與庫存單位。已有批次的資材只可修改名稱。同帳號名稱重複回傳 409。
+     * 更新名稱、包裝與庫存單位。已有批次的資材只可修改名稱。省略包裝時沿用原值。
      * @endpoint put /api/v1/fertilizers/{materialId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -669,6 +807,82 @@ export class MaterialsService extends BaseService {
             {
                 context: localVarHttpContext,
                 body: createFertilizerMaterialRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 編輯農藥庫存批次
+     * 更新原批次的日期、登記量及單價，來源固定。進貨單價必填。登記量不得小於已用量，生效日不得晚於任一關聯施用日。
+     * @endpoint put /api/v1/pesticide-lots/{lotId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public editPesticideLot(requestParameters: EditPesticideLotRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<PesticideLotRsDto>;
+    public editPesticideLot(requestParameters: EditPesticideLotRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<PesticideLotRsDto>>;
+    public editPesticideLot(requestParameters: EditPesticideLotRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<PesticideLotRsDto>>;
+    public editPesticideLot(requestParameters: EditPesticideLotRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const lotId = requestParameters?.lotId;
+        if (lotId === null || lotId === undefined) {
+            throw new Error('Required parameter lotId was null or undefined when calling editPesticideLot.');
+        }
+        const editFertilizerLotRqDto = requestParameters?.editFertilizerLotRqDto;
+        if (editFertilizerLotRqDto === null || editFertilizerLotRqDto === undefined) {
+            throw new Error('Required parameter editFertilizerLotRqDto was null or undefined when calling editPesticideLot.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/pesticide-lots/${this.configuration.encodeParam({name: "lotId", value: lotId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<PesticideLotRsDto>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: editFertilizerLotRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,

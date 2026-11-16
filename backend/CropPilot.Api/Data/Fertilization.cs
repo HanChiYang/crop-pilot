@@ -1,6 +1,6 @@
 namespace CropPilot.Api.Data;
 
-/// <summary>保存帳號管理的資材名稱及庫存單位。</summary>
+/// <summary>保存帳號管理的資材名稱、包裝規格及庫存單位。</summary>
 internal sealed class AgriculturalMaterial
 {
     internal const string Fertilizer = "FERTILIZER";
@@ -11,6 +11,8 @@ internal sealed class AgriculturalMaterial
     public required string Name { get; set; }
     public string MaterialType { get; init; } = Fertilizer;
     public required string StockUnit { get; set; }
+    public decimal? PackageQuantity { get; set; }
+    public string? PackageUnit { get; set; }
     public DateTimeOffset CreatedAt { get; init; }
 }
 

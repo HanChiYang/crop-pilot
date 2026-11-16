@@ -1,0 +1,50 @@
+name: croppilot-backend
+
+x-api: &api
+  image: croppilot-api:local
+  pull_policy: never
+  environment:
+    ASPNETCORE_ENVIRONMENT: Development
+    ConnectionStrings__CropPilot: "Host=postgres;Port=5432;Database=${CROPPILOT_POSTGRES_DB:-croppilot_dev};Username=${CROPPILOT_POSTGRES_USER:-croppilot};Password=${CROPPILOT_POSTGRES_PASSWORD:-croppilot};GSS Encryption Mode=Disable"
+    Authentication__Google__ClientId: ${CROPPILOT_GOOGLE_CLIENT_ID:-}
+    Authentication__Google__ClientSecret: ${CROPPILOT_GOOGLE_CLIENT_SECRET:-}
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${CROPPILOT_POSTGRES_DB:-croppilot_dev}
+      POSTGRES_USER: ${CROPPILOT_POSTGRES_USER:-croppilot}
+      POSTGRES_PASSWORD: ${CROPPILOT_POSTGRES_PASSWORD:-croppilot}
+    ports:
+      - "127.0.0.1:${CROPPILOT_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./database/current-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/init-test-login.sql:/docker-entrypoint-initdb.d/02-test-login.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  migrate:
+    <<: *api
+    command: ["--ApplyDevelopmentMigrations=true"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    build: .
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${CROPPILOT_API_PORT:-7081}:8080"
+
+volumes:
+  postgres_data:

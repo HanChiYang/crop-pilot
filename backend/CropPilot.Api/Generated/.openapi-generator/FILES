@@ -36,6 +36,8 @@ CropPilot.Contract/Models/MaterialApplicationDetailRqDto.cs
 CropPilot.Contract/Models/MaterialApplicationDetailRsDto.cs
 CropPilot.Contract/Models/MaterialApplicationMethod.cs
 CropPilot.Contract/Models/MaterialApplicationRsDto.cs
+CropPilot.Contract/Models/MaterialPackageDto.cs
+CropPilot.Contract/Models/MaterialPackageUnit.cs
 CropPilot.Contract/Models/PesticideLotRsDto.cs
 CropPilot.Contract/Models/PesticideMaterialRsDto.cs
 CropPilot.Contract/Models/PesticideStockUnit.cs

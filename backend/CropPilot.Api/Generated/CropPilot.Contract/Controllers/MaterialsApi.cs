@@ -55,7 +55,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 新增肥料資材
         /// </summary>
-        /// <remarks>為登入帳號建立肥料資材並設定庫存單位。同一帳號已有同名資材時回傳 409。</remarks>
+        /// <remarks>為登入帳號建立肥料規格並設定庫存單位。同名資材可依包裝分開建立。重複以原規格數值與單位比對。</remarks>
         /// <param name="createFertilizerMaterialRqDto"></param>
         /// <response code="201">肥料資材</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
@@ -104,7 +104,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 新增農藥資材
         /// </summary>
-        /// <remarks>為登入帳號建立農藥資材並設定庫存單位。同一帳號已有同名資材時回傳 409。</remarks>
+        /// <remarks>為登入帳號建立農藥規格並設定庫存單位。同名資材可依包裝分開建立。重複以原規格數值與單位比對。</remarks>
         /// <param name="createPesticideMaterialRqDto"></param>
         /// <response code="201">農藥資材</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
@@ -174,6 +174,54 @@ namespace CropPilot.Contract.Controllers
         public abstract Task<IActionResult> DeleteFertilizerMaterial([FromRoute (Name = "materialId")][Required]Guid materialId);
 
         /// <summary>
+        /// 刪除農藥庫存批次
+        /// </summary>
+        /// <remarks>只允許刪除登入帳號擁有且未被資材施用明細引用的農藥批次。</remarks>
+        /// <param name="lotId">肥料庫存批次的 UUID。</param>
+        /// <response code="204">已刪除</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpDelete]
+        [Route("/api/v1/pesticide-lots/{lotId}")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> DeletePesticideLot([FromRoute (Name = "lotId")][Required]Guid lotId);
+
+        /// <summary>
+        /// 刪除農藥規格
+        /// </summary>
+        /// <remarks>只允許刪除登入帳號擁有且沒有庫存批次的農藥規格。</remarks>
+        /// <param name="materialId">肥料資材識別碼。</param>
+        /// <response code="204">已刪除</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpDelete]
+        [Route("/api/v1/pesticides/{materialId}")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> DeletePesticideMaterial([FromRoute (Name = "materialId")][Required]Guid materialId);
+
+        /// <summary>
         /// 編輯肥料庫存批次
         /// </summary>
         /// <remarks>更新整份表單。來源固定。已用於資材施用的批次可更正單價，登記量不得小於已用量，生效日不得晚於任一關聯施用日。</remarks>
@@ -203,7 +251,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 編輯肥料資材
         /// </summary>
-        /// <remarks>更新名稱與庫存單位。已有批次的資材只可修改名稱。同帳號名稱重複回傳 409。</remarks>
+        /// <remarks>更新名稱、包裝與庫存單位。已有批次的資材只可修改名稱。省略包裝時沿用原值。</remarks>
         /// <param name="materialId">肥料資材識別碼。</param>
         /// <param name="createFertilizerMaterialRqDto"></param>
         /// <response code="200">更新後的肥料資材</response>
@@ -226,6 +274,33 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> EditFertilizerMaterial([FromRoute (Name = "materialId")][Required]Guid materialId, [FromBody]CreateFertilizerMaterialRqDto createFertilizerMaterialRqDto);
+
+        /// <summary>
+        /// 編輯農藥庫存批次
+        /// </summary>
+        /// <remarks>更新原批次的日期、登記量及單價，來源固定。進貨單價必填。登記量不得小於已用量，生效日不得晚於任一關聯施用日。</remarks>
+        /// <param name="lotId">肥料庫存批次的 UUID。</param>
+        /// <param name="editFertilizerLotRqDto"></param>
+        /// <response code="200">更新後的農藥庫存批次</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpPut]
+        [Route("/api/v1/pesticide-lots/{lotId}")]
+        [Authorize]
+        [Consumes("application/json")]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(PesticideLotRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> EditPesticideLot([FromRoute (Name = "lotId")][Required]Guid lotId, [FromBody]EditFertilizerLotRqDto editFertilizerLotRqDto);
 
         /// <summary>
         /// 查詢肥料庫存批次

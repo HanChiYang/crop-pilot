@@ -52,6 +52,16 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnName("name")
                         .UseCollation("C");
 
+                    b.Property<decimal?>("PackageQuantity")
+                        .HasPrecision(15, 6)
+                        .HasColumnType("numeric(15,6)")
+                        .HasColumnName("package_quantity");
+
+                    b.Property<string>("PackageUnit")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("package_unit");
+
                     b.Property<string>("StockUnit")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -63,11 +73,19 @@ namespace CropPilot.Api.Data.Migrations
 
                     b.HasIndex("MainAccountId", "MaterialType", "Name")
                         .IsUnique()
-                        .HasDatabaseName("ux_agricultural_materials_account_type_name");
+                        .HasDatabaseName("ux_agricultural_materials_account_type_name")
+                        .HasFilter("package_quantity IS NULL");
+
+                    b.HasIndex("MainAccountId", "MaterialType", "Name", "PackageQuantity", "PackageUnit")
+                        .IsUnique()
+                        .HasDatabaseName("ux_agricultural_materials_account_type_name_package")
+                        .HasFilter("package_quantity IS NOT NULL");
 
                     b.ToTable("agricultural_materials", null, t =>
                         {
                             t.HasCheckConstraint("ck_agricultural_materials_name", "btrim(name) <> ''");
+
+                            t.HasCheckConstraint("ck_agricultural_materials_package", "(package_quantity IS NULL AND package_unit IS NULL)\r\nOR (package_quantity IS NOT NULL AND package_quantity BETWEEN 0.000001 AND 999999999.999999\r\n    AND package_unit IS NOT NULL AND package_unit IN ('liter', 'milliliter', 'kilogram', 'gram'))");
 
                             t.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> '' AND (material_type <> 'PESTICIDE' OR stock_unit IN ('公升', '毫升', '公斤', '公克'))");
 
@@ -528,7 +546,7 @@ namespace CropPilot.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_material_purchase_lots_currency", "currency_code = 'TWD'");
 
-                            t.HasCheckConstraint("ck_material_purchase_lots_dates", "(source = 'PURCHASE' AND purchased_on IS NOT NULL AND purchased_on = available_from)\nOR (source = 'OPENING_STOCK' AND (purchased_on IS NULL OR purchased_on <= available_from))");
+                            t.HasCheckConstraint("ck_material_purchase_lots_dates", "(source = 'PURCHASE' AND purchased_on IS NOT NULL AND purchased_on = available_from)\r\nOR (source = 'OPENING_STOCK' AND (purchased_on IS NULL OR purchased_on <= available_from))");
 
                             t.HasCheckConstraint("ck_material_purchase_lots_price", "unit_price BETWEEN 0 AND 999999999.999999");
 
