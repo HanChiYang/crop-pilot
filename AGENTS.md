@@ -15,6 +15,12 @@
 - PostgreSQL 資料表與欄位一律使用小寫 `snake_case`，包含 ASP.NET Core Identity 的資料表與欄位。應用程式的資料表一律以 `uuid` 型別的單欄 `id` 作為主鍵。ER 圖使用實際的資料表與欄位名稱，API JSON 欄位依 OpenAPI 契約命名。
 - 登入採 ASP.NET Core Identity。Google 登入使用官方 OpenID Connect 中介軟體，外部身分與 Email 比對依設計文件實作。[Google 登入設計](docs/design/first-desktop-slice-data-api.md#google-登入)
 
+## 手動測試環境
+
+- 使用者說要手動測試或要啟動前後端測試時，使用 [Docker Compose](backend/compose.yaml) 啟動 ASP.NET Core API 與 PostgreSQL 18，Angular 連到 Compose 的 `http://localhost:7081`。
+- 每次啟動手動測試環境都重建 Compose 專案 `croppilot-backend` 的專用資料庫資料卷。PostgreSQL 首次啟動依序執行 [DDL](backend/database/current-schema.sql)及[初始化資料](backend/database/init-test-login.sql)。只重建此 Compose 專案的測試資料，並在交付前確認新資料庫初始化與測試帳號登入成功。[啟動指令](backend/CropPilot.Api/README.md#用-docker-compose-啟動手動測試環境)
+- 啟動前核對 DDL 與目前分支套用全部 EF Core migrations 後的 PostgreSQL 18 結構一致，包含資料表、欄位、索引、約束及 `ef_migrations_history`。發現差異時先更新 DDL，並用全新資料庫驗證 DDL 和初始化 SQL。全新資料庫啟動時，`migrate` 服務應確認結構已是最新版。
+
 ## 後端 API 實作慣例
 
 - 依 Controller → Service → Repository 分層。Controller 處理 HTTP 請求和回應，Service 負責業務驗證與操作流程，Repository 負責 EF Core 查詢、寫入及辨識資料庫約束衝突。

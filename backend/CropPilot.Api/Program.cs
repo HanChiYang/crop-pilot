@@ -143,6 +143,19 @@ builder.Services.AddControllers(options =>
 
 var app = builder.Build();
 
+if (app.Configuration.GetValue<bool>("ApplyDevelopmentMigrations"))
+{
+    if (!isDevelopment)
+    {
+        throw new InvalidOperationException("Automatic database migration is available only in Development.");
+    }
+
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<CropPilotDbContext>();
+    await db.Database.MigrateAsync();
+    return;
+}
+
 if (app.Configuration.GetValue<bool>("SeedDevelopmentAccount"))
 {
     if (!app.Environment.IsDevelopment())

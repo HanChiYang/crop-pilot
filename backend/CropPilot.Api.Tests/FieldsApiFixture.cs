@@ -17,7 +17,7 @@ namespace CropPilot.Api.Tests;
 /// <summary>為田區 API 整合測試提供應用程式、獨立資料庫和已簽章的測試權杖。</summary>
 public sealed class FieldsApiFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer postgres = new PostgreSqlBuilder("postgres:15").Build();
+    private readonly PostgreSqlContainer postgres = new PostgreSqlBuilder("postgres:18").Build();
     private WebApplicationFactory<Program> app = null!;
 
     /// <summary>啟動 PostgreSQL 和 API 測試主機，並將 migrations 套用到測試庫。</summary>

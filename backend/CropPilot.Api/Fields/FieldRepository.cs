@@ -69,8 +69,7 @@ public sealed class FieldRepository(CropPilotDbContext database)
             await transaction.CommitAsync(cancellationToken);
             return FieldWriteStatus.Success;
         }
-        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
-            exception.ConstraintName == Planting.FieldForeignKey)
+        catch (PostgresException exception) when (IsPlantingDeleteConflict(exception))
         {
             await transaction.RollbackAsync(cancellationToken);
             return FieldWriteStatus.RelatedPlantings;
@@ -101,6 +100,13 @@ public sealed class FieldRepository(CropPilotDbContext database)
     /// <summary>建立依帳號篩選且停用追蹤的查詢。</summary>
     private IQueryable<Field> OwnedFields(Guid accountId) =>
         database.Fields.AsNoTracking().Where(field => field.MainAccountId == accountId);
+
+    /// <summary>辨識田區因栽培外鍵的刪除限制而無法刪除的資料庫錯誤。</summary>
+    /// <param name="exception">PostgreSQL 回傳的例外。</param>
+    /// <returns>錯誤來自栽培外鍵的外鍵違反或限制違反時為 <see langword="true"/>。</returns>
+    private static bool IsPlantingDeleteConflict(PostgresException exception) =>
+        exception.ConstraintName == Planting.FieldForeignKey &&
+        exception.SqlState is PostgresErrorCodes.ForeignKeyViolation or PostgresErrorCodes.RestrictViolation;
 }
 
 /// <summary>表示田區寫入或刪除的可預期結果。</summary>
