@@ -7,12 +7,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { MaterialPackageDto } from './materialPackageDto';
 
 
 export interface FertilizerMaterialRsDto { 
     id: string;
     name: string;
     stockUnit: string;
+    'package'?: MaterialPackageDto;
     remainingQuantity: number;
 }
 

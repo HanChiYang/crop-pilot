@@ -30,8 +30,12 @@ internal static class ErrorMessages
     internal const string FertilizerTextInvalid = "請輸入有效的名稱或庫存單位。";
     internal const string FertilizerUnitLocked = "已有庫存批次，無法修改庫存單位。";
     internal const string FertilizerNameConflict = "此肥料名稱已使用。";
-    internal const string FertilizerMaterialInUse = "仍有庫存批次，無法刪除肥料資材。";
-    internal const string FertilizerLotInUse = "批次已有施肥紀錄，無法刪除。";
+    internal const string PesticideNameConflict = "此農藥名稱已使用。";
+    internal const string MaterialPackageConflict = "已有同名且包裝相同的資材規格。";
+    internal const string MaterialPackageUnitRequired = "請選擇規格單位。";
+    internal const string MaterialPackageLocked = "已有庫存批次，無法變更包裝規格。";
+    internal const string MaterialHasLots = "規格仍有庫存批次，無法刪除。";
+    internal const string MaterialLotInUse = "批次已被資材施用紀錄引用，無法刪除。";
     internal const string FertilizerQuantityInvalid = "數量須大於零、小於 10 億，且最多六位小數。";
     internal const string FertilizerPriceInvalid = "單價須大於等於零且小於 10 億，且最多六位小數。";
     internal const string FertilizerDateInvalid = "請填寫符合日期限制的日期。";

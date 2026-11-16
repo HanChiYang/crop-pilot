@@ -107,13 +107,15 @@ builder.Services.AddControllers(options =>
     serializer.Converters.Add(new ContractEnumJsonConverter<MaterialApplicationDetailRsDto.MaterialTypeEnum>(ErrorMessages.MaterialTypeInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<MaterialApplicationMethod>(ErrorMessages.MaterialApplicationMethodInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<PesticideStockUnit>(ErrorMessages.PesticideUnitInvalid));
+    serializer.Converters.Add(new ContractEnumJsonConverter<MaterialPackageUnit>(ErrorMessages.MaterialPackageUnitRequired));
     serializer.Converters.Add(new ContractEnumJsonConverter<CreatePesticideLotRqDto.SourceEnum>(ErrorMessages.FertilizerSourceInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<PesticideLotRsDto.SourceEnum>(ErrorMessages.FertilizerSourceInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<PesticideLotRsDto.CurrencyCodeEnum>(ErrorMessages.FertilizerCurrencyInvalid));
     serializer.Converters.Add(new ContractEnumJsonConverter<IrrigationMethod>(ErrorMessages.IrrigationMethodInvalid));
     serializer.TypeInfoResolver = serializer.TypeInfoResolver!
         .WithAddedModifier(FieldDecimalJsonConverter.ConfigureFieldSave)
-        .WithAddedModifier(FertilizationDetailIdJsonConverter.Configure);
+        .WithAddedModifier(FertilizationDetailIdJsonConverter.Configure)
+        .WithAddedModifier(FertilizerDtoMapper.ConfigurePackageSerialization);
 }).ConfigureApiBehaviorOptions(options =>
 {
     options.InvalidModelStateResponseFactory = context =>

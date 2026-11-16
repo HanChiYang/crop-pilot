@@ -7,6 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { MaterialPackageDto } from './materialPackageDto';
 import { PesticideStockUnit } from './pesticideStockUnit';
 
 
@@ -14,6 +15,7 @@ export interface PesticideMaterialRsDto {
     id: string;
     name: string;
     stockUnit: PesticideStockUnit;
+    'package'?: MaterialPackageDto;
     remainingQuantity: number;
 }
 export namespace PesticideMaterialRsDto {

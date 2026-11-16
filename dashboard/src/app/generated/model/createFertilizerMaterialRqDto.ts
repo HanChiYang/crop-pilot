@@ -7,10 +7,15 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { MaterialPackageDto } from './materialPackageDto';
 
 
+/**
+ * 舊版請求可省略包裝規格，更新時省略則沿用原規格。
+ */
 export interface CreateFertilizerMaterialRqDto { 
     name: string;
     stockUnit: string;
+    'package'?: MaterialPackageDto;
 }
 

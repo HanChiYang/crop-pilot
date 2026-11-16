@@ -25,9 +25,17 @@ public sealed class FertilizerService(FertilizerRepository repository)
         return await repository.LotStocks(accountId, materialId, type).ToListAsync(ct);
     }
 
-    /// <summary>建立或更新資材，已有批次時鎖定庫存單位。</summary>
+    /// <summary>建立或更新帳號的資材規格，已有批次時鎖定包裝與庫存單位。</summary>
+    /// <param name="accountId">資材所屬帳號。</param>
+    /// <param name="id">更新時指定規格識別碼，建立時留空。</param>
+    /// <param name="name">資材名稱。</param>
+    /// <param name="unit">用於登記庫存及扣量的單位。</param>
+    /// <param name="package">每件包裝的數值與單位。更新時省略會沿用原值。</param>
+    /// <param name="ct">取消權杖。</param>
+    /// <param name="type">農藥或肥料類型。</param>
     internal async Task<FertilizerResult<MaterialStock>> SaveMaterialAsync(Guid accountId, Guid? id,
-        string name, string unit, CancellationToken ct, string type = AgriculturalMaterial.Fertilizer)
+        string name, string unit, MaterialPackageDto? package, CancellationToken ct,
+        string type = AgriculturalMaterial.Fertilizer)
     {
         name = name.Trim();
         unit = unit.Trim();
@@ -35,6 +43,22 @@ public sealed class FertilizerService(FertilizerRepository repository)
             return new(null, Invalid, ErrorMessages.FertilizerTextInvalid, "name");
         if (!ValidText(unit, 20))
             return new(null, Invalid, ErrorMessages.FertilizerTextInvalid, "stockUnit");
+
+        var packageUnit = package?.Unit switch
+        {
+            MaterialPackageUnit.LiterEnum => "liter",
+            MaterialPackageUnit.MilliliterEnum => "milliliter",
+            MaterialPackageUnit.KilogramEnum => "kilogram",
+            MaterialPackageUnit.GramEnum => "gram",
+            _ => null
+        };
+        if (package is not null)
+        {
+            if (package.Quantity <= 0 || !ValidQuantity(package.Quantity))
+                return new(null, Invalid, ErrorMessages.FertilizerQuantityInvalid, "package.quantity");
+            if (packageUnit is null)
+                return new(null, Invalid, ErrorMessages.MaterialPackageUnitRequired, "package.unit");
+        }
 
         await using var transaction = await repository.BeginAsync(ct);
         AgriculturalMaterial material;
@@ -47,8 +71,16 @@ public sealed class FertilizerService(FertilizerRepository repository)
             if (await owned.SingleOrDefaultAsync(ct) is not { } existing)
                 return new(null, NotFound);
             material = existing;
-            if (unit != material.StockUnit && await repository.Lots(accountId).AnyAsync(x => x.MaterialId == materialId, ct))
-                return new(null, Conflict, ErrorMessages.FertilizerUnitLocked, "stockUnit");
+            var stockUnitChanged = unit != material.StockUnit;
+            var packageChanged = package is not null &&
+                (package.Quantity != material.PackageQuantity || packageUnit != material.PackageUnit);
+            if ((stockUnitChanged || packageChanged) &&
+                await repository.Lots(accountId, type).AnyAsync(x => x.MaterialId == materialId, ct))
+            {
+                return stockUnitChanged
+                    ? new(null, Conflict, ErrorMessages.FertilizerUnitLocked, "stockUnit")
+                    : new(null, Conflict, ErrorMessages.MaterialPackageLocked, "package");
+            }
             material.Name = name;
             material.StockUnit = unit;
         }
@@ -58,26 +90,41 @@ public sealed class FertilizerService(FertilizerRepository repository)
             repository.Add(material);
         }
 
+        if (package is not null)
+        {
+            material.PackageQuantity = package.Quantity;
+            material.PackageUnit = packageUnit;
+        }
         if (!await repository.SaveAsync(ct))
-            return new(null, Conflict, ErrorMessages.FertilizerNameConflict, "name");
+        {
+            var message = material.PackageQuantity is not null ? ErrorMessages.MaterialPackageConflict
+                : type == AgriculturalMaterial.Pesticide ? ErrorMessages.PesticideNameConflict
+                : ErrorMessages.FertilizerNameConflict;
+            return new(null, Conflict, message, "name");
+        }
         var stock = await repository.MaterialStocks(accountId, material.Id, type).SingleAsync(ct);
         await transaction.CommitAsync(ct);
         return new(stock, id is null ? Created : Updated);
     }
 
-    /// <summary>刪除無批次的資材。</summary>
+    /// <summary>刪除登入帳號的無批次資材規格。</summary>
+    /// <param name="accountId">呼叫者的帳號。</param>
+    /// <param name="materialId">要刪除的規格識別碼。</param>
+    /// <param name="ct">要求取消時使用的權杖。</param>
+    /// <param name="type">端點對應的資材類型。</param>
+    /// <returns>刪除結果。帳號或類型不符時視為找不到，仍有批次時回傳衝突。</returns>
     internal async Task<FertilizerResult<AgriculturalMaterial>> DeleteMaterialAsync(Guid accountId, Guid materialId,
-        CancellationToken ct)
+        CancellationToken ct, string type = AgriculturalMaterial.Fertilizer)
     {
         await using var transaction = await repository.BeginAsync(ct);
-        var owned = repository.Materials(accountId).Where(x => x.Id == materialId);
+        var owned = repository.Materials(accountId, type).Where(x => x.Id == materialId);
         if (!await owned.AnyAsync(ct))
             return new(null, NotFound);
         await repository.LockMaterialAsync(materialId, ct);
         if (await owned.SingleOrDefaultAsync(ct) is not { } material)
             return new(null, NotFound);
-        if (await repository.Lots(accountId).AnyAsync(x => x.MaterialId == materialId, ct))
-            return new(null, Conflict, ErrorMessages.FertilizerMaterialInUse);
+        if (await repository.Lots(accountId, type).AnyAsync(x => x.MaterialId == materialId, ct))
+            return new(null, Conflict, ErrorMessages.MaterialHasLots);
 
         repository.Remove(material);
         await repository.SaveAsync(ct);
@@ -95,10 +142,15 @@ public sealed class FertilizerService(FertilizerRepository repository)
             request.ReceivedQuantity, request.UnitPrice, request.PurchasedOn, request.AvailableFrom, ct);
 
     /// <summary>修正原有批次的日期、數量與價格。</summary>
+    /// <param name="accountId">呼叫者的帳號。</param>
+    /// <param name="lotId">要更正的批次識別碼。</param>
+    /// <param name="request">更正後的登記量、日期及單價。</param>
+    /// <param name="ct">要求取消時使用的權杖。</param>
+    /// <param name="type">端點對應的資材類型。</param>
     internal Task<FertilizerResult<LotStock>> EditLotAsync(Guid accountId, Guid lotId,
-        EditFertilizerLotRqDto request, CancellationToken ct) =>
+        EditFertilizerLotRqDto request, CancellationToken ct, string type = AgriculturalMaterial.Fertilizer) =>
         SaveLotAsync(accountId, null, lotId, null, request.ReceivedQuantity, request.UnitPrice,
-            request.PurchasedOn, request.AvailableFrom, ct);
+            request.PurchasedOn, request.AvailableFrom, ct, type);
 
     /// <summary>依農藥庫存規則建立進貨或期初批次。</summary>
     internal Task<FertilizerResult<LotStock>> CreatePesticideLotAsync(Guid accountId, Guid materialId,
@@ -110,12 +162,12 @@ public sealed class FertilizerService(FertilizerRepository repository)
                 request.ReceivedQuantity, request.UnitPrice, request.PurchasedOn, request.AvailableFrom, ct,
                 AgriculturalMaterial.Pesticide);
 
-    /// <summary>鎖定資材及批次後驗證並儲存，避免與施肥扣量競爭。</summary>
+    /// <summary>依資材類型查找並鎖定資材及批次，驗證後儲存，避免與施用扣量競爭。</summary>
     private async Task<FertilizerResult<LotStock>> SaveLotAsync(Guid accountId, Guid? requestedMaterialId, Guid? lotId,
         string? source, decimal quantity, decimal? price, DateOnly? purchasedOn, DateOnly availableFrom, CancellationToken ct, string type = AgriculturalMaterial.Fertilizer)
     {
         await using var transaction = await repository.BeginAsync(ct);
-        var resolvedMaterialId = requestedMaterialId ?? await repository.Lots(accountId)
+        var resolvedMaterialId = requestedMaterialId ?? await repository.Lots(accountId, type)
             .Where(x => x.Id == lotId).Select(x => (Guid?)x.MaterialId).SingleOrDefaultAsync(ct);
         if (resolvedMaterialId is not Guid materialId)
             return new(null, NotFound);
@@ -130,7 +182,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
         MaterialPurchaseLot lot;
         if (lotId is { } id)
         {
-            var owned = repository.Lots(accountId).Where(x => x.MaterialId == materialId && x.Id == id);
+            var owned = repository.Lots(accountId, type).Where(x => x.MaterialId == materialId && x.Id == id);
             if (!await owned.AnyAsync(ct))
                 return new(null, NotFound);
             await repository.LockLotAsync(id, ct);
@@ -189,19 +241,24 @@ public sealed class FertilizerService(FertilizerRepository repository)
         return new(new(lot, quantity - used), lotId is null ? Created : Updated);
     }
 
-    /// <summary>刪除無施肥明細引用的批次。</summary>
+    /// <summary>刪除未被資材施用明細引用的庫存批次。</summary>
+    /// <param name="accountId">批次所屬的登入帳號。</param>
+    /// <param name="lotId">要刪除的批次識別碼。</param>
+    /// <param name="ct">要求取消時使用的權杖。</param>
+    /// <param name="type">端點所對應的資材類型。</param>
+    /// <returns>刪除結果。帳號或類型不符時視為找不到，已有施用明細時回傳衝突。</returns>
     internal async Task<FertilizerResult<LotStock>> DeleteLotAsync(Guid accountId, Guid lotId,
-        CancellationToken ct)
+        CancellationToken ct, string type = AgriculturalMaterial.Fertilizer)
     {
         await using var transaction = await repository.BeginAsync(ct);
-        var owned = repository.Lots(accountId).Where(x => x.Id == lotId);
+        var owned = repository.Lots(accountId, type).Where(x => x.Id == lotId);
         if (!await owned.AnyAsync(ct))
             return new(null, NotFound);
         await repository.LockLotAsync(lotId, ct);
         if (await owned.SingleOrDefaultAsync(ct) is not { } lot)
             return new(null, NotFound);
         if (await repository.Usage(lotId).AnyAsync(ct))
-            return new(null, Conflict, ErrorMessages.FertilizerLotInUse);
+            return new(null, Conflict, ErrorMessages.MaterialLotInUse);
         repository.Remove(lot);
         await repository.SaveAsync(ct);
         await transaction.CommitAsync(ct);

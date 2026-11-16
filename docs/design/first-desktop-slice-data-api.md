@@ -203,14 +203,23 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 }
 ```
 
+### 03 資材管理的規格與庫存
+
+農藥及肥料的建立與查詢以 `package.quantity` 和 `package.unit` 表達每件包裝容量或重量，分別對應資料庫的 `package_quantity` 及 `package_unit`。數值須大於零、小於 10 億，最多六位小數。規格單位與庫存單位分開提供。舊版請求可省略 `package`，舊資料缺少包裝時省略該欄位。
+
+同類別的同名資材可以建立不同包裝規格，各有自己的 `materialId`。原規格數值、單位和名稱均相同時回 `409`。例如 1 公升和 1,000 毫升可各自建立。批次查詢與登記依 `materialId`，資材施用依 `materialPurchaseLotId`，餘量按規格及批次計算。
+
 ### 農藥庫存
 
 | 方法與路徑 | 成功回應 | 行為 |
 | --- | --- | --- |
-| `GET /api/v1/pesticides` | `200`，農藥主檔陣列 | 回傳同帳號農藥主檔、各自的庫存單位與總餘量。 |
-| `POST /api/v1/pesticides` | `201`，新增的農藥主檔 | 必填 `name` 和 `stockUnit`。名稱去除首尾空白後須非空且最多 100 字，同帳號同名農藥回傳 `409`。 |
+| `GET /api/v1/pesticides` | `200`，農藥規格陣列 | 回傳同帳號農藥規格、各自的庫存單位與總餘量。 |
+| `POST /api/v1/pesticides` | `201`，新增的農藥規格 | 必填 `name` 和 `stockUnit`。名稱去除首尾空白後須非空且最多 100 字，依包裝規格判定重複。 |
+| `DELETE /api/v1/pesticides/{materialId}` | `204` | 刪除自己的農藥規格。仍有庫存批次回傳 `409`。 |
 | `GET /api/v1/pesticides/{materialId}/lots` | `200`，批次陣列 | 回傳進貨與期初批次，含已用完批次。 |
 | `POST /api/v1/pesticides/{materialId}/lots` | `201`，新增的批次 | 按主檔的庫存單位登記進貨或期初庫存。 |
+| `PUT /api/v1/pesticide-lots/{lotId}` | `200`，更新後的批次 | 更正登記量、日期或單價。來源固定，進貨單價必填。登記量低於已用量或生效日晚於相關施用日時回傳 `409`。 |
+| `DELETE /api/v1/pesticide-lots/{lotId}` | `204` | 刪除自己的農藥批次。已有資材施用明細引用回傳 `409`，批次不存在、不屬於自己或類別不符回傳 `404`。 |
 
 主檔的 `stockUnit` 和明細的 `unit` 使用 `liter`、`milliliter`、`kilogram`、`gram`，依序對應資料庫和畫面上的公升、毫升、公斤、公克。批次沿用主檔單位，以及肥料的購買日、生效日、數值精度及帳號歸屬規則。農藥進貨必填 `unitPrice`，可填 `0`。期初庫存成本未知可省略或傳 `null`。回傳的 `totalCost` 為 `receivedQuantity × unitPrice`，使用十進位計算，單價未知時回傳 `null`。`remainingQuantity` 為登記量扣除已提交的資材施用明細合計。
 
@@ -229,9 +238,9 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 | 方法與路徑 | 成功回應 | 行為 |
 | --- | --- | --- |
-| `GET /api/v1/fertilizers` | `200` | 查自己的肥料資材、庫存單位及總餘量。 |
-| `POST /api/v1/fertilizers` | `201` | 以 `name` 與 `stockUnit` 建立肥料資材。去除首尾空白後比對名稱，同帳號同名回傳 `409`。 |
-| `PUT /api/v1/fertilizers/{materialId}` | `200` | 更正名稱與庫存單位。資材已有批次時可改名，變更單位回傳 `409`。 |
+| `GET /api/v1/fertilizers` | `200` | 查自己的肥料規格、庫存單位及總餘量。 |
+| `POST /api/v1/fertilizers` | `201` | 以 `name`、`stockUnit` 與 `package` 建立肥料規格，依包裝規格判定重複。 |
+| `PUT /api/v1/fertilizers/{materialId}` | `200` | 更正名稱、庫存單位與包裝。省略包裝時沿用原值。資材已有批次時可改名，變更庫存單位或包裝回傳 `409`。 |
 | `DELETE /api/v1/fertilizers/{materialId}` | `204` | 刪除沒有任何批次的資材。仍有批次回傳 `409`。 |
 | `GET /api/v1/fertilizers/{materialId}/lots` | `200` | 查該肥料所有批次與餘量，包含用完的批次。 |
 | `POST /api/v1/fertilizers/{materialId}/lots` | `201` | 登記進貨或期初庫存。 |

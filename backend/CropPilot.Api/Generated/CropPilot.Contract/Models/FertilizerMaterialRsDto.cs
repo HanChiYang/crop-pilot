@@ -50,6 +50,12 @@ namespace CropPilot.Contract.Models
         public string StockUnit { get; set; }
 
         /// <summary>
+        /// Gets or Sets Package
+        /// </summary>
+        [DataMember(Name="package", EmitDefaultValue=false)]
+        public MaterialPackageDto Package { get; set; }
+
+        /// <summary>
         /// Gets or Sets RemainingQuantity
         /// </summary>
         [Required]
@@ -67,6 +73,7 @@ namespace CropPilot.Contract.Models
             sb.Append("  Id: ").Append(Id).Append("\n");
             sb.Append("  Name: ").Append(Name).Append("\n");
             sb.Append("  StockUnit: ").Append(StockUnit).Append("\n");
+            sb.Append("  Package: ").Append(Package).Append("\n");
             sb.Append("  RemainingQuantity: ").Append(RemainingQuantity).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -120,6 +127,11 @@ namespace CropPilot.Contract.Models
                     StockUnit.Equals(other.StockUnit)
                 ) && 
                 (
+                    Package == other.Package ||
+                    Package != null &&
+                    Package.Equals(other.Package)
+                ) &&
+                (
                     RemainingQuantity == other.RemainingQuantity ||
                     
                     RemainingQuantity.Equals(other.RemainingQuantity)
@@ -142,6 +154,8 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + Name.GetHashCode();
                     if (StockUnit != null)
                     hashCode = hashCode * 59 + StockUnit.GetHashCode();
+                    if (Package != null)
+                    hashCode = hashCode * 59 + Package.GetHashCode();
                     
                     hashCode = hashCode * 59 + RemainingQuantity.GetHashCode();
                 return hashCode;

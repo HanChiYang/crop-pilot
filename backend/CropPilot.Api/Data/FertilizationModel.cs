@@ -6,6 +6,7 @@ namespace CropPilot.Api.Data;
 internal static class FertilizationModel
 {
     internal const string MaterialNameIndex = "ux_agricultural_materials_account_type_name";
+    internal const string MaterialPackageIndex = "ux_agricultural_materials_account_type_name_package";
 
     /// <summary>將施肥及庫存資料模型加入共用資料庫內容。</summary>
     /// <param name="builder">應用程式的 EF Core 模型建構器。</param>
@@ -18,15 +19,26 @@ internal static class FertilizationModel
                 table.HasCheckConstraint("ck_agricultural_materials_type", "material_type IN ('FERTILIZER', 'PESTICIDE')");
                 table.HasCheckConstraint("ck_agricultural_materials_name", "btrim(name) <> ''");
                 table.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> '' AND (material_type <> 'PESTICIDE' OR stock_unit IN ('公升', '毫升', '公斤', '公克'))");
+                table.HasCheckConstraint("ck_agricultural_materials_package", """
+                    (package_quantity IS NULL AND package_unit IS NULL)
+                    OR (package_quantity IS NOT NULL AND package_quantity BETWEEN 0.000001 AND 999999999.999999
+                        AND package_unit IS NOT NULL AND package_unit IN ('liter', 'milliliter', 'kilogram', 'gram'))
+                    """);
             });
             material.HasOne<MainAccount>().WithMany().HasForeignKey(value => value.MainAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
             material.Property(value => value.Name).HasMaxLength(100).UseCollation("C");
             material.Property(value => value.MaterialType).HasMaxLength(24);
             material.Property(value => value.StockUnit).HasMaxLength(20);
+            material.Property(value => value.PackageQuantity).HasPrecision(15, 6);
+            material.Property(value => value.PackageUnit).HasMaxLength(10);
             material.Property(value => value.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             material.HasIndex(value => new { value.MainAccountId, value.MaterialType, value.Name })
-                .IsUnique().HasDatabaseName(MaterialNameIndex);
+                .IsUnique().HasFilter("package_quantity IS NULL").HasDatabaseName(MaterialNameIndex);
+            material.HasIndex(value => new
+            {
+                value.MainAccountId, value.MaterialType, value.Name, value.PackageQuantity, value.PackageUnit
+            }).IsUnique().HasFilter("package_quantity IS NOT NULL").HasDatabaseName(MaterialPackageIndex);
         });
 
         builder.Entity<MaterialPurchaseLot>(lot =>

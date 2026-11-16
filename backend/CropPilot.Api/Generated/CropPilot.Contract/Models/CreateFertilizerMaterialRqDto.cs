@@ -21,7 +21,7 @@ using CropPilot.Contract.Converters;
 namespace CropPilot.Contract.Models
 { 
     /// <summary>
-    /// 
+    /// 舊版請求可省略包裝規格，更新時省略則沿用原規格。
     /// </summary>
     [DataContract]
     public class CreateFertilizerMaterialRqDto : IEquatable<CreateFertilizerMaterialRqDto>
@@ -43,6 +43,12 @@ namespace CropPilot.Contract.Models
         public string StockUnit { get; set; }
 
         /// <summary>
+        /// Gets or Sets Package
+        /// </summary>
+        [DataMember(Name="package", EmitDefaultValue=false)]
+        public MaterialPackageDto Package { get; set; }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -52,6 +58,7 @@ namespace CropPilot.Contract.Models
             sb.Append("class CreateFertilizerMaterialRqDto {\n");
             sb.Append("  Name: ").Append(Name).Append("\n");
             sb.Append("  StockUnit: ").Append(StockUnit).Append("\n");
+            sb.Append("  Package: ").Append(Package).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -97,6 +104,11 @@ namespace CropPilot.Contract.Models
                     StockUnit == other.StockUnit ||
                     StockUnit != null &&
                     StockUnit.Equals(other.StockUnit)
+                ) &&
+                (
+                    Package == other.Package ||
+                    Package != null &&
+                    Package.Equals(other.Package)
                 );
         }
 
@@ -114,6 +126,8 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + Name.GetHashCode();
                     if (StockUnit != null)
                     hashCode = hashCode * 59 + StockUnit.GetHashCode();
+                    if (Package != null)
+                    hashCode = hashCode * 59 + Package.GetHashCode();
                 return hashCode;
             }
         }

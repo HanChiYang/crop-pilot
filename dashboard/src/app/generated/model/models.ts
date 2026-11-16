@@ -29,6 +29,8 @@ export * from './materialApplicationDetailRqDto';
 export * from './materialApplicationDetailRsDto';
 export * from './materialApplicationMethod';
 export * from './materialApplicationRsDto';
+export * from './materialPackageDto';
+export * from './materialPackageUnit';
 export * from './pesticideLotRsDto';
 export * from './pesticideMaterialRsDto';
 export * from './pesticideStockUnit';

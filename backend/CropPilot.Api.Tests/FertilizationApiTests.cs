@@ -11,9 +11,89 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
     private const string MaterialsUrl = "/api/v1/fertilizers";
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
 
-    /// <summary>驗證同一筆噴施可扣用農藥與肥料，純撒施不接受水量，刪除會退回用量。</summary>
+    /// <summary>驗證同名不同包裝可分開建立與扣量，重複的原始包裝規格會回傳衝突。</summary>
+    /// <param name="kind">農藥或肥料的端點名稱。</param>
+    /// <param name="stockUnit">該端點接受的毫升庫存單位。</param>
+    [Theory]
+    [InlineData("pesticides", "milliliter")]
+    [InlineData("fertilizers", "毫升")]
+    public async Task MaterialPackagesHaveIndependentStock(string kind, string stockUnit)
+    {
+        var (owner, _) = await fixture.CreateAccountClientAsync();
+        using var client = owner;
+        var materialsUrl = $"/api/v1/{kind}";
+        const string name = "同名測試資材";
+        var smallPackage = new { quantity = 500m, unit = "milliliter" };
+        using var small = await client.PostAsJsonAsync(materialsUrl, new { name, stockUnit, package = smallPackage });
+        using var large = await client.PostAsJsonAsync(materialsUrl,
+            new { name, stockUnit, package = new { quantity = 1m, unit = "liter" } });
+        using var equivalent = await client.PostAsJsonAsync(materialsUrl,
+            new { name, stockUnit, package = new { quantity = 1000m, unit = "milliliter" } });
+        var smallId = (await ReadAsync(small, HttpStatusCode.Created)).GetProperty("id").GetGuid();
+        var largeId = (await ReadAsync(large, HttpStatusCode.Created)).GetProperty("id").GetGuid();
+        var equivalentId = (await ReadAsync(equivalent, HttpStatusCode.Created)).GetProperty("id").GetGuid();
+
+        using var duplicate = await client.PostAsJsonAsync(materialsUrl, new { name, stockUnit, package = smallPackage });
+        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+        using var invalid = await client.PostAsJsonAsync(materialsUrl,
+            new { name, stockUnit, package = new { quantity = 0.0000011m, unit = "liter" } });
+        var problem = await ReadAsync(invalid, HttpStatusCode.BadRequest);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("package.quantity", out _));
+
+        using var smallLot = await client.PostAsJsonAsync($"{materialsUrl}/{smallId}/lots",
+            new { source = "purchase", purchasedOn = Today, receivedQuantity = 500m, unitPrice = 1m });
+        using var largeLot = await client.PostAsJsonAsync($"{materialsUrl}/{largeId}/lots",
+            new { source = "purchase", purchasedOn = Today, receivedQuantity = 1000m, unitPrice = 1m });
+        var smallLotId = (await ReadAsync(smallLot, HttpStatusCode.Created)).GetProperty("id").GetGuid();
+        await ReadAsync(largeLot, HttpStatusCode.Created);
+
+        var operationsUrl = await CreateCompletedPlantingAsync(client);
+        using var usage = await client.PostAsJsonAsync(operationsUrl, new
+        {
+            operationDate = Today,
+            details = new[] { new { materialPurchaseLotId = smallLotId, applicationMethod = "spray", quantity = 25m } }
+        });
+        await ReadAsync(usage, HttpStatusCode.Created);
+
+        var materials = (await client.GetFromJsonAsync<JsonElement>(materialsUrl))
+            .EnumerateArray().ToDictionary(material => material.GetProperty("id").GetGuid());
+        Assert.Equal(3, materials.Count);
+        Assert.Equal(475m, materials[smallId].GetProperty("remainingQuantity").GetDecimal());
+        Assert.Equal(1000m, materials[largeId].GetProperty("remainingQuantity").GetDecimal());
+        Assert.Equal(0m, materials[equivalentId].GetProperty("remainingQuantity").GetDecimal());
+        Assert.Equal("liter", materials[largeId].GetProperty("package").GetProperty("unit").GetString());
+        Assert.Equal(1000m, materials[equivalentId].GetProperty("package").GetProperty("quantity").GetDecimal());
+    }
+
+    /// <summary>驗證舊版編輯請求沿用包裝，有進貨批次後不可更換規格。</summary>
     [Fact]
-    public async Task MixedApplicationSharesWaterAndDeleteRestoresBothLots()
+    public async Task FertilizerEditKeepsItsPackageAfterStockIsRegistered()
+    {
+        var (owner, _) = await fixture.CreateAccountClientAsync();
+        using var client = owner;
+        var package = new { quantity = 5m, unit = "kilogram" };
+        using var created = await client.PostAsJsonAsync(MaterialsUrl,
+            new { name = "袋裝肥料", stockUnit = "公斤", package });
+        var id = (await ReadAsync(created, HttpStatusCode.Created)).GetProperty("id").GetGuid();
+        using var lot = await client.PostAsJsonAsync($"{MaterialsUrl}/{id}/lots",
+            new { source = "purchase", purchasedOn = Today, receivedQuantity = 5m });
+        await ReadAsync(lot, HttpStatusCode.Created);
+
+        using var legacyEdit = await client.PutAsJsonAsync($"{MaterialsUrl}/{id}",
+            new { name = "更正的袋裝肥料", stockUnit = "公斤" });
+        var edited = await ReadAsync(legacyEdit, HttpStatusCode.OK);
+        Assert.Equal(5m, edited.GetProperty("package").GetProperty("quantity").GetDecimal());
+        Assert.Equal("kilogram", edited.GetProperty("package").GetProperty("unit").GetString());
+
+        using var conflictingEdit = await client.PutAsJsonAsync($"{MaterialsUrl}/{id}",
+            new { name = "更正的袋裝肥料", stockUnit = "公斤", package = new { quantity = 10m, unit = "kilogram" } });
+        var problem = await ReadAsync(conflictingEdit, HttpStatusCode.Conflict);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("package", out _));
+    }
+
+    /// <summary>驗證混合施用的扣量、批次更正與刪除限制，以及移除施用後可刪除農藥規格。</summary>
+    [Fact]
+    public async Task MixedApplicationSharesWaterAndProtectsBothLotsUntilDeleted()
     {
         var (owner, _) = await fixture.CreateAccountClientAsync();
         using var client = owner;
@@ -29,6 +109,30 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var lot = await ReadAsync(lotResponse, HttpStatusCode.Created);
         var pesticideLot = lot.GetProperty("id").GetGuid();
         Assert.Equal(200m, lot.GetProperty("totalCost").GetDecimal());
+        var pesticideUrl = $"/api/v1/pesticides/{pesticide}";
+        var pesticideLotUrl = $"/api/v1/pesticide-lots/{pesticideLot}";
+        var correction = new { purchasedOn = Today, receivedQuantity = 125m, unitPrice = 3m };
+        var (otherOwner, _) = await fixture.CreateAccountClientAsync();
+        using var otherClient = otherOwner;
+        using var foreignDelete = await otherClient.DeleteAsync(pesticideLotUrl);
+        Assert.Equal(HttpStatusCode.NotFound, foreignDelete.StatusCode);
+        using var foreignSpecDelete = await otherClient.DeleteAsync(pesticideUrl);
+        Assert.Equal(HttpStatusCode.NotFound, foreignSpecDelete.StatusCode);
+        using var foreignEdit = await otherClient.PutAsJsonAsync(pesticideLotUrl, correction);
+        Assert.Equal(HttpStatusCode.NotFound, foreignEdit.StatusCode);
+        using var wrongSpecType = await client.DeleteAsync($"/api/v1/pesticides/{fertilizer}");
+        Assert.Equal(HttpStatusCode.NotFound, wrongSpecType.StatusCode);
+        using var wrongEditType = await client.PutAsJsonAsync($"/api/v1/pesticide-lots/{fertilizerLot}", correction);
+        Assert.Equal(HttpStatusCode.NotFound, wrongEditType.StatusCode);
+        using var wrongTypePesticide = await client.DeleteAsync($"/api/v1/pesticide-lots/{fertilizerLot}");
+        Assert.Equal(HttpStatusCode.NotFound, wrongTypePesticide.StatusCode);
+        using var wrongTypeFertilizer = await client.DeleteAsync($"/api/v1/fertilizer-lots/{pesticideLot}");
+        Assert.Equal(HttpStatusCode.NotFound, wrongTypeFertilizer.StatusCode);
+        using var specWithLots = await client.DeleteAsync(pesticideUrl);
+        Assert.Equal(HttpStatusCode.Conflict, specWithLots.StatusCode);
+        using var noPrice = await client.PutAsJsonAsync(pesticideLotUrl, new { purchasedOn = Today, receivedQuantity = 100m });
+        var noPriceProblem = await ReadAsync(noPrice, HttpStatusCode.BadRequest);
+        Assert.True(noPriceProblem.GetProperty("errors").TryGetProperty("unitPrice", out _));
 
         using var invalid = await client.PostAsJsonAsync(operationsUrl, new
         {
@@ -66,6 +170,14 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         Assert.Equal(20m, operation.GetProperty("sprayWaterVolumeLiters").GetDecimal());
         Assert.Equal("pesticide", operation.GetProperty("details")[0].GetProperty("materialType").GetString());
         Assert.Equal("fertilizer", operation.GetProperty("details")[1].GetProperty("materialType").GetString());
+        using var pesticideInUse = await client.DeleteAsync(pesticideLotUrl);
+        var deleteConflict = await ReadAsync(pesticideInUse, HttpStatusCode.Conflict);
+        Assert.Contains("已被資材施用紀錄引用", deleteConflict.GetProperty("detail").GetString());
+        using var fertilizerInUse = await client.DeleteAsync($"/api/v1/fertilizer-lots/{fertilizerLot}");
+        Assert.Equal(HttpStatusCode.Conflict, fertilizerInUse.StatusCode);
+        using var quantityBelowUsed = await client.PutAsJsonAsync(pesticideLotUrl, correction with { receivedQuantity = 14m });
+        var editConflict = await ReadAsync(quantityBelowUsed, HttpStatusCode.Conflict);
+        Assert.True(editConflict.GetProperty("errors").TryGetProperty("receivedQuantity", out _));
         Assert.Equal(85m, (await client.GetFromJsonAsync<JsonElement>(lotsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
         Assert.Equal(8m, (await client.GetFromJsonAsync<JsonElement>(MaterialsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
 
@@ -74,6 +186,19 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         Assert.Equal(100m, (await client.GetFromJsonAsync<JsonElement>(lotsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
         Assert.Equal(10m, (await client.GetFromJsonAsync<JsonElement>(MaterialsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+        using var editedLot = await client.PutAsJsonAsync(pesticideLotUrl, correction);
+        var edited = await ReadAsync(editedLot, HttpStatusCode.OK);
+        Assert.Equal("purchase", edited.GetProperty("source").GetString());
+        Assert.Equal(125m, edited.GetProperty("remainingQuantity").GetDecimal());
+        Assert.Equal(375m, edited.GetProperty("totalCost").GetDecimal());
+        using var deletedLot = await client.DeleteAsync(pesticideLotUrl);
+        Assert.Equal(HttpStatusCode.NoContent, deletedLot.StatusCode);
+        Assert.Equal(0, (await client.GetFromJsonAsync<JsonElement>(lotsUrl)).GetArrayLength());
+        Assert.Equal(0m, (await client.GetFromJsonAsync<JsonElement>("/api/v1/pesticides"))[0]
+            .GetProperty("remainingQuantity").GetDecimal());
+        using var deletedSpec = await client.DeleteAsync(pesticideUrl);
+        Assert.Equal(HttpStatusCode.NoContent, deletedSpec.StatusCode);
+        Assert.Equal(0, (await client.GetFromJsonAsync<JsonElement>("/api/v1/pesticides")).GetArrayLength());
     }
 
     /// <summary>驗證已結束栽培的複合施肥補登、退回用量與單價快照。</summary>

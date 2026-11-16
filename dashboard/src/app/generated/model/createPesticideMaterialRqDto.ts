@@ -7,12 +7,17 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { MaterialPackageDto } from './materialPackageDto';
 import { PesticideStockUnit } from './pesticideStockUnit';
 
 
+/**
+ * 舊版請求可省略包裝規格。
+ */
 export interface CreatePesticideMaterialRqDto { 
     name: string;
     stockUnit: PesticideStockUnit;
+    'package'?: MaterialPackageDto;
 }
 export namespace CreatePesticideMaterialRqDto {
 }

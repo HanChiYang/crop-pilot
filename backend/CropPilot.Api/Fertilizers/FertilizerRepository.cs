@@ -64,7 +64,7 @@ public sealed class FertilizerRepository(CropPilotDbContext db)
     /// <summary>標記要從目前交易移除的實體。</summary>
     internal void Remove<T>(T entity) where T : class => db.Remove(entity);
 
-    /// <summary>儲存變更，資材名稱唯一索引衝突時回傳 false。</summary>
+    /// <summary>儲存變更，資材名稱或包裝規格唯一索引衝突時回傳 false。</summary>
     internal async Task<bool> SaveAsync(CancellationToken ct)
     {
         try
@@ -73,7 +73,10 @@ public sealed class FertilizerRepository(CropPilotDbContext db)
             return true;
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: FertilizationModel.MaterialNameIndex })
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: FertilizationModel.MaterialNameIndex or FertilizationModel.MaterialPackageIndex
+            })
         {
             return false;
         }
