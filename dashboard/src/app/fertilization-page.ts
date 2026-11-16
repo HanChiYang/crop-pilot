@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, forkJoin, of, switchMap } from 'rxjs';
+import { FieldsService } from './generated/api/fields.service';
 import { MaterialsService } from './generated/api/materials.service';
 import { PlantingsService } from './generated/api/plantings.service';
 import { MaterialApplicationRsDto } from './generated/model/materialApplicationRsDto';
@@ -14,13 +15,15 @@ import { PesticideLotRsDto } from './generated/model/pesticideLotRsDto';
 import { materialPackageLabel, pesticideUnits } from './pesticide-units';
 import { HttpErrorResponse } from '@angular/common/http';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
-import { operationError, parseOperationDecimal, taipeiToday } from './operation-form';
+import { compareOperationValues, nextOperationSort, OperationSort, operationError, parseOperationDecimal, taipeiToday } from './operation-form';
+import { plantingStatusLabel } from './planting-display';
 
 type MaterialType = 'fertilizer' | 'pesticide';
+type MaterialSort = 'operationDate' | 'sprayWaterVolumeLiters';
+const methods = { spray: '噴施', broadcast: '撒施' } as const;
 
 interface DetailInput {
   materialType: MaterialType;
-  method: MaterialApplicationMethod | '';
   id?: string;
   original?: { lotId: string; unitPrice: number | null };
   materialId: string;
@@ -34,19 +37,29 @@ interface DetailInput {
   styles: `
     .actions { display: flex; flex-wrap: wrap; gap: .65rem; }
     .details { display: grid; gap: .7rem; margin-block: 1rem; }
-    .detail { display: grid; grid-template-columns: repeat(2, minmax(6rem, 1fr)) minmax(0, 2fr) repeat(2, minmax(6rem, 1fr)) auto; gap: .75rem; align-items: end; }
-    .entry { padding: 1rem; }
-    .entry + .entry { border-top: 1px solid var(--border); }
-    .entry ul { padding-inline-start: 1.4rem; }
+    .detail { display: grid; grid-template-columns: minmax(6rem, 1fr) minmax(8rem, 1.5fr) minmax(10rem, 2fr) minmax(6rem, 1fr) auto; gap: .75rem; align-items: end; }
+    .material-usage { padding: 0; margin: 0; list-style: none; }
+    .material-usage small { color: var(--muted); }
+    .material-usage li + li { margin-top: .25rem; }
+    .material-detail-heading { align-items: center; justify-content: space-between; margin-top: 1rem; }
+    .material-detail-heading h2 { margin: 0; font-size: 1.15rem; }
+    .material-search { max-width: 20rem; margin-bottom: 1rem; }
+    .method-choices { display: flex; gap: 1.1rem; margin-block: .4rem 1rem; }
+    .method-choices label { display: inline-flex; gap: .35rem; align-items: center; }
+    .method-choices input { width: auto; }
+    .delete-material-items { padding-left: 1.2rem; }
     @media (max-width: 650px) { .detail { grid-template-columns: 1fr; } }
   `,
   template: `
     <header class="page-heading">
-      <div><h1>資材施用紀錄</h1>@if (planting(); as item) { <p>{{ item.cropName }}</p> }</div>
+      <div>
+        <h1>{{ editorOpen() ? (selected() ? '編輯資材施用' : '新增資材施用') : '資材施用紀錄' }}</h1>
+        @if (planting(); as item) { <p>{{ fieldName() }}・{{ item.cropName }}・{{ statusLabel[item.status] }}</p> }
+      </div>
       <div class="actions">
         <a class="button button-outline" [routerLink]="backLink()" [queryParams]="backQuery">返回{{ fromHistory ? '栽培詳情' : '作物栽培管理' }}</a>
         <a class="button button-outline" routerLink="/dashboard/materials">查看資材庫存</a>
-        @if (!loading() && !loadError() && planting() && planting()?.status !== 'planned' && !editorOpen()) {
+        @if (!loading() && !loadError() && planting() && !editorOpen()) {
           <button class="button" type="button" (click)="open()">新增施用</button>
         }
       </div>
@@ -61,13 +74,19 @@ interface DetailInput {
       </section>
     } @else if (editorOpen()) {
       <form class="panel field-form" (ngSubmit)="save()">
-        <h2>{{ selected() ? '編輯施用' : '新增施用' }}</h2>
         <fieldset [disabled]="busy()">
           <div class="field-control">
             <label for="operation-date">施用日期</label>
-            <input id="operation-date" type="date" name="operationDate" required [max]="today"
+            <input id="operation-date" type="date" name="operationDate" required [max]="today()"
               [ngModel]="operationDate()" (ngModelChange)="operationDate.set($event)">
           </div>
+          <fieldset class="method-choices" [disabled]="busy()">
+            <legend>施用方式</legend>
+            <label><input type="radio" name="applicationMethod" value="spray" required
+              [ngModel]="applicationMethod()" (ngModelChange)="selectMethod($event)"> 噴施</label>
+            <label><input type="radio" name="applicationMethod" value="broadcast" required
+              [ngModel]="applicationMethod()" (ngModelChange)="selectMethod($event)"> 撒施</label>
+          </fieldset>
           @if (hasSpray()) {
             <div class="field-control">
               <label for="spray-water-volume">噴施總水量（公升）</label>
@@ -75,6 +94,10 @@ interface DetailInput {
                 [ngModel]="sprayWater()" (ngModelChange)="sprayWater.set($event)">
             </div>
           }
+          <div class="actions material-detail-heading">
+            <h2>資材明細</h2>
+            <button class="button button-outline" type="button" (click)="addRow()">＋ 新增資材</button>
+          </div>
           @if (!availableLots().length) {
             <p>該日沒有可用批次。<a routerLink="/dashboard/materials">前往資材管理</a></p>
           }
@@ -118,14 +141,6 @@ interface DetailInput {
                   </select>
                 </div>
                 <div class="field-control">
-                  <label [for]="'method-' + index">施用方式</label>
-                  <select [id]="'method-' + index" [name]="'method-' + index" required
-                    [ngModel]="row.method" (ngModelChange)="selectMethod(row, $event)">
-                    <option value="">請選擇方式</option>
-                    <option value="spray">噴施</option><option value="broadcast">撒施</option>
-                  </select>
-                </div>
-                <div class="field-control">
                   <label [for]="'fertilizer-quantity-' + index">用量</label>
                   <input [id]="'fertilizer-quantity-' + index" [name]="'quantity-' + index"
                     inputmode="decimal" required [(ngModel)]="row.quantity">
@@ -137,9 +152,10 @@ interface DetailInput {
               </div>
             }
           </div>
-          <div class="actions">
-            <button class="button button-outline" type="button" (click)="addRow()">新增肥料明細</button>
-            <button class="button button-outline" type="button" (click)="addRow('pesticide')">新增農藥明細</button>
+          <div class="field-control">
+            <label for="material-description">備註（選填）</label>
+            <textarea id="material-description" name="description" rows="2"
+              [ngModel]="description()" (ngModelChange)="description.set($event)"></textarea>
           </div>
           @if (message()) { <p class="error" role="alert">{{ message() }}</p> }
           <div class="field-form-actions">
@@ -149,44 +165,96 @@ interface DetailInput {
         </fieldset>
       </form>
     } @else if (!operations().length) {
-      <p class="panel empty-state">目前沒有資材施用紀錄。</p>
-    } @else {
-      <section class="panel" aria-label="資材施用紀錄清單">
-        @if (message()) { <p class="error" role="alert">{{ message() }}</p> }
-        @for (operation of operations(); track operation.id) {
-          <article class="entry">
-            <h2><time [attr.datetime]="operation.operationDate">{{ operation.operationDate }}</time></h2>
-            <p>噴施總水量
-              @if (operation.sprayWaterVolumeLiters != null) {
-                {{ operation.sprayWaterVolumeLiters | number:'1.0-6' }} 公升
-              } @else {
-                {{ operationUsesSpray(operation) ? '未記錄' : '不適用' }}
-              }
-            </p>
-            <ul>
-              @for (detail of operation.details; track detail.id) {
-                <li>{{ detail.materialName }} · {{ detail.applicationMethod === 'spray' ? '噴施' : '撒施' }} · {{ detail.quantity | number:'1.0-6' }} {{ detail.unit }}
-                  @if (detail.unitPrice === null) { · 成本待補 }
-                </li>
-              }
-            </ul>
-            <button class="button button-outline" type="button" [disabled]="busy()" (click)="open(operation)">編輯</button>
-            @if (pendingDelete() === operation.id) {
-              <span>刪除此筆施用紀錄並退回批次用量？</span>
-              <button class="button button-outline" type="button" [disabled]="busy()" (click)="delete(operation.id)">確認刪除</button>
-              <button class="button button-outline" type="button" [disabled]="busy()" (click)="pendingDelete.set(null)">取消</button>
-            } @else {
-              <button class="button button-outline" type="button" [disabled]="busy()" (click)="pendingDelete.set(operation.id)">刪除</button>
-            }
-          </article>
-        }
+      <section class="panel empty-state">
+        <strong>尚無資材施用紀錄</strong>
+        <p>可在同一筆紀錄登記農藥和肥料。</p>
       </section>
+    } @else {
+      <div class="field-control material-search">
+        <label for="material-search">關鍵字搜尋</label>
+        <input id="material-search" type="search" placeholder="搜尋資材名稱"
+          [ngModel]="keyword()" (ngModelChange)="keyword.set($event)">
+      </div>
+      <div class="panel field-table">
+        <table aria-label="資材施用紀錄清單">
+          <thead><tr>
+            <th scope="col" [attr.aria-sort]="sort().column === 'operationDate' ? sort().direction : null">
+              <button class="operation-sort" type="button" (click)="sortBy('operationDate')">施用日期 <span aria-hidden="true">{{ sortArrow('operationDate') }}</span></button>
+            </th>
+            <th scope="col">資材明細</th>
+            <th scope="col" [attr.aria-sort]="sort().column === 'sprayWaterVolumeLiters' ? sort().direction : null">
+              <button class="operation-sort" type="button" (click)="sortBy('sprayWaterVolumeLiters')">噴施總水量 <span aria-hidden="true">{{ sortArrow('sprayWaterVolumeLiters') }}</span></button>
+            </th>
+            <th scope="col">操作</th>
+          </tr></thead>
+          <tbody>
+            @for (operation of visibleOperations(); track operation.id) {
+              <tr>
+                <td><time [attr.datetime]="operation.operationDate">{{ operation.operationDate }}</time></td>
+                <td><ul class="material-usage">
+                  @for (detail of operation.details; track detail.id) {
+                    <li>
+                      {{ detail.materialName }} {{ detail.quantity | number:'1.0-6' }} {{ detail.unit }}
+                      @if (detail.unitPrice === null) { <small>・成本待補</small> }
+                    </li>
+                  }
+                </ul></td>
+                <td>
+                  @if (operation.sprayWaterVolumeLiters != null) {
+                    {{ operation.sprayWaterVolumeLiters | number:'1.0-6' }} 公升
+                  } @else {
+                    {{ operation.applicationMethod === 'spray' ? '未記錄' : '—' }}
+                  }
+                </td>
+                <td>
+                  <button class="button button-outline row-action-trigger" type="button" [disabled]="busy()"
+                    [attr.popovertarget]="'material-actions-' + operation.id"
+                    [attr.aria-label]="'操作 ' + operation.operationDate + ' 的資材施用'">☰</button>
+                  <div #menu popover class="row-action-menu" [id]="'material-actions-' + operation.id">
+                    <button type="button" (click)="menu.hidePopover(); open(operation)">編輯</button>
+                    <button class="row-action-danger" type="button"
+                      (click)="menu.hidePopover(); confirmDelete(operation, deleteDialog)">刪除</button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="empty-state">查無符合的資材施用紀錄。</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
     }
+    <dialog #deleteDialog class="field-delete-dialog" aria-labelledby="material-delete-title"
+      (cancel)="busy() && $event.preventDefault()">
+      <h2 id="material-delete-title">刪除資材施用紀錄？</h2>
+      @if (pendingDelete(); as operation) {
+        @if (planting(); as item) { <p>{{ fieldName() }}・{{ item.cropName }}・{{ statusLabel[item.status] }}</p> }
+        <p>{{ operation.operationDate }}・{{ methodLabels[operation.applicationMethod] }}
+          @if (operation.sprayWaterVolumeLiters != null) {
+            ・噴施總水量 {{ operation.sprayWaterVolumeLiters | number:'1.0-6' }} 公升
+          }
+        </p>
+        <ul class="delete-material-items">
+          @for (detail of operation.details; track detail.id) {
+            <li>{{ detail.materialName }} {{ detail.quantity | number:'1.0-6' }} {{ detail.unit }}</li>
+          }
+        </ul>
+        <p>刪除後，各項用量將退回原庫存批次。</p>
+        @if (deleteError()) { <p class="error" role="alert">{{ deleteError() }}</p> }
+        <div class="field-form-actions">
+          <button class="button button-outline" type="button" autofocus [disabled]="busy()" (click)="deleteDialog.close()">取消</button>
+          <button class="button button-danger" type="button" [disabled]="busy()" (click)="delete(operation.id, deleteDialog)">
+            {{ busy() ? '刪除中…' : '刪除' }}
+          </button>
+        </div>
+      }
+    </dialog>
   `,
 })
 export class FertilizationPage {
   private readonly route = inject(ActivatedRoute);
   private readonly plantings = inject(PlantingsService);
+  private readonly fields = inject(FieldsService);
   private readonly materialsApi = inject(MaterialsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly ids = signal({ fieldId: '', plantingId: '' });
@@ -201,8 +269,20 @@ export class FertilizationPage {
   protected readonly backQuery = this.fromHistory ? {} : { fieldId: this.route.snapshot.queryParamMap.get('fieldId') };
   protected readonly planting = signal<PlantingRsDto | null>(null);
   protected readonly operations = signal<MaterialApplicationRsDto[]>([]);
-  protected readonly today = taipeiToday();
-  protected readonly operationDate = signal(this.today);
+  protected readonly fieldName = signal('');
+  protected readonly statusLabel = plantingStatusLabel;
+  protected readonly methodLabels = methods;
+  protected readonly keyword = signal('');
+  protected readonly sort = signal<OperationSort<MaterialSort>>({ column: 'operationDate', direction: 'descending' });
+  protected readonly visibleOperations = computed(() => {
+    const keyword = this.keyword().trim().toLocaleLowerCase('zh-Hant-TW');
+    const { column, direction } = this.sort();
+    return this.operations().filter(operation =>
+      operation.details.some(detail => detail.materialName.toLocaleLowerCase('zh-Hant-TW').includes(keyword)))
+      .sort((a, b) => compareOperationValues(a[column], b[column], direction));
+  });
+  protected readonly today = signal(taipeiToday());
+  protected readonly operationDate = signal(this.today());
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
   protected readonly editorOpen = signal(false);
@@ -212,8 +292,11 @@ export class FertilizationPage {
   protected readonly rows = signal<DetailInput[]>([]);
   protected readonly sprayWater = signal('');
   protected readonly detailErrors = signal<Record<number, string>>({});
-  protected readonly pendingDelete = signal<string | null>(null);
-  protected readonly hasSpray = computed(() => this.rows().some(row => row.method === 'spray'));
+  protected readonly pendingDelete = signal<MaterialApplicationRsDto | null>(null);
+  protected readonly deleteError = signal('');
+  protected readonly applicationMethod = signal<MaterialApplicationMethod | ''>('');
+  protected readonly description = signal('');
+  protected readonly hasSpray = computed(() => this.applicationMethod() === 'spray');
 
   protected readonly availableLots = computed(() => {
     const date = this.operationDate();
@@ -252,6 +335,7 @@ export class FertilizationPage {
       this.ids.set({ fieldId: params.get('fieldId')!, plantingId: params.get('plantingId')! });
       this.editorOpen.set(false);
       this.planting.set(null);
+      this.keyword.set('');
       void this.load();
     });
   }
@@ -263,6 +347,7 @@ export class FertilizationPage {
     this.loadError.set('');
     try {
       const data = await firstValueFrom(forkJoin({
+        field: this.fields.getField({ fieldId: ids.fieldId }),
         planting: this.plantings.getPlanting({ plantingId: ids.plantingId }),
         operations: this.plantings.listMaterialApplications({ plantingId: ids.plantingId }),
         inventory: this.materialsApi.listFertilizerMaterials().pipe(switchMap(materials =>
@@ -282,6 +367,7 @@ export class FertilizationPage {
         return;
       }
       this.planting.set(data.planting);
+      this.fieldName.set(data.field.name);
       this.operations.set(data.operations);
       this.inventory.set([...data.inventory, ...data.pesticides]);
     } catch {
@@ -291,22 +377,34 @@ export class FertilizationPage {
     }
   }
 
+  protected sortBy(column: MaterialSort): void {
+    this.sort.update(current => nextOperationSort(current, column));
+  }
+
+  protected sortArrow(column: MaterialSort): string {
+    const sort = this.sort();
+    return sort.column !== column ? '↕' : sort.direction === 'ascending' ? '↑' : '↓';
+  }
+
   protected open(operation?: MaterialApplicationRsDto): void {
+    this.today.set(taipeiToday());
+    this.applicationMethod.set(operation?.applicationMethod ?? '');
+    this.description.set(operation?.description ?? '');
     this.selected.set(operation ?? null);
     this.detailErrors.set({});
     this.pendingDelete.set(null);
     this.sprayWater.set(operation?.sprayWaterVolumeLiters == null ? '' : String(operation.sprayWaterVolumeLiters));
-    this.operationDate.set(operation?.operationDate ?? this.today);
+    this.operationDate.set(operation?.operationDate ?? this.today());
     this.rows.set(operation?.details.map(detail => ({
-      id: detail.id, materialType: detail.materialType, method: detail.applicationMethod, materialId: detail.materialId, lotId: detail.materialPurchaseLotId, quantity: String(detail.quantity),
+      id: detail.id, materialType: detail.materialType, materialId: detail.materialId, lotId: detail.materialPurchaseLotId, quantity: String(detail.quantity),
       original: { lotId: detail.materialPurchaseLotId, unitPrice: detail.unitPrice },
-    })) ?? [{ materialType: 'fertilizer', method: '', materialId: '', lotId: '', quantity: '' }]);
+    })) ?? [{ materialType: 'fertilizer', materialId: '', lotId: '', quantity: '' }]);
     this.message.set('');
     this.editorOpen.set(true);
   }
 
-  protected addRow(materialType: MaterialType = 'fertilizer'): void {
-    this.rows.update(rows => [...rows, { materialType, method: '', materialId: '', lotId: '', quantity: '' }]);
+  protected addRow(): void {
+    this.rows.update(rows => [...rows, { materialType: 'fertilizer', materialId: '', lotId: '', quantity: '' }]);
   }
 
   protected selectType(row: DetailInput, type: MaterialType): void {
@@ -314,17 +412,13 @@ export class FertilizationPage {
     this.selectMaterial(row, '');
   }
 
-  protected selectMethod(row: DetailInput, method: MaterialApplicationMethod | ''): void {
-    this.rows.update(rows => rows.map(item => item === row ? { ...item, method } : item));
+  protected selectMethod(method: MaterialApplicationMethod): void {
+    this.applicationMethod.set(method);
     if (!this.hasSpray()) this.sprayWater.set('');
   }
 
   protected unitFor(lotId: string): string {
     return this.availableLots().find(lot => lot.id === lotId)?.unit ?? '';
-  }
-
-  protected operationUsesSpray(operation: MaterialApplicationRsDto): boolean {
-    return operation.details.some(detail => detail.applicationMethod === 'spray');
   }
 
   protected selectMaterial(row: DetailInput, materialId: string): void {
@@ -335,14 +429,15 @@ export class FertilizationPage {
   protected removeRow(index: number): void {
     this.rows.update(rows => rows.filter((_, rowIndex) => rowIndex !== index));
     this.detailErrors.set({});
-    if (!this.hasSpray()) this.sprayWater.set('');
   }
 
   protected async save(): Promise<void> {
     if (this.busy()) return;
+    this.today.set(taipeiToday());
     const operationDate = this.operationDate();
-    if (!operationDate || operationDate > this.today) {
-      this.message.set('請確認施用日期。');
+    const applicationMethod = this.applicationMethod();
+    if (!operationDate || operationDate > this.today() || !applicationMethod) {
+      this.message.set('請確認施用日期及施用方式。');
       return;
     }
     this.detailErrors.set({});
@@ -351,23 +446,29 @@ export class FertilizationPage {
       this.message.set('噴施總水量須大於零、小於 10 億，且最多六位小數。');
       return;
     }
+    const description = this.description().trim();
+    if ([...description].length > 500 || description.includes('\0')) {
+      this.message.set('施用備註最多 500 字，且不可包含空字元。');
+      return;
+    }
     const details = [];
     for (const row of this.rows()) {
       const quantity = parseOperationDecimal(row.quantity);
-      if (!row.method || !this.availableLotIds().has(row.lotId) || quantity === null || quantity <= 0) {
-        this.message.set('請選擇施用方式及可用的庫存批次。用量須大於零、小於 10 億，且最多六位小數。');
+      if (!this.availableLotIds().has(row.lotId) || quantity === null || quantity <= 0) {
+        this.message.set('請選擇可用的庫存批次。用量須大於零、小於 10 億，且最多六位小數。');
         return;
       }
-      details.push({ id: row.id, materialPurchaseLotId: row.lotId, applicationMethod: row.method, quantity });
+      details.push({ id: row.id, materialPurchaseLotId: row.lotId, quantity });
     }
     const selected = this.selected();
     const ids = this.ids();
+    const request = { operationDate, applicationMethod, sprayWaterVolumeLiters, description: description || null, details };
     this.busy.set(true);
     this.message.set('');
     try {
       await firstValueFrom((selected
-        ? this.plantings.editMaterialApplication({ materialApplicationId: selected.id, editMaterialApplicationRqDto: { operationDate, sprayWaterVolumeLiters, details } })
-        : this.plantings.createMaterialApplication({ plantingId: ids.plantingId, createMaterialApplicationRqDto: { operationDate, sprayWaterVolumeLiters, details } }))
+        ? this.plantings.editMaterialApplication({ materialApplicationId: selected.id, editMaterialApplicationRqDto: request })
+        : this.plantings.createMaterialApplication({ plantingId: ids.plantingId, createMaterialApplicationRqDto: request }))
         .pipe(takeUntilDestroyed(this.destroyRef)));
       if (ids !== this.ids()) return;
       this.editorOpen.set(false);
@@ -388,19 +489,26 @@ export class FertilizationPage {
       this.busy.set(false);
     }
   }
-  protected async delete(id: string): Promise<void> {
+  protected confirmDelete(operation: MaterialApplicationRsDto, dialog: HTMLDialogElement): void {
+    this.pendingDelete.set(operation);
+    this.deleteError.set('');
+    dialog.showModal();
+  }
+
+  protected async delete(id: string, dialog: HTMLDialogElement): Promise<void> {
     if (this.busy()) return;
     const ids = this.ids();
     this.busy.set(true);
-    this.message.set('');
+    this.deleteError.set('');
     try {
       await firstValueFrom(this.plantings.deleteMaterialApplication({ materialApplicationId: id })
         .pipe(takeUntilDestroyed(this.destroyRef)));
       if (ids !== this.ids()) return;
+      dialog.close();
       this.pendingDelete.set(null);
       await this.load();
     } catch (error) {
-      if (ids === this.ids()) this.message.set(operationError(error, '無法刪除資材施用紀錄，請再試一次。'));
+      if (ids === this.ids()) this.deleteError.set(operationError(error, '無法刪除資材施用紀錄，請再試一次。'));
     } finally {
       this.busy.set(false);
     }

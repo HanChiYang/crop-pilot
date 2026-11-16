@@ -278,19 +278,22 @@ public sealed class FertilizerService(FertilizerRepository repository)
     /// <summary>新增一次施肥，交易成功時扣用所有送出的批次。</summary>
     internal Task<FertilizerResult<FieldOperation>> CreateOperationAsync(Guid accountId, Guid plantingId,
         CreateMaterialApplicationRqDto request, CancellationToken ct) =>
-        SaveOperationAsync(accountId, plantingId, null, request.OperationDate, request.SprayWaterVolumeLiters,
-            request.Details?.Select(x => x is null ? null : new UsageInput(null, x.MaterialPurchaseLotId, x.Quantity, x.ApplicationMethod)).ToList(), ct);
+        SaveOperationAsync(accountId, plantingId, null, request.OperationDate, request.ApplicationMethod, request.SprayWaterVolumeLiters,
+            request.Description,
+            request.Details?.Select(x => x is null ? null : new UsageInput(null, x.MaterialPurchaseLotId, x.Quantity)).ToList(), ct);
 
     /// <summary>更新施肥及完整的明細清單，釋放移除的批次用量。</summary>
     internal Task<FertilizerResult<FieldOperation>> EditOperationAsync(Guid accountId,
         Guid operationId, EditMaterialApplicationRqDto request, CancellationToken ct) =>
-        SaveOperationAsync(accountId, null, operationId, request.OperationDate, request.SprayWaterVolumeLiters,
+        SaveOperationAsync(accountId, null, operationId, request.OperationDate, request.ApplicationMethod, request.SprayWaterVolumeLiters,
+            request.Description,
             request.Details?.Select(x => x is null ? null : new UsageInput(x.Id == Guid.Empty ? null : x.Id,
-                x.MaterialPurchaseLotId, x.Quantity, x.ApplicationMethod)).ToList(), ct);
+                x.MaterialPurchaseLotId, x.Quantity)).ToList(), ct);
 
     /// <summary>依栽培及批次順序鎖定資料，驗證後原子更新施肥與庫存。</summary>
     private async Task<FertilizerResult<FieldOperation>> SaveOperationAsync(Guid accountId,
-        Guid? requestedPlantingId, Guid? operationId, DateOnly date, decimal? water, List<UsageInput?>? input, CancellationToken ct)
+        Guid? requestedPlantingId, Guid? operationId, DateOnly date, MaterialApplicationMethod method, decimal? water,
+        string? description, List<UsageInput?>? input, CancellationToken ct)
     {
         await using var transaction = await repository.BeginAsync(ct);
         var resolvedPlantingId = operationId is Guid requestedOperationId
@@ -303,7 +306,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
         if (!await owned.AnyAsync(ct))
             return new(null, NotFound);
         await repository.LockPlantingAsync(plantingId, ct);
-        if (await owned.SingleOrDefaultAsync(ct) is not { } planting)
+        if (!await owned.AnyAsync(ct))
             return new(null, NotFound);
         if (operationId is { } existingOperationId)
             await repository.LockOperationAsync(plantingId, existingOperationId, ct);
@@ -312,12 +315,15 @@ public sealed class FertilizerService(FertilizerRepository repository)
             : new FieldOperation { PlantingId = plantingId, Application = new MaterialApplication() };
         if (operation is null)
             return new(null, NotFound);
-        if (planting.Status == Planting.Planned)
-            return new(null, Conflict, ErrorMessages.FertilizerPlantingPlanned);
         if (date == default || date > Today)
             return new(null, Invalid, ErrorMessages.FertilizerDateInvalid, "operationDate");
         if (input is null || input.Count == 0)
             return new(null, Invalid, ErrorMessages.FertilizerDetailsRequired, "details");
+
+        if (!Enum.IsDefined(method))
+            return new(null, Invalid, ErrorMessages.MaterialApplicationMethodInvalid, "applicationMethod");
+        if (description is not null && (description.Contains('\0') || description.EnumerateRunes().Count() > 500))
+            return new(null, Invalid, ErrorMessages.MaterialApplicationDescriptionInvalid, "description");
 
         var application = operation.Application!;
         var original = application.Details.ToDictionary(x => x.Id);
@@ -331,13 +337,11 @@ public sealed class FertilizerService(FertilizerRepository repository)
                 return new(null, Invalid, ErrorMessages.FertilizerDetailInvalid, $"details[{index}].id");
             if (!ValidQuantity(row.Quantity) || row.Quantity <= 0)
                 return new(null, Invalid, ErrorMessages.FertilizerQuantityInvalid, $"details[{index}].quantity");
-            if (!Enum.IsDefined(row.Method))
-                return new(null, Invalid, ErrorMessages.MaterialApplicationMethodInvalid, $"details[{index}].applicationMethod");
             rows.Add(row);
         }
 
         if (water is { } liters && (!ValidQuantity(liters) || liters <= 0
-            || rows.All(x => x.Method != MaterialApplicationMethod.SprayEnum)))
+            || method != MaterialApplicationMethod.SprayEnum))
             return new(null, Invalid, ErrorMessages.MaterialApplicationWaterInvalid, "sprayWaterVolumeLiters");
 
         var lotIds = rows.Select(x => x.LotId).Concat(original.Values.Select(x => x.MaterialPurchaseLotId))
@@ -382,8 +386,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
             var detail = row.Id is { } detailId ? original[detailId] : new MaterialApplicationDetail
             {
                 MaterialName = lot.Material.Name,
-                Unit = lot.Material.StockUnit,
-                ApplicationMethod = string.Empty
+                Unit = lot.Material.StockUnit
             };
             if (detail.MaterialPurchaseLotId != lot.Id)
             {
@@ -393,7 +396,6 @@ public sealed class FertilizerService(FertilizerRepository repository)
                 detail.UnitPrice = lot.UnitPrice;
                 detail.CurrencyCode = lot.CurrencyCode;
             }
-            detail.ApplicationMethod = row.Method == MaterialApplicationMethod.SprayEnum ? "spray" : "broadcast";
             detail.Quantity = row.Quantity;
             detail.SortOrder = index;
             if (row.Id is null)
@@ -404,7 +406,9 @@ public sealed class FertilizerService(FertilizerRepository repository)
             }
         }
 
+        application.ApplicationMethod = method == MaterialApplicationMethod.SprayEnum ? "spray" : "broadcast";
         application.SprayWaterVolumeLiters = water;
+        operation.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         operation.OperationDate = date;
         operation.UpdatedAt = DateTimeOffset.UtcNow;
         if (operationId is null)
@@ -446,7 +450,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
         value.Length > 0 && !value.Contains('\0') && value.EnumerateRunes().Count() <= maxLength;
 
     /// <summary>統一新增及編輯請求的明細資料，編輯時可帶原識別碼。</summary>
-    private sealed record UsageInput(Guid? Id, Guid LotId, decimal Quantity, MaterialApplicationMethod Method);
+    private sealed record UsageInput(Guid? Id, Guid LotId, decimal Quantity);
 }
 
 /// <summary>表示寫入成功或可預期的錯誤，以及契約對應的欄位。</summary>

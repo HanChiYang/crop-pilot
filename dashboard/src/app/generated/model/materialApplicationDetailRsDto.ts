@@ -7,7 +7,6 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { MaterialApplicationMethod } from './materialApplicationMethod';
 
 
 export interface MaterialApplicationDetailRsDto { 
@@ -19,7 +18,6 @@ export interface MaterialApplicationDetailRsDto {
      */
     materialType: MaterialApplicationDetailRsDto.MaterialTypeEnum;
     materialName: string;
-    applicationMethod: MaterialApplicationMethod;
     /**
      * 依批次庫存單位填寫實際施用的資材用量，最多六位小數。
      */
@@ -45,5 +43,3 @@ export namespace MaterialApplicationDetailRsDto {
     } as const;
     export type CurrencyCodeEnum = typeof CurrencyCodeEnum[keyof typeof CurrencyCodeEnum];
 }
-
-

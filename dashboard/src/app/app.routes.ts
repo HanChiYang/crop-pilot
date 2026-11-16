@@ -58,7 +58,7 @@ export const routes: Routes = [
       { path: 'plantings/new', component: PlantingFormPage, title: '新增栽培紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/new', component: PlantingFormPage, title: '新增栽培紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/edit', component: PlantingFormPage, title: '編輯栽培紀錄｜CropPilot' },
-      { path: 'plantings/:fieldId/:plantingId/fertilizations', component: FertilizationPage, title: '施肥紀錄｜CropPilot' },
+      { path: 'plantings/:fieldId/:plantingId/fertilizations', component: FertilizationPage, title: '資材施用紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/irrigations', component: IrrigationPage, title: '灌溉紀錄｜CropPilot' },
       { path: 'fertilizers', pathMatch: 'full', redirectTo: 'materials/fertilizers' },
       {
@@ -89,7 +89,7 @@ export const routes: Routes = [
             path: ':fieldId/:plantingId/fertilizations',
             component: FertilizationPage,
             data: { fromHistory: true },
-            title: '施肥紀錄｜CropPilot',
+            title: '資材施用紀錄｜CropPilot',
           },
           {
             path: ':fieldId/:plantingId/irrigations',

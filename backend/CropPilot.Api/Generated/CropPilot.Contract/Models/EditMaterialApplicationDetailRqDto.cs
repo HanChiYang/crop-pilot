@@ -40,13 +40,6 @@ namespace CropPilot.Contract.Models
         public Guid MaterialPurchaseLotId { get; set; }
 
         /// <summary>
-        /// Gets or Sets ApplicationMethod
-        /// </summary>
-        [Required]
-        [DataMember(Name="applicationMethod", EmitDefaultValue=true)]
-        public MaterialApplicationMethod ApplicationMethod { get; set; }
-
-        /// <summary>
         /// 依批次庫存單位填寫實際施用的資材用量，最多六位小數。
         /// </summary>
         /// <value>依批次庫存單位填寫實際施用的資材用量，最多六位小數。</value>
@@ -65,7 +58,6 @@ namespace CropPilot.Contract.Models
             sb.Append("class EditMaterialApplicationDetailRqDto {\n");
             sb.Append("  Id: ").Append(Id).Append("\n");
             sb.Append("  MaterialPurchaseLotId: ").Append(MaterialPurchaseLotId).Append("\n");
-            sb.Append("  ApplicationMethod: ").Append(ApplicationMethod).Append("\n");
             sb.Append("  Quantity: ").Append(Quantity).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -114,11 +106,6 @@ namespace CropPilot.Contract.Models
                     MaterialPurchaseLotId.Equals(other.MaterialPurchaseLotId)
                 ) && 
                 (
-                    ApplicationMethod == other.ApplicationMethod ||
-                    
-                    ApplicationMethod.Equals(other.ApplicationMethod)
-                ) && 
-                (
                     Quantity == other.Quantity ||
                     
                     Quantity.Equals(other.Quantity)
@@ -139,8 +126,6 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + Id.GetHashCode();
                     
                     hashCode = hashCode * 59 + MaterialPurchaseLotId.GetHashCode();
-                    
-                    hashCode = hashCode * 59 + ApplicationMethod.GetHashCode();
                     
                     hashCode = hashCode * 59 + Quantity.GetHashCode();
                 return hashCode;

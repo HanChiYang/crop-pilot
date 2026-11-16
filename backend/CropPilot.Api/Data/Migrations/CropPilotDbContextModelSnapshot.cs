@@ -393,6 +393,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("ApplicationMethod")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("application_method");
+
                     b.Property<Guid>("FieldOperationId")
                         .HasColumnType("uuid")
                         .HasColumnName("field_operation_id");
@@ -411,7 +417,9 @@ namespace CropPilot.Api.Data.Migrations
 
                     b.ToTable("material_applications", null, t =>
                         {
-                            t.HasCheckConstraint("ck_material_applications_water", "spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999");
+                            t.HasCheckConstraint("ck_material_applications_method", "application_method IN ('spray', 'broadcast')");
+
+                            t.HasCheckConstraint("ck_material_applications_water", "spray_water_volume_liters IS NULL OR (application_method = 'spray' AND spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999)");
                         });
                 });
 
@@ -421,12 +429,6 @@ namespace CropPilot.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("ApplicationMethod")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("character varying(24)")
-                        .HasColumnName("application_method");
 
                     b.Property<string>("CurrencyCode")
                         .IsRequired()
@@ -479,8 +481,6 @@ namespace CropPilot.Api.Data.Migrations
                     b.ToTable("material_application_details", null, t =>
                         {
                             t.HasCheckConstraint("ck_material_application_details_currency", "currency_code = 'TWD'");
-
-                            t.HasCheckConstraint("ck_material_application_details_method", "application_method IN ('spray', 'broadcast')");
 
                             t.HasCheckConstraint("ck_material_application_details_price", "unit_price BETWEEN 0 AND 999999999.999999");
 

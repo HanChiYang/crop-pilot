@@ -187,3 +187,9 @@ button, input, textarea { font: inherit; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
   .overview-main, .landing-main { padding: 1.5rem; }
 }
+
+.button.button-danger { background: #a3312f; border-color: #a3312f; color: #fff; }
+.button.button-danger:hover:enabled { background: #862523; border-color: #862523; }
+
+.operation-sort { padding: .28rem .4rem; border: 0; border-radius: .3rem; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+.operation-sort:hover, th[aria-sort] .operation-sort { background: var(--pale); color: var(--ink); }

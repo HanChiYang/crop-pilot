@@ -84,8 +84,12 @@ internal static class FertilizationModel
         builder.Entity<MaterialApplication>(application =>
         {
             application.ToTable("material_applications", table =>
+            {
+                table.HasCheckConstraint("ck_material_applications_method", "application_method IN ('spray', 'broadcast')");
                 table.HasCheckConstraint("ck_material_applications_water",
-                    "spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999"));
+                    "spray_water_volume_liters IS NULL OR (application_method = 'spray' AND spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999)");
+            });
+            application.Property(value => value.ApplicationMethod).HasMaxLength(24);
             application.HasOne(value => value.FieldOperation).WithOne(value => value.Application)
                 .HasForeignKey<MaterialApplication>(value => value.FieldOperationId).OnDelete(DeleteBehavior.Cascade);
             application.Property(value => value.SprayWaterVolumeLiters).HasPrecision(15, 6);
@@ -100,7 +104,6 @@ internal static class FertilizationModel
                 table.HasCheckConstraint("ck_material_application_details_price",
                     "unit_price BETWEEN 0 AND 999999999.999999");
                 table.HasCheckConstraint("ck_material_application_details_currency", "currency_code = 'TWD'");
-                table.HasCheckConstraint("ck_material_application_details_method", "application_method IN ('spray', 'broadcast')");
                 table.HasCheckConstraint("ck_material_application_details_sort_order", "sort_order >= 0");
             });
             detail.HasOne(value => value.Application).WithMany(value => value.Details)
@@ -108,7 +111,6 @@ internal static class FertilizationModel
             detail.HasOne(value => value.Lot).WithMany().HasForeignKey(value => value.MaterialPurchaseLotId)
                 .OnDelete(DeleteBehavior.Restrict);
             detail.Property(value => value.MaterialName).HasMaxLength(100);
-            detail.Property(value => value.ApplicationMethod).HasMaxLength(24);
             detail.Property(value => value.Quantity).HasPrecision(15, 6);
             detail.Property(value => value.Unit).HasMaxLength(20);
             detail.Property(value => value.UnitPrice).HasPrecision(15, 6);

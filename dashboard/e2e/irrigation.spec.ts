@@ -68,7 +68,7 @@ test('從栽培歷史補登灌溉、清空用水量並刪除紀錄', async ({ pa
   await page.clock.setFixedTime(new Date('2026-01-03T15:59:00Z'));
   await page.goto(historyPath);
   await page.getByRole('link', { name: '灌溉紀錄' }).click();
-  await expect(page.getByText('目前沒有灌溉紀錄。')).toBeVisible();
+  await expect(page.getByText('尚無灌溉紀錄')).toBeVisible();
   await page.getByRole('button', { name: '新增灌溉' }).click();
 
   const date = page.getByLabel('灌溉日期');
@@ -95,6 +95,7 @@ test('從栽培歷史補登灌溉、清空用水量並刪除紀錄', async ({ pa
   await expect(list).toContainText('滴灌');
   await expect(list).toContainText('北側畦');
 
+  await list.getByRole('button', { name: /操作.*灌溉紀錄/ }).click();
   await list.getByRole('button', { name: '編輯' }).click();
   await expect(date).toHaveValue('2026-01-03');
   await expect(volume).toHaveValue('0.000001');
@@ -104,13 +105,15 @@ test('從栽培歷史補登灌溉、清空用水量並刪除紀錄', async ({ pa
   await expect(list).toContainText('未記錄');
   await expect(list).toContainText('人工澆灌');
 
+  await list.getByRole('button', { name: /操作.*灌溉紀錄/ }).click();
   await list.getByRole('button', { name: '刪除' }).click();
-  const dialog = page.getByRole('dialog', { name: '刪除灌溉紀錄' });
+  const dialog = page.getByRole('dialog', { name: '刪除灌溉紀錄？' });
   await dialog.getByRole('button', { name: '取消' }).click();
   await expect(list).toBeVisible();
+  await list.getByRole('button', { name: /操作.*灌溉紀錄/ }).click();
   await list.getByRole('button', { name: '刪除' }).click();
   await dialog.getByRole('button', { name: '確認刪除' }).click();
-  await expect(page.getByText('目前沒有灌溉紀錄。')).toBeVisible();
+  await expect(page.getByText('尚無灌溉紀錄')).toBeVisible();
 
   const details = { operationDate: '2026-01-03', description: '北側畦' };
   expect(writes).toEqual([
@@ -127,7 +130,7 @@ test('栽培中的列操作可開啟灌溉清單並返回原田區', async ({ pa
     await page.goto(managementPath);
     await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
     const row = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: '番茄' }) });
-    await expect(row.getByRole('link')).toHaveText(['編輯', '資材施用紀錄', '灌溉紀錄']);
+    await expect(row.getByRole('link')).toHaveText(['編輯', '資材施用', '灌溉紀錄']);
     await page.getByRole('link', { name: '灌溉紀錄' }).click();
     await expect(page.getByRole('heading', { name: '灌溉紀錄' })).toBeVisible();
     const add = page.getByRole('button', { name: '新增灌溉' });
@@ -137,14 +140,65 @@ test('栽培中的列操作可開啟灌溉清單並返回原田區', async ({ pa
     await expect(page.getByLabel('田區', { exact: true })).toHaveValue(fieldId);
 });
 
-test('規劃中的列操作只提供編輯和刪除，直接開啟灌溉頁也不可新增', async ({ page }) => {
-  await mockApi(page, 'planned');
+test('規劃中固定提供四項操作，可新增灌溉', async ({ page }) => {
+  const writes = await mockApi(page, 'planned');
   await page.goto(managementPath);
   await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
-  await expect(page.getByRole('link', { name: '編輯 番茄' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '刪除 番茄' })).toBeVisible();
-  await expect(page.getByRole('link', { name: '灌溉紀錄' })).toHaveCount(0);
-  await page.goto(`/dashboard/plantings/${fieldId}/${plantingId}/irrigations`);
-  await expect(page.getByText('開始栽培後即可新增灌溉紀錄。')).toBeVisible();
-  await expect(page.getByRole('button', { name: '新增灌溉' })).toHaveCount(0);
+  const row = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: '番茄' }) });
+  await expect(row.getByRole('link')).toHaveText(['編輯', '資材施用', '灌溉紀錄']);
+  await expect(row.getByRole('button', { name: '刪除 番茄' })).toBeVisible();
+  await row.getByRole('link', { name: '灌溉紀錄' }).click();
+  await expect(page.getByText('北側田・番茄・規劃中')).toBeVisible();
+  await page.getByRole('button', { name: '新增灌溉' }).click();
+  await page.getByLabel('灌溉日期').fill('2026-01-03');
+  await page.getByLabel('灌溉方式').selectOption('drip');
+  await page.getByRole('button', { name: '儲存', exact: true }).click();
+  await expect(page.getByRole('table', { name: '灌溉紀錄清單' })).toContainText('滴灌');
+  expect(writes).toHaveLength(1);
+});
+
+test('栽培刪除摘要變更時顯示新影響，重新確認後才刪除', async ({ page }) => {
+  await mockApi(page, 'growing');
+  const plantingApi = '/api/v1/plantings/' + plantingId;
+  const firstVersion = 'A'.repeat(64);
+  const secondVersion = 'B'.repeat(64);
+  let currentVersion = firstVersion;
+  let deleted = false;
+  await page.route('**/api/v1/overview', route => route.fulfill({
+    json: [{ ...field, plantings: deleted ? [] : [{ ...planting, status: 'growing' }] }],
+  }));
+  await page.route('**' + plantingApi + '/delete-preview', route => route.fulfill({ json: {
+    plantingId, fieldName: field.name, cropName: planting.cropName, status: 'growing',
+    releasedAreaSquareMeters: 240, materialApplicationCount: 1,
+    irrigationCount: currentVersion === firstVersion ? 0 : 1,
+    inventoryReturns: [{ lotId: 'batch', materialName: '有機肥', source: 'openingStock',
+      availableFrom: '2026-01-01', quantity: 2, unit: '公斤' }],
+    previewVersion: currentVersion,
+  } }));
+  await page.route(url => url.pathname === plantingApi, async route => {
+    const confirmed = new URL(route.request().url()).searchParams.get('previewVersion');
+    if (currentVersion === firstVersion) {
+      expect(confirmed).toBe(firstVersion);
+      currentVersion = secondVersion;
+      return route.fulfill({ status: 409 });
+    }
+    expect(confirmed).toBe(secondVersion);
+    deleted = true;
+    return route.fulfill({ status: 204 });
+  });
+  await page.goto(managementPath);
+  await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
+  await page.getByRole('button', { name: '刪除 番茄' }).click();
+  const dialog = page.getByRole('dialog', { name: '刪除栽培紀錄？' });
+  await expect(dialog).toContainText('有機肥');
+  await expect(dialog).toContainText('2 公斤');
+  await expect(dialog).toContainText('灌溉紀錄 0 筆');
+  const confirm = dialog.getByRole('button', { name: '刪除栽培及作業紀錄' });
+  await confirm.click();
+  await expect(dialog.getByRole('alert')).toContainText('請重新確認');
+  await expect(dialog).toContainText('灌溉紀錄 1 筆');
+  expect(deleted).toBe(false);
+  await confirm.click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByText('已刪除栽培紀錄')).toBeVisible();
 });

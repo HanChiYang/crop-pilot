@@ -167,7 +167,8 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync(created.Headers.Location)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await other.PutAsJsonAsync(created.Headers.Location,
             new { cropName = "番茄", areaSquareMeters = 25, status = "planned" })).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync(created.Headers.Location)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"{created.Headers.Location}/delete-preview")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync($"{created.Headers.Location}?previewVersion={new string('A', 64)}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/v1/plantings/{Guid.NewGuid()}")).StatusCode);
         Assert.Empty((await other.GetFromJsonAsync<JsonElement>(OverviewUrl)).EnumerateArray());
         Assert.Single((await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("plantings").EnumerateArray());
@@ -270,8 +271,13 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         Assert.Equal(HttpStatusCode.Conflict, tooSmall.StatusCode);
         Assert.Equal(100, (await owner.GetFromJsonAsync<JsonElement>(fieldUrl)).GetProperty("areaSquareMeters").GetDecimal());
 
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync(cabbage.Headers.Location)).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await owner.DeleteAsync(tomato.Headers.Location)).StatusCode);
+        var preview = await owner.GetFromJsonAsync<JsonElement>($"{cabbage.Headers.Location}/delete-preview");
+        Assert.Equal(30m, preview.GetProperty("releasedAreaSquareMeters").GetDecimal());
+        Assert.Equal(0, preview.GetProperty("materialApplicationCount").GetInt32());
+        Assert.Empty(preview.GetProperty("inventoryReturns").EnumerateArray());
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync(
+            $"{cabbage.Headers.Location}?previewVersion={preview.GetProperty("previewVersion").GetString()}")).StatusCode);
+        var tomatoPreview = await owner.GetFromJsonAsync<JsonElement>($"{tomato.Headers.Location}/delete-preview");
         Assert.Equal(30, (await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("remainingAreaSquareMeters").GetDecimal());
         using var completed = await owner.PutAsJsonAsync(tomato.Headers.Location, new
         {
@@ -280,6 +286,9 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
         Assert.Equal(100, (await owner.GetFromJsonAsync<JsonElement>(url)).GetProperty("remainingAreaSquareMeters").GetDecimal());
         Assert.Equal("completed", (await owner.GetFromJsonAsync<JsonElement>(tomato.Headers.Location)).GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, (await owner.GetAsync($"{tomato.Headers.Location}/delete-preview")).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await owner.DeleteAsync(
+            $"{tomato.Headers.Location}?previewVersion={tomatoPreview.GetProperty("previewVersion").GetString()}")).StatusCode);
         var overview = Assert.Single((await owner.GetFromJsonAsync<JsonElement>(OverviewUrl)).EnumerateArray());
         Assert.Empty(overview.GetProperty("plantings").EnumerateArray());
     }
@@ -302,6 +311,83 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
         var state = await owner.GetFromJsonAsync<JsonElement>(url);
         Assert.InRange(state.GetProperty("allocatedAreaSquareMeters").GetDecimal(), 0,
             state.GetProperty("areaSquareMeters").GetDecimal());
+    }
+
+    /// <summary>確認預覽過期時作業不會被刪除，重新確認後則一併釋放用量及面積。</summary>
+    [Fact]
+    public async Task ConfirmedPlantingDeletionRestoresInventoryAndReleasesArea()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "南側田");
+        var fieldPlantings = $"{FieldsUrl}/{fieldId}/plantings";
+        using var created = await owner.PostAsJsonAsync(fieldPlantings, new { cropName = "小白菜", areaSquareMeters = 40 });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var planting = created.Headers.Location!.ToString();
+        var previewUrl = $"{planting}/delete-preview";
+        var date = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+        using var material = await owner.PostAsJsonAsync("/api/v1/fertilizers", new { name = "有機肥", stockUnit = "公斤" });
+        var materialId = (await material.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var lotsUrl = $"/api/v1/fertilizers/{materialId}/lots";
+        using var lot = await owner.PostAsJsonAsync(lotsUrl, new { source = "openingStock", receivedQuantity = 10m });
+        var lotId = (await lot.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var preview = await owner.GetFromJsonAsync<JsonElement>(previewUrl);
+        using var first = await owner.PostAsJsonAsync($"{planting}/material-applications", new
+        {
+            operationDate = date, applicationMethod = "broadcast",
+            details = new[] { new { materialPurchaseLotId = lotId, quantity = 2m } }
+        });
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        using var second = await owner.PostAsJsonAsync($"{planting}/material-applications", new
+        {
+            operationDate = date, applicationMethod = "spray",
+            details = new[] { new { materialPurchaseLotId = lotId, quantity = 3m } }
+        });
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+        using var irrigation = await owner.PostAsJsonAsync($"{planting}/irrigations", new { operationDate = date, method = "drip" });
+        Assert.Equal(HttpStatusCode.Created, irrigation.StatusCode);
+        using var stale = await owner.DeleteAsync($"{planting}?previewVersion={preview.GetProperty("previewVersion").GetString()}");
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        Assert.Equal(5m, (await owner.GetFromJsonAsync<JsonElement>(lotsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+
+        preview = await owner.GetFromJsonAsync<JsonElement>(previewUrl);
+        Assert.Equal("planned", preview.GetProperty("status").GetString());
+        Assert.Equal(2, preview.GetProperty("materialApplicationCount").GetInt32());
+        Assert.Equal(1, preview.GetProperty("irrigationCount").GetInt32());
+        var restored = Assert.Single(preview.GetProperty("inventoryReturns").EnumerateArray());
+        Assert.Equal(lotId, restored.GetProperty("lotId").GetGuid());
+        Assert.Equal(5m, restored.GetProperty("quantity").GetDecimal());
+        Assert.Equal("openingStock", restored.GetProperty("source").GetString());
+
+        using var deleted = await owner.DeleteAsync($"{planting}?previewVersion={preview.GetProperty("previewVersion").GetString()}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync(planting)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"{planting}/irrigations")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"{planting}/material-applications")).StatusCode);
+        Assert.Equal(10m, (await owner.GetFromJsonAsync<JsonElement>(lotsUrl))[0].GetProperty("remainingQuantity").GetDecimal());
+        Assert.Equal(100m, (await owner.GetFromJsonAsync<JsonElement>(fieldPlantings))
+            .GetProperty("remainingAreaSquareMeters").GetDecimal());
+    }
+
+    /// <summary>刪除與同筆栽培的新增作業並行時，確認版本不會漏掉新作業。</summary>
+    [Fact]
+    public async Task ConcurrentIrrigationAndPlantingDeleteRespectPreview()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "北側田");
+        using var created = await owner.PostAsJsonAsync($"{FieldsUrl}/{fieldId}/plantings",
+            new { cropName = "番茄", areaSquareMeters = 25, status = "growing",
+                actualPlantingDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8)) });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var planting = created.Headers.Location!.ToString();
+        var preview = await owner.GetFromJsonAsync<JsonElement>($"{planting}/delete-preview");
+        var delete = owner.DeleteAsync($"{planting}?previewVersion={preview.GetProperty("previewVersion").GetString()}");
+        var createIrrigation = owner.PostAsJsonAsync($"{planting}/irrigations",
+            new { operationDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8)), method = "drip" });
+        await Task.WhenAll(delete, createIrrigation);
+        using var deleted = await delete;
+        using var irrigation = await createIrrigation;
+        Assert.True((deleted.StatusCode, irrigation.StatusCode) is
+            (HttpStatusCode.NoContent, HttpStatusCode.NotFound) or (HttpStatusCode.Conflict, HttpStatusCode.Created));
     }
 
     /// <summary>透過田區 API 建立測試用田區。</summary>

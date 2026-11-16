@@ -66,9 +66,9 @@ public sealed class IrrigationApiTests(FieldsApiFixture fixture) : IClassFixture
         Assert.Equal("completed", planting.GetProperty("status").GetString());
     }
 
-    /// <summary>規劃中的栽培可查看空清單，新增會回傳衝突。</summary>
+    /// <summary>規劃中的栽培可登記及編輯實際灌溉，且栽培狀態保持規劃中。</summary>
     [Fact]
-    public async Task PlannedPlantingCannotRecordIrrigation()
+    public async Task PlannedPlantingCanRecordAndEditIrrigation()
     {
         var (owner, _) = await fixture.CreateAccountClientAsync();
         using var client = owner;
@@ -77,9 +77,16 @@ public sealed class IrrigationApiTests(FieldsApiFixture fixture) : IClassFixture
             new { cropName = "番茄", areaSquareMeters = 25, status = "planned" });
         var plantingId = (await ReadAsync(plantingResponse, HttpStatusCode.Created)).GetProperty("id").GetGuid();
         var url = $"/api/v1/plantings/{plantingId}/irrigations";
-        using var denied = await client.PostAsJsonAsync(url, new { operationDate = Today, method = "drip" });
-        Assert.Equal(HttpStatusCode.Conflict, denied.StatusCode);
-        Assert.Empty((await client.GetFromJsonAsync<JsonElement>(url)).EnumerateArray());
+        using var created = await client.PostAsJsonAsync(url, new { operationDate = Today, method = "drip" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        using var edited = await client.PutAsJsonAsync($"/api/v1/irrigations/{id}",
+            new { operationDate = Today, method = "manual", waterVolumeLiters = 10m });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var listed = Assert.Single((await client.GetFromJsonAsync<JsonElement>(url)).EnumerateArray());
+        Assert.Equal(10m, listed.GetProperty("waterVolumeLiters").GetDecimal());
+        Assert.Equal("planned", (await client.GetFromJsonAsync<JsonElement>(plantingResponse.Headers.Location))
+            .GetProperty("status").GetString());
     }
 
     /// <summary>跨帳號不可查詢或寫入，且欄位錯誤不會產生作業。</summary>

@@ -29,14 +29,40 @@ internal static class PlantingDtoMapper
         PlannedPlantingDate = planting.PlannedPlantingDate,
         ActualPlantingDate = planting.ActualPlantingDate,
         Notes = planting.Description!,
-        Status = planting.Status switch
+        Status = ToStatus(planting.Status)
+    };
+
+    /// <summary>轉換栽培刪除預覽，包含原批次恢復用量及預覽版本。</summary>
+    internal static PlantingDeletePreviewRsDto ToDeletePreviewDto(PlantingDeletion deletion) => new()
+    {
+        PlantingId = deletion.Planting.Id,
+        FieldName = deletion.Planting.Field.Name,
+        CropName = deletion.Planting.CropName,
+        Status = ToStatus(deletion.Planting.Status),
+        ReleasedAreaSquareMeters = deletion.Planting.AreaSquareMeters,
+        MaterialApplicationCount = deletion.Operations.Count(value => value.Type == FieldOperation.MaterialApplication),
+        IrrigationCount = deletion.Operations.Count(value => value.Type == FieldOperation.Irrigation),
+        InventoryReturns = deletion.InventoryReturns.ConvertAll(value => new PlantingInventoryReturnDto
         {
-            Planting.Planned => PlantingStatus.PlannedEnum,
-            Planting.Growing => PlantingStatus.GrowingEnum,
-            Planting.Harvesting => PlantingStatus.HarvestingEnum,
-            Planting.Completed => PlantingStatus.CompletedEnum,
-            _ => throw new InvalidOperationException(Constants.ErrorMessages.PlantingStatusInvalid)
-        }
+            LotId = value.LotId,
+            MaterialName = value.MaterialName,
+            Source = value.Source == MaterialPurchaseLot.Purchase
+                ? PlantingInventoryReturnDto.SourceEnum.PurchaseEnum : PlantingInventoryReturnDto.SourceEnum.OpeningStockEnum,
+            AvailableFrom = value.AvailableFrom,
+            Quantity = value.Quantity,
+            Unit = value.Unit
+        }),
+        PreviewVersion = deletion.Version()
+    };
+
+    /// <summary>將資料庫狀態轉為公開 API 的栽培狀態。</summary>
+    private static PlantingStatus ToStatus(string status) => status switch
+    {
+        Planting.Planned => PlantingStatus.PlannedEnum,
+        Planting.Growing => PlantingStatus.GrowingEnum,
+        Planting.Harvesting => PlantingStatus.HarvestingEnum,
+        Planting.Completed => PlantingStatus.CompletedEnum,
+        _ => throw new InvalidOperationException(Constants.ErrorMessages.PlantingStatusInvalid)
     };
 
     /// <summary>從同一批目前紀錄計算已分配與剩餘面積。</summary>

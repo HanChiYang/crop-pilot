@@ -87,13 +87,6 @@ namespace CropPilot.Contract.Models
         public string MaterialName { get; set; }
 
         /// <summary>
-        /// Gets or Sets ApplicationMethod
-        /// </summary>
-        [Required]
-        [DataMember(Name="applicationMethod", EmitDefaultValue=true)]
-        public MaterialApplicationMethod ApplicationMethod { get; set; }
-
-        /// <summary>
         /// 依批次庫存單位填寫實際施用的資材用量，最多六位小數。
         /// </summary>
         /// <value>依批次庫存單位填寫實際施用的資材用量，最多六位小數。</value>
@@ -156,7 +149,6 @@ namespace CropPilot.Contract.Models
             sb.Append("  MaterialPurchaseLotId: ").Append(MaterialPurchaseLotId).Append("\n");
             sb.Append("  MaterialType: ").Append(MaterialType).Append("\n");
             sb.Append("  MaterialName: ").Append(MaterialName).Append("\n");
-            sb.Append("  ApplicationMethod: ").Append(ApplicationMethod).Append("\n");
             sb.Append("  Quantity: ").Append(Quantity).Append("\n");
             sb.Append("  Unit: ").Append(Unit).Append("\n");
             sb.Append("  UnitPrice: ").Append(UnitPrice).Append("\n");
@@ -223,11 +215,6 @@ namespace CropPilot.Contract.Models
                     MaterialName.Equals(other.MaterialName)
                 ) && 
                 (
-                    ApplicationMethod == other.ApplicationMethod ||
-                    
-                    ApplicationMethod.Equals(other.ApplicationMethod)
-                ) && 
-                (
                     Quantity == other.Quantity ||
                     
                     Quantity.Equals(other.Quantity)
@@ -269,8 +256,6 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + MaterialType.GetHashCode();
                     if (MaterialName != null)
                     hashCode = hashCode * 59 + MaterialName.GetHashCode();
-                    
-                    hashCode = hashCode * 59 + ApplicationMethod.GetHashCode();
                     
                     hashCode = hashCode * 59 + Quantity.GetHashCode();
                     if (Unit != null)

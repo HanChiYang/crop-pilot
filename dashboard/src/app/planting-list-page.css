@@ -105,3 +105,12 @@ th[aria-sort] .planting-sort {
 .no-matches {
   text-align: center;
 }
+
+.planting-delete-dialog { width: min(34rem, calc(100% - 2rem)); }
+.planting-delete-dialog h3 { margin: 1rem 0 .5rem; font-size: .95rem; }
+.delete-context { color: var(--muted); }
+.delete-summary { padding: .65rem .85rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--pale); }
+.delete-summary h3 { margin-top: 0; }
+.delete-summary p { margin: .4rem 0; }
+.delete-summary th, .delete-summary td { padding: .45rem; }
+.batch-id { display: block; color: var(--muted); }

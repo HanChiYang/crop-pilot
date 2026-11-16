@@ -16,3 +16,19 @@ export function operationError(error: unknown, fallback: string): string {
   const problem = error.error as { detail?: string; errors?: Record<string, string[]> } | null;
   return Object.values(problem?.errors ?? {}).flat().join(' ') || problem?.detail || fallback;
 }
+
+export type OperationSort<T extends string> = { column: T; direction: 'ascending' | 'descending' };
+
+export function nextOperationSort<T extends string>(current: OperationSort<T>, column: T): OperationSort<T> {
+  return { column, direction: current.column === column && current.direction === 'ascending' ? 'descending' : 'ascending' };
+}
+
+export function compareOperationValues(
+  a: string | number | null, b: string | number | null, direction: OperationSort<string>['direction'],
+): number {
+  if (a === null) return b === null ? 0 : 1;
+  if (b === null) return -1;
+  const ordered = typeof a === 'number' && typeof b === 'number'
+    ? a - b : String(a).localeCompare(String(b), 'zh-Hant-TW');
+  return direction === 'ascending' ? ordered : -ordered;
+}

@@ -8,6 +8,7 @@
  * Do not edit the class manually.
  */
 import { MaterialApplicationDetailRqDto } from './materialApplicationDetailRqDto';
+import { MaterialApplicationMethod } from './materialApplicationMethod';
 
 
 export interface CreateMaterialApplicationRqDto { 
@@ -15,10 +16,16 @@ export interface CreateMaterialApplicationRqDto {
      * 實際施用日期。寫入不得晚於台北當日。
      */
     operationDate: string;
+    applicationMethod: MaterialApplicationMethod;
     /**
-     * 本次噴施明細共用的總水量，單位為公升。至少有一筆噴施明細時才可填寫。null 表示未記錄或無噴施。
+     * 選填施用備註，最多 500 個 Unicode 碼點。編輯時省略或傳 null 清除原值。
+     */
+    description?: string | null;
+    /**
+     * 整筆噴施作業的總水量，單位為公升。僅噴施可填寫。null 表示未記錄或撒施。
      */
     sprayWaterVolumeLiters?: number | null;
     details: Array<MaterialApplicationDetailRqDto>;
 }
-
+export namespace CreateMaterialApplicationRqDto {
+}

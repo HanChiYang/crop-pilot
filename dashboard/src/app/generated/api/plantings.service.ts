@@ -37,6 +37,8 @@ import { IrrigationRsDto } from '../model/irrigationRsDto';
 // @ts-ignore
 import { MaterialApplicationRsDto } from '../model/materialApplicationRsDto';
 // @ts-ignore
+import { PlantingDeletePreviewRsDto } from '../model/plantingDeletePreviewRsDto';
+// @ts-ignore
 import { PlantingHistoryItemDto } from '../model/plantingHistoryItemDto';
 // @ts-ignore
 import { PlantingRsDto } from '../model/plantingRsDto';
@@ -78,6 +80,8 @@ export interface DeleteMaterialApplicationRequestParams {
 }
 
 export interface DeletePlantingRequestParams {
+    /** 本次確認的刪除預覽版本。 */
+    previewVersion: string;
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
 }
@@ -101,6 +105,11 @@ export interface EditPlantingRequestParams {
 }
 
 export interface GetPlantingRequestParams {
+    /** 栽培紀錄的 UUID。 */
+    plantingId: string;
+}
+
+export interface GetPlantingDeletePreviewRequestParams {
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
 }
@@ -144,7 +153,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 新增灌溉作業
-     * 栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。
+     * 規劃中、栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。
      * @endpoint post /api/v1/plantings/{plantingId}/irrigations
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -220,7 +229,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 新增施用作業
-     * 栽培中、採收中及已結束的批次均可登記。實際施用日不得早於所選庫存批次的生效日，也不得晚於台北當日。同一筆可包含農藥與肥料。同日同栽培可登記多筆。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
+     * 規劃中、栽培中、採收中及已結束的批次均可登記。實際施用日不得早於所選庫存批次的生效日，也不得晚於台北當日。同一筆可包含農藥與肥料。同日同栽培可登記多筆。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。
      * @endpoint post /api/v1/plantings/{plantingId}/material-applications
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -372,7 +381,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 刪除灌溉作業
-     * 栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+     * 規劃中、栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
      * @endpoint delete /api/v1/irrigations/{irrigationId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -433,7 +442,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 刪除施用作業
-     * 栽培中、採收中及已結束的批次可刪除施用紀錄。作業及明細一併刪除，用量退回各原批次。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+     * 規劃中、栽培中、採收中及已結束的批次可刪除施用紀錄。作業及明細一併刪除，用量退回各原批次。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
      * @endpoint delete /api/v1/material-applications/{materialApplicationId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -493,8 +502,8 @@ export class PlantingsService extends BaseService {
     }
 
     /**
-     * 刪除單筆規劃中栽培紀錄
-     * 刪除登入帳號所屬田區的一筆規劃中栽培紀錄，並釋放該筆紀錄占用的面積。
+     * 刪除單筆栽培及所屬作業紀錄
+     * 規劃中、栽培中與採收中的栽培可刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。
      * @endpoint delete /api/v1/plantings/{plantingId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -505,10 +514,25 @@ export class PlantingsService extends BaseService {
     public deletePlanting(requestParameters: DeletePlantingRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
     public deletePlanting(requestParameters: DeletePlantingRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
     public deletePlanting(requestParameters: DeletePlantingRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const previewVersion = requestParameters?.previewVersion;
+        if (previewVersion === null || previewVersion === undefined) {
+            throw new Error('Required parameter previewVersion was null or undefined when calling deletePlanting.');
+        }
         const plantingId = requestParameters?.plantingId;
         if (plantingId === null || plantingId === undefined) {
             throw new Error('Required parameter plantingId was null or undefined when calling deletePlanting.');
         }
+
+        let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'previewVersion',
+            <any>previewVersion,
+            QueryParamStyle.Form,
+            true,
+        );
+
 
         let localVarHeaders = this.defaultHeaders;
 
@@ -543,6 +567,7 @@ export class PlantingsService extends BaseService {
         return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
+                params: localVarQueryParameters.toHttpParams(),
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -555,7 +580,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 編輯灌溉作業
-     * 更新完整表單。省略選填欄位或傳入 null 會清除原值。日期與栽培狀態限制同新增。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
+     * 更新完整表單。省略選填欄位或傳入 null 會清除原值。日期限制同新增。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
      * @endpoint put /api/v1/irrigations/{irrigationId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -631,7 +656,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 編輯施用作業
-     * 更新完整表單。省略噴施總水量或傳 null 時清除原值。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。實際施用日不得早於所選批次生效日，也不得晚於台北當日。可用量包含原作業已扣用量，超過時回傳 409。
+     * 更新完整表單。省略噴施總水量或傳 null 時清除原值。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。規劃中、栽培中、採收中及已結束的批次均可修正。實際施用日不得早於所選批次生效日，也不得晚於台北當日。可用量包含原作業已扣用量，超過時回傳 409。
      * @endpoint put /api/v1/material-applications/{materialApplicationId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -831,6 +856,68 @@ export class PlantingsService extends BaseService {
         let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<PlantingRsDto>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 查詢刪除栽培的影響
+     * 回傳作業筆數、將釋放的面積、按庫存批次加總的恢復用量及預覽版本。
+     * @endpoint get /api/v1/plantings/{plantingId}/delete-preview
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public getPlantingDeletePreview(requestParameters: GetPlantingDeletePreviewRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<PlantingDeletePreviewRsDto>;
+    public getPlantingDeletePreview(requestParameters: GetPlantingDeletePreviewRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<PlantingDeletePreviewRsDto>>;
+    public getPlantingDeletePreview(requestParameters: GetPlantingDeletePreviewRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<PlantingDeletePreviewRsDto>>;
+    public getPlantingDeletePreview(requestParameters: GetPlantingDeletePreviewRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling getPlantingDeletePreview.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/delete-preview`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<PlantingDeletePreviewRsDto>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,

@@ -30,7 +30,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 新增灌溉作業
         /// </summary>
-        /// <remarks>栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。</remarks>
+        /// <remarks>規劃中、栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。</remarks>
         /// <param name="plantingId">栽培紀錄的 UUID。</param>
         /// <param name="saveIrrigationRqDto"></param>
         /// <response code="201">已新增的灌溉作業</response>
@@ -38,7 +38,6 @@ namespace CropPilot.Contract.Controllers
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
-        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPost]
         [Route("/api/v1/plantings/{plantingId}/irrigations")]
@@ -50,14 +49,13 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
-        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> CreateIrrigation([FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromBody]SaveIrrigationRqDto saveIrrigationRqDto);
 
         /// <summary>
         /// 新增施用作業
         /// </summary>
-        /// <remarks>栽培中、採收中及已結束的批次均可登記。實際施用日不得早於所選庫存批次的生效日，也不得晚於台北當日。同一筆可包含農藥與肥料。同日同栽培可登記多筆。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。</remarks>
+        /// <remarks>規劃中、栽培中、採收中及已結束的批次均可登記。實際施用日不得早於所選庫存批次的生效日，也不得晚於台北當日。同一筆可包含農藥與肥料。同日同栽培可登記多筆。作業與明細一併儲存。批次用量合計超出餘量時回傳 409。</remarks>
         /// <param name="plantingId">栽培紀錄的 UUID。</param>
         /// <param name="createMaterialApplicationRqDto"></param>
         /// <response code="201">已新增的施用作業</response>
@@ -111,7 +109,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 刪除灌溉作業
         /// </summary>
-        /// <remarks>栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。</remarks>
+        /// <remarks>規劃中、栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。</remarks>
         /// <param name="irrigationId">灌溉作業識別碼</param>
         /// <response code="204">已刪除灌溉作業</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
@@ -133,7 +131,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 刪除施用作業
         /// </summary>
-        /// <remarks>栽培中、採收中及已結束的批次可刪除施用紀錄。作業及明細一併刪除，用量退回各原批次。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。</remarks>
+        /// <remarks>規劃中、栽培中、採收中及已結束的批次可刪除施用紀錄。作業及明細一併刪除，用量退回各原批次。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。</remarks>
         /// <param name="materialApplicationId">施用作業的 UUID。</param>
         /// <response code="204">已刪除施用作業</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
@@ -153,16 +151,17 @@ namespace CropPilot.Contract.Controllers
         public abstract Task<IActionResult> DeleteMaterialApplication([FromRoute (Name = "materialApplicationId")][Required]Guid materialApplicationId);
 
         /// <summary>
-        /// 刪除單筆規劃中栽培紀錄
+        /// 刪除單筆栽培及所屬作業紀錄
         /// </summary>
-        /// <remarks>刪除登入帳號所屬田區的一筆規劃中栽培紀錄，並釋放該筆紀錄占用的面積。</remarks>
+        /// <remarks>規劃中、栽培中與採收中的栽培可刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。</remarks>
+        /// <param name="previewVersion">本次確認的刪除預覽版本。</param>
         /// <param name="plantingId">栽培紀錄的 UUID。</param>
         /// <response code="204">已刪除並釋放占用面積</response>
         /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
-        /// <response code="409">只有規劃中的紀錄可以刪除</response>
+        /// <response code="409">預覽版本已變更或栽培已結束。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpDelete]
         [Route("/api/v1/plantings/{plantingId}")]
@@ -174,12 +173,12 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 409, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
-        public abstract Task<IActionResult> DeletePlanting([FromRoute (Name = "plantingId")][Required]Guid plantingId);
+        public abstract Task<IActionResult> DeletePlanting([FromQuery (Name = "previewVersion")][Required()][RegularExpression("^[0-9A-F]{64}$")][StringLength(64, MinimumLength=64)]string previewVersion, [FromRoute (Name = "plantingId")][Required]Guid plantingId);
 
         /// <summary>
         /// 編輯灌溉作業
         /// </summary>
-        /// <remarks>更新完整表單。省略選填欄位或傳入 null 會清除原值。日期與栽培狀態限制同新增。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。</remarks>
+        /// <remarks>更新完整表單。省略選填欄位或傳入 null 會清除原值。日期限制同新增。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。</remarks>
         /// <param name="irrigationId">灌溉作業識別碼</param>
         /// <param name="saveIrrigationRqDto"></param>
         /// <response code="200">已更新的灌溉作業</response>
@@ -187,7 +186,6 @@ namespace CropPilot.Contract.Controllers
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
-        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpPut]
         [Route("/api/v1/irrigations/{irrigationId}")]
@@ -199,14 +197,13 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
-        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> EditIrrigation([FromRoute (Name = "irrigationId")][Required]Guid irrigationId, [FromBody]SaveIrrigationRqDto saveIrrigationRqDto);
 
         /// <summary>
         /// 編輯施用作業
         /// </summary>
-        /// <remarks>更新完整表單。省略噴施總水量或傳 null 時清除原值。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。栽培中、採收中及已結束的批次均可修正。實際施用日不得早於所選批次生效日，也不得晚於台北當日。可用量包含原作業已扣用量，超過時回傳 409。</remarks>
+        /// <remarks>更新完整表單。省略噴施總水量或傳 null 時清除原值。明細帶原識別碼時更新原明細，省略識別碼時新增，未送回的原明細移除。至少保留一項。規劃中、栽培中、採收中及已結束的批次均可修正。實際施用日不得早於所選批次生效日，也不得晚於台北當日。可用量包含原作業已扣用量，超過時回傳 409。</remarks>
         /// <param name="materialApplicationId">施用作業的 UUID。</param>
         /// <param name="editMaterialApplicationRqDto"></param>
         /// <response code="200">已更新的施用作業</response>
@@ -279,6 +276,31 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetPlanting([FromRoute (Name = "plantingId")][Required]Guid plantingId);
+
+        /// <summary>
+        /// 查詢刪除栽培的影響
+        /// </summary>
+        /// <remarks>回傳作業筆數、將釋放的面積、按庫存批次加總的恢復用量及預覽版本。</remarks>
+        /// <param name="plantingId">栽培紀錄的 UUID。</param>
+        /// <response code="200">刪除摘要及其版本</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpGet]
+        [Route("/api/v1/plantings/{plantingId}/delete-preview")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(PlantingDeletePreviewRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> GetPlantingDeletePreview([FromRoute (Name = "plantingId")][Required]Guid plantingId);
 
         /// <summary>
         /// 列出指定田區目前的栽培紀錄

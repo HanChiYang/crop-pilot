@@ -15,6 +15,7 @@ import {
 import { OverviewService } from "./generated/api/overview.service";
 import { PlantingsService } from "./generated/api/plantings.service";
 import { FieldOverviewRsDto } from "./generated/model/fieldOverviewRsDto";
+import { PlantingDeletePreviewRsDto } from "./generated/model/plantingDeletePreviewRsDto";
 import { PlantingRsDto } from "./generated/model/plantingRsDto";
 import { plantingStatusLabel } from "./planting-display";
 
@@ -178,7 +179,24 @@ export class PlantingListPage {
 
   protected readonly pendingDelete = signal<Row | null>(null);
   protected readonly deleteError = signal("");
-  protected readonly deleteConflict = signal(false);
+  protected readonly deletePreview = signal<PlantingDeletePreviewRsDto | null>(null);
+  protected readonly loadingDeletePreview = signal(false);
+  protected readonly retryDeletePreview = signal(false);
+  protected readonly deleteHasOperations = computed(() => {
+    const preview = this.deletePreview();
+    return !!preview && (preview.materialApplicationCount > 0 || preview.irrigationCount > 0);
+  });
+  protected readonly duplicateBatchLabels = computed(() => {
+    const groups = new Map<string, string[]>();
+    for (const item of this.deletePreview()?.inventoryReturns ?? []) {
+      const label = JSON.stringify([item.materialName, item.source, item.availableFrom]);
+      const lots = groups.get(label);
+      if (lots) lots.push(item.lotId);
+      else groups.set(label, [item.lotId]);
+    }
+    return new Set([...groups.values()].filter(lots => lots.length > 1).flat());
+  });
+  private deletePreviewRequest = 0;
   protected readonly deleting = signal(false);
 
   protected reloadPlantings(): void {
@@ -228,17 +246,58 @@ export class PlantingListPage {
     menu.hidePopover();
     this.pendingDelete.set(row);
     this.deleteError.set("");
-    this.deleteConflict.set(false);
+    this.loadDeletePreview();
     dialog.showModal();
+  }
+
+  protected loadDeletePreview(message = ""): void {
+    const row = this.pendingDelete();
+    if (!row) return;
+    const requestId = ++this.deletePreviewRequest;
+    this.deletePreview.set(null);
+    this.deleteError.set(message);
+    this.retryDeletePreview.set(false);
+    this.loadingDeletePreview.set(true);
+    this.plantings.getPlantingDeletePreview({ plantingId: row.id }).pipe(
+      takeUntilDestroyed(this.destroyRef),
+      finalize(() => {
+        if (requestId === this.deletePreviewRequest) this.loadingDeletePreview.set(false);
+      }),
+    ).subscribe({
+      next: preview => {
+        if (requestId === this.deletePreviewRequest) this.deletePreview.set(preview);
+      },
+      error: (error: unknown) => {
+        if (requestId !== this.deletePreviewRequest) return;
+        this.handleExpiredSession(error);
+        if (error instanceof HttpErrorResponse && (error.status === 404 || error.status === 409)) {
+          this.deleteError.set(error.status === 409
+            ? "已結束的栽培紀錄保留於栽培歷史。"
+            : "找不到可刪除的栽培紀錄。");
+          this.reloadPlantings();
+          return;
+        }
+        this.deleteError.set("無法載入刪除摘要，請再試一次。");
+        this.retryDeletePreview.set(true);
+      },
+    });
+  }
+
+  protected resetDelete(): void {
+    this.deletePreviewRequest++;
+    this.pendingDelete.set(null);
+    this.deletePreview.set(null);
+    this.loadingDeletePreview.set(false);
   }
 
   protected deletePlanting(dialog: HTMLDialogElement): void {
     const planting = this.pendingDelete();
-    if (!planting || this.deleting() || this.deleteConflict()) return;
+    const preview = this.deletePreview();
+    if (!planting || !preview || this.deleting()) return;
     this.deleting.set(true);
     this.deleteError.set("");
     this.plantings
-      .deletePlanting({ plantingId: planting.id })
+      .deletePlanting({ plantingId: planting.id, previewVersion: preview.previewVersion })
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.deleting.set(false)),
@@ -263,16 +322,11 @@ export class PlantingListPage {
         },
         error: (error: unknown) => {
           this.handleExpiredSession(error);
-          if (
-            error instanceof HttpErrorResponse &&
-            (error.status === 404 || error.status === 409)
-          ) {
-            this.deleteConflict.set(true);
-            this.deleteError.set(
-              error.status === 409
-                ? "只有規劃中的栽培紀錄可以刪除。"
-                : "找不到可刪除的栽培紀錄。",
-            );
+          if (error instanceof HttpErrorResponse && error.status === 409) {
+            this.loadDeletePreview("栽培或作業已變更，請重新確認刪除摘要。");
+          } else if (error instanceof HttpErrorResponse && error.status === 404) {
+            this.deletePreview.set(null);
+            this.deleteError.set("找不到可刪除的栽培紀錄。");
             this.reloadPlantings();
           } else {
             this.deleteError.set("目前無法刪除栽培紀錄，請再試一次。");

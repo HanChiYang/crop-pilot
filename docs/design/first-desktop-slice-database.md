@@ -165,6 +165,8 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 
 以 `(planting_id, operation_type, operation_date DESC, created_at DESC, id DESC)` 建立清單索引。同一批次同一天可登記多次。
 
+整筆栽培刪除使用單筆交易。先鎖定田區和栽培，再依 UUID 順序鎖定受影響的庫存批次。核對預覽後先刪除 `field_operations`，其明細由既有外鍵串聯刪除，再刪除栽培。栽培到作業的外鍵維持 RESTRICT。批次餘量按其餘施用明細重新計算，田區占用面積按剩餘栽培重新計算。
+
 #### irrigation_details
 
 | 欄位 | 型別 | 約束 | 說明 |
@@ -182,7 +184,8 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | --- | --- | --- | --- |
 | `id` | `uuid` | PK | 一筆資材施用的識別碼。 |
 | `field_operation_id` | `uuid` | NOT NULL、UNIQUE、FK 至 `field_operations.id`，ON DELETE CASCADE | 每筆 `MATERIAL_APPLICATION` 作業對應一筆資材施用資料。 |
-| `spray_water_volume_liters` | `numeric(15,6)` | 可為 NULL，已知時大於 0 且小於 10 億 | 本次噴施的農藥與肥料明細共用的水量，單位為公升。 |
+| `application_method` | `varchar(24)` | NOT NULL、CHECK 允許 `spray`、`broadcast` | 整筆作業共用的施用方式。 |
+| `spray_water_volume_liters` | `numeric(15,6)` | 可為 NULL，有值時方式須為 `spray` 且大於 0、小於 10 億 | 本次噴施的農藥與肥料明細共用的水量，單位為公升。 |
 
 同一栽培在同一作業日可以有多筆資材施用。每桶配液有自己的作業和水量。例如兩支農藥與葉肥共用 20 公升水時，這裡存一次 `20`，三項資材各存一筆用量明細。若同日另外撒施顆粒肥，該筆作業的水量存 NULL。
 
@@ -194,7 +197,6 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `material_application_id` | `uuid` | NOT NULL、FK 至 `material_applications.id`，ON DELETE CASCADE | 所屬資材施用。 |
 | `material_purchase_lot_id` | `uuid` | NOT NULL、FK 至 `material_purchase_lots.id`，ON DELETE RESTRICT | 實際扣用的農藥或肥料庫存批次。資材類別由批次所屬主檔取得。 |
 | `material_name` | `varchar(100)` | NOT NULL | 農藥或肥料名稱快照。 |
-| `application_method` | `varchar(24)` | NOT NULL、CHECK 允許 `spray`、`broadcast` | 每筆明細選擇噴施或撒施。 |
 | `quantity` | `numeric(15,6)` | NOT NULL、CHECK 大於 0 且小於 10 億 | 依庫存單位保存實際用量，例如葉肥用量 `30` 毫升。 |
 | `unit` | `varchar(20)` | NOT NULL | 庫存單位快照，由批次所屬主檔取得。 |
 | `unit_price` | `numeric(15,6)` | 可為 NULL，已知時大於等於 0 且小於 10 億 | 當次單價快照。 |
@@ -276,6 +278,7 @@ erDiagram
     material_applications {
         uuid id PK
         uuid field_operation_id FK, UK
+        varchar application_method
         numeric spray_water_volume_liters
     }
     material_application_details {
@@ -283,7 +286,6 @@ erDiagram
         uuid material_application_id FK
         uuid material_purchase_lot_id FK
         varchar material_name
-        varchar application_method
         numeric quantity
         varchar unit
         numeric unit_price

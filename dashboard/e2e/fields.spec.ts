@@ -367,7 +367,7 @@ test('栽培超額保留輸入，編輯、刪除與結束後更新面積及總�
   await expect(page.getByLabel('品種（選填）')).toHaveValue('示意品種');
   await page.getByRole('button', { name: '取消' }).click();
   const remove = planned.getByRole('button', { name: '刪除 小白菜' });
-  const confirmation = page.getByRole('dialog', { name: '刪除栽培紀錄' });
+  const confirmation = page.getByRole('dialog', { name: '刪除栽培紀錄？' });
   await operations('小白菜').click();
   await remove.click();
   await expect(confirmation).toContainText('小白菜');
@@ -375,7 +375,7 @@ test('栽培超額保留輸入，編輯、刪除與結束後更新面積及總�
   await expect(planned).toBeVisible();
   await operations('小白菜').click();
   await remove.click();
-  await confirmation.getByRole('button', { name: '確認刪除' }).click();
+  await confirmation.getByRole('button', { name: '刪除栽培紀錄', exact: true }).click();
   await expect(planned).toBeHidden();
 
   await operations('番茄').click();
