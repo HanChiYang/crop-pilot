@@ -499,7 +499,7 @@ paths:
       tags: [Plantings]
       operationId: deletePlanting
       summary: 刪除單筆栽培及所屬作業紀錄
-      description: 規劃中、栽培中與採收中的栽培可刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。
+      description: 規劃中、栽培中與採收中的栽培可刪除。已有採收紀錄時拒絕整批刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。
       parameters:
         - name: previewVersion
           in: query
@@ -524,7 +524,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: 預覽版本已變更或栽培已結束。
+          description: 預覽版本已變更、栽培已結束或已有採收紀錄。
           content:
             application/problem+json:
               schema:
@@ -640,7 +640,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: 已結束的栽培保留於栽培歷史。
+          description: 已結束的栽培保留於栽培歷史。已有採收紀錄時回傳阻擋原因。
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -747,6 +747,153 @@ paths:
       responses:
         '204':
           description: 已刪除灌溉作業
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/plantings/{plantingId}/harvests:
+    parameters:
+      - $ref: '#/components/parameters/PlantingId'
+    get:
+      tags: [Plantings]
+      operationId: getHarvets
+      summary: 查詢單筆栽培的採收清單與累計重量
+      description: |-
+        日期區間含起訖當日。篩選只影響清單，累計重量涵蓋整個栽培批次。
+        按重量排序時，同重紀錄先按採收日遞減。其餘同值紀錄依建立時間及識別碼遞減。
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          description: 選填，採收日期篩選起日。
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: 選填，採收日期篩選迄日。與 startDate 同時提供時，不可早於 startDate。
+          schema:
+            type: string
+            format: date
+        - name: sortBy
+          in: query
+          description: 選填，依採收日期或採收公斤數排序。
+          schema:
+            type: string
+            enum: [harvestDate, weightKg]
+            default: harvestDate
+        - name: sortDirection
+          in: query
+          description: 選填，升冪或降冪。
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: 採收清單與整批累計重量。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HarvestListRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Plantings]
+      operationId: createHarvest
+      summary: 新增採收紀錄
+      description: 栽培中、採收中及已結束的批次均可登記。同一批次同一天可登記多筆。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveHarvestRqDto'
+      responses:
+        '201':
+          description: 已新增的採收紀錄。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HarvestRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 所屬栽培為規劃中。
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/v1/harvests/{harvestId}:
+    parameters:
+      - $ref: '#/components/parameters/HarvestId'
+    put:
+      tags: [Plantings]
+      operationId: editHarvest
+      summary: 編輯採收紀錄
+      description: 更新完整表單。省略 description、傳入 null 或只填空白時會清除原備註。日期與栽培狀態限制同新增。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveHarvestRqDto'
+      responses:
+        '200':
+          description: 已更新的採收紀錄。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HarvestRsDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/FieldAccessForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 所屬栽培為規劃中。
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Plantings]
+      operationId: deleteHarvest
+      summary: 刪除一筆採收紀錄
+      description: 刪除指定的採收紀錄，包含已結束批次中的紀錄。
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 已刪除採收紀錄。
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1415,6 +1562,15 @@ components:
         type: string
         format: uuid
 
+    HarvestId:
+      name: harvestId
+      in: path
+      required: true
+      description: 採收紀錄的 UUID。
+      schema:
+        type: string
+        format: uuid
+
   responses:
     Conflict:
       description: 請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。
@@ -1727,6 +1883,60 @@ components:
           type: [string, 'null']
           maxLength: 500
           description: 灌溉備註。
+    HarvestWeightKg:
+      type: number
+      minimum: 0.000001
+      maximum: 999999999.999999
+      multipleOf: 0.000001
+      description: 採收重量，單位為公斤，最多六位小數。
+    SaveHarvestRqDto:
+      type: object
+      required: [harvestDate, weightKg]
+      properties:
+        harvestDate:
+          type: string
+          format: date
+          description: 實際採收日期，最晚為台北當日。
+        weightKg:
+          $ref: '#/components/schemas/HarvestWeightKg'
+        description:
+          type: [string, 'null']
+          maxLength: 500
+          description: 選填備註。空白會儲存為 null。
+    HarvestRsDto:
+      type: object
+      required: [id, plantingId, harvestDate, weightKg, description]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 採收紀錄識別碼。
+        plantingId:
+          type: string
+          format: uuid
+          description: 所屬栽培批次識別碼。
+        harvestDate:
+          type: string
+          format: date
+        weightKg:
+          $ref: '#/components/schemas/HarvestWeightKg'
+        description:
+          type: [string, 'null']
+          maxLength: 500
+          description: 採收備註。
+    HarvestListRsDto:
+      type: object
+      required: [totalWeightKg, harvests]
+      properties:
+        totalWeightKg:
+          type: number
+          minimum: 0
+          description: 整個栽培批次的累計採收公斤數。該批次沒有採收時為 0。
+        harvests:
+          type: array
+          description: 符合日期篩選的採收紀錄。沒有符合結果時為空陣列。
+          items:
+            $ref: '#/components/schemas/HarvestRsDto'
     MaterialApplicationMethod:
       type: string
       enum: [spray, broadcast]

@@ -6,6 +6,7 @@ using CropPilot.Api.Data;
 using CropPilot.Api.Constants;
 using CropPilot.Api.Fields;
 using CropPilot.Api.Fertilizers;
+using CropPilot.Api.Harvests;
 using CropPilot.Api.Irrigations;
 using CropPilot.Api.Plantings;
 using CropPilot.Contract.Models;
@@ -33,6 +34,8 @@ builder.Services.AddScoped<FertilizerRepository>();
 builder.Services.AddScoped<FertilizerService>();
 builder.Services.AddScoped<IrrigationRepository>();
 builder.Services.AddScoped<IrrigationService>();
+builder.Services.AddScoped<HarvestRepository>();
+builder.Services.AddScoped<HarvestService>();
 builder.Services.AddIdentityCore<MainAccount>()
     .AddUserStore<CropPilotUserStore>()
     .AddClaimsPrincipalFactory<AccountPrincipalFactory>()

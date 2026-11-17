@@ -28,6 +28,33 @@ namespace CropPilot.Contract.Controllers
     public abstract class PlantingsApiController : ControllerBase
     { 
         /// <summary>
+        /// 新增採收紀錄
+        /// </summary>
+        /// <remarks>栽培中、採收中及已結束的批次均可登記。同一批次同一天可登記多筆。</remarks>
+        /// <param name="plantingId">栽培紀錄的 UUID。</param>
+        /// <param name="saveHarvestRqDto"></param>
+        /// <response code="201">已新增的採收紀錄。</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpPost]
+        [Route("/api/v1/plantings/{plantingId}/harvests")]
+        [Authorize]
+        [Consumes("application/json")]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 201, type: typeof(HarvestRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> CreateHarvest([FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromBody]SaveHarvestRqDto saveHarvestRqDto);
+
+        /// <summary>
         /// 新增灌溉作業
         /// </summary>
         /// <remarks>規劃中、栽培中、採收中及已結束的批次均可登記。實際灌溉日可早於栽種日，最晚為台北當日。栽培不存在或其田區不屬於登入帳號時回傳 404。</remarks>
@@ -107,6 +134,28 @@ namespace CropPilot.Contract.Controllers
         public abstract Task<IActionResult> CreatePlanting([FromRoute (Name = "fieldId")][Required]Guid fieldId, [FromBody]CreatePlantingRqDto createPlantingRqDto);
 
         /// <summary>
+        /// 刪除一筆採收紀錄
+        /// </summary>
+        /// <remarks>刪除指定的採收紀錄，包含已結束批次中的紀錄。</remarks>
+        /// <param name="harvestId">採收紀錄的 UUID。</param>
+        /// <response code="204">已刪除採收紀錄。</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpDelete]
+        [Route("/api/v1/harvests/{harvestId}")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> DeleteHarvest([FromRoute (Name = "harvestId")][Required]Guid harvestId);
+
+        /// <summary>
         /// 刪除灌溉作業
         /// </summary>
         /// <remarks>規劃中、栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。</remarks>
@@ -153,7 +202,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 刪除單筆栽培及所屬作業紀錄
         /// </summary>
-        /// <remarks>規劃中、栽培中與採收中的栽培可刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。</remarks>
+        /// <remarks>規劃中、栽培中與採收中的栽培可刪除。已有採收紀錄時拒絕整批刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。</remarks>
         /// <param name="previewVersion">本次確認的刪除預覽版本。</param>
         /// <param name="plantingId">栽培紀錄的 UUID。</param>
         /// <response code="204">已刪除並釋放占用面積</response>
@@ -161,7 +210,7 @@ namespace CropPilot.Contract.Controllers
         /// <response code="401">權杖無效、未登入或工作階段已失效</response>
         /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
         /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
-        /// <response code="409">預覽版本已變更或栽培已結束。</response>
+        /// <response code="409">預覽版本已變更、栽培已結束或已有採收紀錄。</response>
         /// <response code="500">伺服器處理失敗</response>
         [HttpDelete]
         [Route("/api/v1/plantings/{plantingId}")]
@@ -174,6 +223,33 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 409, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> DeletePlanting([FromQuery (Name = "previewVersion")][Required()][RegularExpression("^[0-9A-F]{64}$")][StringLength(64, MinimumLength=64)]string previewVersion, [FromRoute (Name = "plantingId")][Required]Guid plantingId);
+
+        /// <summary>
+        /// 編輯採收紀錄
+        /// </summary>
+        /// <remarks>更新完整表單。省略 description、傳入 null 或只填空白時會清除原備註。日期與栽培狀態限制同新增。</remarks>
+        /// <param name="harvestId">採收紀錄的 UUID。</param>
+        /// <param name="saveHarvestRqDto"></param>
+        /// <response code="200">已更新的採收紀錄。</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpPut]
+        [Route("/api/v1/harvests/{harvestId}")]
+        [Authorize]
+        [Consumes("application/json")]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(HarvestRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> EditHarvest([FromRoute (Name = "harvestId")][Required]Guid harvestId, [FromBody]SaveHarvestRqDto saveHarvestRqDto);
 
         /// <summary>
         /// 編輯灌溉作業
@@ -253,6 +329,33 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> EditPlanting([FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromBody]EditPlantingRqDto editPlantingRqDto);
+
+        /// <summary>
+        /// 查詢單筆栽培的採收清單與累計重量
+        /// </summary>
+        /// <remarks>日期區間含起訖當日。篩選只影響清單，累計重量涵蓋整個栽培批次。 按重量排序時，同重紀錄先按採收日遞減。其餘同值紀錄依建立時間及識別碼遞減。</remarks>
+        /// <param name="plantingId">栽培紀錄的 UUID。</param>
+        /// <param name="startDate">選填，採收日期篩選起日。</param>
+        /// <param name="endDate">選填，採收日期篩選迄日。與 startDate 同時提供時，不可早於 startDate。</param>
+        /// <param name="sortBy">選填，依採收日期或採收公斤數排序。</param>
+        /// <param name="sortDirection">選填，升冪或降冪。</param>
+        /// <response code="200">採收清單與整批累計重量。</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpGet]
+        [Route("/api/v1/plantings/{plantingId}/harvests")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(HarvestListRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> GetHarvets([FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromQuery (Name = "startDate")]DateOnly? startDate, [FromQuery (Name = "endDate")]DateOnly? endDate, [FromQuery (Name = "sortBy")]string sortBy, [FromQuery (Name = "sortDirection")]string sortDirection);
 
         /// <summary>
         /// 列出自己的栽培紀錄詳細資料

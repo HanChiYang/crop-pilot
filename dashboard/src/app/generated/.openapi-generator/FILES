@@ -32,6 +32,8 @@ model/fieldDto.ts
 model/fieldOverviewRsDto.ts
 model/fieldPlantingsRsDto.ts
 model/fieldRsDto.ts
+model/harvestListRsDto.ts
+model/harvestRsDto.ts
 model/irrigationMethod.ts
 model/irrigationRsDto.ts
 model/loginRqDto.ts
@@ -51,6 +53,7 @@ model/plantingHistoryItemDto.ts
 model/plantingInventoryReturnDto.ts
 model/plantingRsDto.ts
 model/plantingStatus.ts
+model/saveHarvestRqDto.ts
 model/saveIrrigationRqDto.ts
 param.ts
 provide-api.ts

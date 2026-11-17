@@ -267,6 +267,56 @@ namespace CropPilot.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CropPilot.Api.Data.Harvest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<DateOnly>("HarvestDate")
+                        .HasColumnType("date")
+                        .HasColumnName("harvest_date");
+
+                    b.Property<Guid>("PlantingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("planting_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<decimal>("WeightKg")
+                        .HasPrecision(15, 6)
+                        .HasColumnType("numeric(15,6)")
+                        .HasColumnName("weight_kg");
+
+                    b.HasKey("Id")
+                        .HasName("pk_harvests");
+
+                    b.HasIndex("PlantingId", "HarvestDate", "CreatedAt", "Id")
+                        .IsDescending(false, true, true, true)
+                        .HasDatabaseName("ix_harvests_planting_id_harvest_date_created_at_id");
+
+                    b.ToTable("harvests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_harvests_weight_kg", "weight_kg > 0 AND weight_kg < 1000000000");
+                        });
+                });
+
             modelBuilder.Entity("CropPilot.Api.Data.IrrigationDetail", b =>
                 {
                     b.Property<Guid>("Id")
@@ -747,6 +797,18 @@ namespace CropPilot.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_field_operations_plantings_planting_id");
+
+                    b.Navigation("Planting");
+                });
+
+            modelBuilder.Entity("CropPilot.Api.Data.Harvest", b =>
+                {
+                    b.HasOne("CropPilot.Api.Data.Planting", "Planting")
+                        .WithMany()
+                        .HasForeignKey("PlantingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_harvests_plantings_planting_id");
 
                     b.Navigation("Planting");
                 });

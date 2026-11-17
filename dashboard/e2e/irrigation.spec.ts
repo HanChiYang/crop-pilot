@@ -37,6 +37,8 @@ async function mockApi(page: Page, status: 'completed' | 'growing' | 'planned') 
           areaSquareMeters: 1000, allocatedAreaSquareMeters: 240, remainingAreaSquareMeters: 760,
           plantings: [record],
         } });
+      case '/api/v1/plantings/' + plantingId + '/harvests':
+        return route.fulfill({ json: { totalWeightKg: 0, harvests: [] } });
       case '/api/v1/plantings/' + plantingId:
         return route.fulfill({ json: record });
       case '/api/v1/planting-history/crops':
@@ -130,7 +132,7 @@ test('栽培中的列操作可開啟灌溉清單並返回原田區', async ({ pa
     await page.goto(managementPath);
     await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
     const row = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: '番茄' }) });
-    await expect(row.getByRole('link')).toHaveText(['編輯', '資材施用', '灌溉紀錄']);
+    await expect(row.getByRole('link')).toHaveText(['查看詳情', '編輯', '資材施用', '灌溉紀錄']);
     await page.getByRole('link', { name: '灌溉紀錄' }).click();
     await expect(page.getByRole('heading', { name: '灌溉紀錄' })).toBeVisible();
     const add = page.getByRole('button', { name: '新增灌溉' });
@@ -140,12 +142,12 @@ test('栽培中的列操作可開啟灌溉清單並返回原田區', async ({ pa
     await expect(page.getByLabel('田區', { exact: true })).toHaveValue(fieldId);
 });
 
-test('規劃中固定提供四項操作，可新增灌溉', async ({ page }) => {
+test('規劃中可查看詳情、操作列選單及新增灌溉', async ({ page }) => {
   const writes = await mockApi(page, 'planned');
   await page.goto(managementPath);
   await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
   const row = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: '番茄' }) });
-  await expect(row.getByRole('link')).toHaveText(['編輯', '資材施用', '灌溉紀錄']);
+  await expect(row.getByRole('link')).toHaveText(['查看詳情', '編輯', '資材施用', '灌溉紀錄']);
   await expect(row.getByRole('button', { name: '刪除 番茄' })).toBeVisible();
   await row.getByRole('link', { name: '灌溉紀錄' }).click();
   await expect(page.getByText('北側田・番茄・規劃中')).toBeVisible();

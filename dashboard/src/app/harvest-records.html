@@ -1,0 +1,160 @@
+<div class="harvest-section">
+  @let list = state();
+  <div class="harvest-toolbar">
+    <div>
+      <span class="harvest-total-label">累計採收</span>
+      <strong class="harvest-total" aria-live="polite">
+        @if (list.status === 'ready') {
+          {{ list.data.totalWeightKg | number:'1.0-6' }} 公斤
+        } @else { — }
+      </strong>
+    </div>
+    @if (canSave()) {
+      <button class="button" type="button" [disabled]="busy()" (click)="openEditor(editorDialog)">新增採收</button>
+    }
+  </div>
+  @if (!canSave()) {
+    <p class="harvest-help">規劃中的栽培無法登記採收。</p>
+  }
+  @if (notice()) {
+    <p class="field-success" role="status">{{ notice() }}</p>
+  }
+
+  <form (submit)="applyDates($event)">
+    <fieldset class="date-filter">
+      <legend>採收日期篩選</legend>
+      <div class="field-control">
+        <label for="harvest-start">開始日期</label>
+        <input #start id="harvest-start" type="date" [value]="startDate()"
+          [attr.aria-invalid]="invalidDates() || null" (input)="startDate.set(start.value)">
+      </div>
+      <div class="field-control">
+        <label for="harvest-end">結束日期</label>
+        <input #end id="harvest-end" type="date" [value]="endDate()"
+          [attr.aria-invalid]="invalidDates() || null" (input)="endDate.set(end.value)">
+      </div>
+      <button class="button button-outline" type="submit">套用篩選</button>
+      <button class="button button-outline" type="button" (click)="clearDates()">清除篩選</button>
+    </fieldset>
+    @if (invalidDates()) {
+      <p class="error" role="alert">採收日期的開始日期不可晚於結束日期。</p>
+    }
+  </form>
+
+  <div class="panel field-table harvest-table">
+    <table aria-label="採收紀錄清單" [attr.aria-busy]="list.status === 'loading'">
+      <thead>
+        <tr>
+          @for (column of columns; track column.key) {
+            @let direction = sort().column === column.key ? sort().direction : null;
+            <th scope="col" [attr.aria-sort]="direction">
+              <button class="operation-sort" type="button" (click)="sortBy(column.key)">
+                {{ column.label }}
+                <span aria-hidden="true">{{ direction === 'ascending' ? '↑' : direction === 'descending' ? '↓' : '↕' }}</span>
+              </button>
+            </th>
+          }
+          <th scope="col">備註</th>
+          <th scope="col">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        @switch (list.status) {
+          @case ('loading') {
+            <tr><td class="harvest-state" colspan="4"><p role="status">正在載入採收紀錄…</p></td></tr>
+          }
+          @case ('error') {
+            <tr>
+              <td class="harvest-state" colspan="4">
+                <p class="error" role="alert">無法載入採收紀錄，請再試一次。</p>
+                <button class="button button-outline" type="button" (click)="reload()">重新載入</button>
+              </td>
+            </tr>
+          }
+          @case ('ready') {
+            @for (record of list.data.harvests; track record.id) {
+              <tr>
+                <td>{{ record.harvestDate }}</td>
+                <td><strong>{{ record.weightKg | number:'1.0-6' }} 公斤</strong></td>
+                <td class="harvest-description">{{ record.description || '—' }}</td>
+                <td>
+                  <button class="button button-outline row-action-trigger" type="button" [disabled]="busy()"
+                    [attr.popovertarget]="'harvest-actions-' + record.id"
+                    [attr.aria-label]="'操作 ' + record.harvestDate + ' ' + record.weightKg + ' 公斤的採收紀錄'">
+                    <span aria-hidden="true">☰</span>
+                  </button>
+                  <div #menu popover class="row-action-menu" [id]="'harvest-actions-' + record.id">
+                    @if (canSave()) {
+                      <button type="button" (click)="menu.hidePopover(); openEditor(editorDialog, record)">編輯</button>
+                    }
+                    <button class="row-action-danger" type="button"
+                      (click)="menu.hidePopover(); confirmDelete(record, deleteDialog)">刪除</button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="harvest-state" colspan="4">
+                  <p role="status">{{ hasFilter() ? '查無符合日期的採收紀錄。' : '尚無採收紀錄。' }}</p>
+                </td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<dialog #editorDialog class="field-delete-dialog harvest-editor" aria-labelledby="harvest-editor-title"
+  (cancel)="busy() && $event.preventDefault()" (close)="editor.set(null)">
+  @if (editor(); as form) {
+    <h2 id="harvest-editor-title">{{ form.id ? '編輯採收' : '新增採收' }}</h2>
+    <form (ngSubmit)="save(form, editorDialog)">
+      <fieldset [disabled]="busy()">
+        <div class="field-control">
+          <label for="harvest-date">採收日期</label>
+          <input id="harvest-date" type="date" name="harvestDate" required [max]="today()"
+            [(ngModel)]="form.date" (focus)="refreshToday()">
+        </div>
+        <div class="field-control">
+          <label for="harvest-weight">採收重量（公斤）</label>
+          <input id="harvest-weight" name="weightKg" inputmode="decimal" required [(ngModel)]="form.weight">
+        </div>
+        <div class="field-control">
+          <label for="harvest-description">備註（選填）</label>
+          <textarea id="harvest-description" name="description" rows="3" [(ngModel)]="form.description"></textarea>
+        </div>
+        @if (writeError()) {
+          <p class="error" role="alert">{{ writeError() }}</p>
+        }
+        <div class="field-form-actions">
+          <button class="button button-outline" type="button" (click)="editorDialog.close()">取消</button>
+          <button class="button" type="submit">{{ busy() ? '儲存中…' : form.id ? '儲存變更' : '儲存採收' }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+</dialog>
+
+<dialog #deleteDialog class="field-delete-dialog" aria-labelledby="harvest-delete-title"
+  (cancel)="busy() && $event.preventDefault()" (close)="pendingDelete.set(null)">
+  <h2 id="harvest-delete-title">刪除採收紀錄？</h2>
+  @if (pendingDelete(); as record) {
+    <p>{{ record.harvestDate }}・{{ record.weightKg | number:'1.0-6' }} 公斤</p>
+    @if (record.description) { <p class="harvest-description">{{ record.description }}</p> }
+    @if (list.status === 'ready') {
+      <p>累計採收將從 {{ list.data.totalWeightKg | number:'1.0-6' }} 公斤調整為
+        {{ list.data.totalWeightKg - record.weightKg | number:'1.0-6' }} 公斤。</p>
+    }
+    @if (writeError()) {
+      <p class="error" role="alert">{{ writeError() }}</p>
+    }
+    <div class="field-form-actions">
+      <button class="button button-outline" type="button" [disabled]="busy()" (click)="deleteDialog.close()">取消</button>
+      <button class="button button-danger" type="button" [disabled]="busy()" (click)="remove(record, deleteDialog)">
+        {{ busy() ? '刪除中…' : '確認刪除' }}
+      </button>
+    </div>
+  }
+</dialog>

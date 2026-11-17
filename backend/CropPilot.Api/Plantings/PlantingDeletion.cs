@@ -6,7 +6,7 @@ namespace CropPilot.Api.Plantings;
 
 /// <summary>保存栽培刪除的資料及確認時使用的版本。</summary>
 internal sealed record PlantingDeletion(Planting Planting, List<PlantingOperationVersion> Operations,
-    List<PlantingInventoryReturn> InventoryReturns)
+    List<PlantingInventoryReturn> InventoryReturns, bool HasHarvests)
 {
     /// <summary>從確認畫面與作業版本產生可跨請求核對的雜湊值。</summary>
     internal string Version() => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new
