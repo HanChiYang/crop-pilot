@@ -1,5 +1,5 @@
 -- CropPilot current PostgreSQL 18 schema.
--- Source: EF Core migrations through 20261116073756_MoveMaterialApplicationMethod.
+-- Source: EF Core migrations through 20261117045413_CreateHarvests.
 -- Regenerate after every schema migration.
 
 --
@@ -113,6 +113,22 @@ CREATE TABLE public.fields (
     CONSTRAINT ck_fields_area_square_meters CHECK (((area_square_meters > (0)::numeric) AND (area_square_meters <= 9999999999.9999))),
     CONSTRAINT ck_fields_coordinates CHECK ((((latitude IS NULL) AND (longitude IS NULL)) OR ((latitude IS NOT NULL) AND (longitude IS NOT NULL) AND ((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric)) AND ((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))))),
     CONSTRAINT ck_fields_name CHECK ((btrim((name)::text, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000'::text) <> ''::text))
+);
+
+
+--
+-- Name: harvests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.harvests (
+    id uuid NOT NULL,
+    planting_id uuid NOT NULL,
+    harvest_date date NOT NULL,
+    weight_kg numeric(15,6) NOT NULL,
+    description character varying(500),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_harvests_weight_kg CHECK (((weight_kg > (0)::numeric) AND (weight_kg < (1000000000)::numeric)))
 );
 
 
@@ -311,6 +327,14 @@ ALTER TABLE ONLY public.fields
 
 
 --
+-- Name: harvests pk_harvests; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.harvests
+    ADD CONSTRAINT pk_harvests PRIMARY KEY (id);
+
+
+--
 -- Name: irrigation_details pk_irrigation_details; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -415,6 +439,13 @@ CREATE INDEX ix_field_operations_planting_id_operation_type_operation_date_ ON p
 --
 
 CREATE UNIQUE INDEX ix_fields_main_account_id_name ON public.fields USING btree (main_account_id, name);
+
+
+--
+-- Name: ix_harvests_planting_id_harvest_date_created_at_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_harvests_planting_id_harvest_date_created_at_id ON public.harvests USING btree (planting_id, harvest_date DESC, created_at DESC, id DESC);
 
 
 --
@@ -549,6 +580,14 @@ ALTER TABLE ONLY public.fields
 
 
 --
+-- Name: harvests fk_harvests_plantings_planting_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.harvests
+    ADD CONSTRAINT fk_harvests_plantings_planting_id FOREIGN KEY (planting_id) REFERENCES public.plantings(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: irrigation_details fk_irrigation_details_field_operations_field_operation_id; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -640,4 +679,5 @@ INSERT INTO public.ef_migrations_history (migration_id, product_version) VALUES
     ('20261112000309_AddIrrigationRecords', '10.0.13'),
     ('20261112085516_ReplaceFertilizationWithMaterialApplications', '10.0.13'),
     ('20261115092315_AddMaterialPackageSpecifications', '10.0.13'),
-    ('20261116073756_MoveMaterialApplicationMethod', '10.0.13');
+    ('20261116073756_MoveMaterialApplicationMethod', '10.0.13'),
+    ('20261117045413_CreateHarvests', '10.0.13');

@@ -1,7 +1,9 @@
+using System.Globalization;
 using CropPilot.Api.Authentication;
 using CropPilot.Api.Constants;
 using CropPilot.Api.Data;
 using CropPilot.Api.Fertilizers;
+using CropPilot.Api.Harvests;
 using CropPilot.Api.Irrigations;
 using CropPilot.Contract.Controllers;
 using CropPilot.Contract.Models;
@@ -14,7 +16,7 @@ namespace CropPilot.Api.Plantings;
 /// <summary>讓具備 USER 角色的帳號管理自己田區的栽培紀錄。</summary>
 [Authorize(Roles = UserRole.User)]
 public sealed class PlantingsController(PlantingService plantings, FertilizerService fertilizers,
-    IrrigationService irrigations) : PlantingsApiController
+    IrrigationService irrigations, HarvestService harvests) : PlantingsApiController
 {
     private Guid AccountId => HttpContext.Features.GetRequiredFeature<AuthenticatedAccount>().Id;
 
@@ -44,23 +46,26 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
         var (status, deletion) = await plantings.GetDeletePreviewAsync(AccountId, plantingId, HttpContext.RequestAborted);
         if (deletion is not null)
             return Ok(PlantingDtoMapper.ToDeletePreviewDto(deletion));
-        return status == PlantingWriteStatus.NotFound ? NotFound()
-            : Problem(statusCode: StatusCodes.Status409Conflict, detail: ErrorMessages.PlantingDeleteInvalid);
+        return PlantingDeleteProblem(status);
     }
 
     /// <summary>核對使用者確認過的預覽版本，刪除栽培及其作業。</summary>
     public override async Task<IActionResult> DeletePlanting(string previewVersion, Guid plantingId)
     {
         var status = await plantings.DeleteAsync(AccountId, plantingId, previewVersion, HttpContext.RequestAborted);
-        return status switch
-        {
-            PlantingWriteStatus.Success => NoContent(),
-            PlantingWriteStatus.NotFound => NotFound(),
-            PlantingWriteStatus.PreviewChanged => Problem(statusCode: StatusCodes.Status409Conflict,
-                detail: ErrorMessages.PlantingDeletePreviewChanged),
-            _ => Problem(statusCode: StatusCodes.Status409Conflict, detail: ErrorMessages.PlantingDeleteInvalid)
-        };
+        return status == PlantingWriteStatus.Success ? NoContent() : PlantingDeleteProblem(status);
     }
+
+    /// <summary>回傳栽培刪除預覽與確認共用的問題回應。</summary>
+    private IActionResult PlantingDeleteProblem(PlantingWriteStatus status) => status switch
+    {
+        PlantingWriteStatus.NotFound => NotFound(),
+        PlantingWriteStatus.PreviewChanged => Problem(statusCode: StatusCodes.Status409Conflict,
+            detail: ErrorMessages.PlantingDeletePreviewChanged),
+        PlantingWriteStatus.HasHarvests => Problem(statusCode: StatusCodes.Status409Conflict,
+            detail: ErrorMessages.PlantingDeleteHasHarvests),
+        _ => Problem(statusCode: StatusCodes.Status409Conflict, detail: ErrorMessages.PlantingDeleteInvalid)
+    };
 
     /// <summary>將寫入失敗轉換成找不到紀錄或指定欄位的錯誤回應。</summary>
     private IActionResult WriteProblem(PlantingWriteResult result)
@@ -155,6 +160,65 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
     public override async Task<IActionResult> DeleteMaterialApplication(Guid materialApplicationId) =>
         this.ToResponse(await fertilizers.DeleteOperationAsync(AccountId, materialApplicationId,
             HttpContext.RequestAborted), value => value.Id);
+
+    /// <summary>依日期區間與排序查詢採收及整批累計重量。</summary>
+    public override async Task<IActionResult> GetHarvets(Guid plantingId, DateOnly? startDate, DateOnly? endDate,
+        string? sortBy, string? sortDirection)
+    {
+        var dateErrors = new Dictionary<string, string>();
+        if (!MatchesHarvestFilterDate("startDate", startDate))
+            dateErrors["startDate"] = ErrorMessages.HarvestFilterDateInvalid;
+        if (!MatchesHarvestFilterDate("endDate", endDate))
+            dateErrors["endDate"] = ErrorMessages.HarvestFilterDateInvalid;
+        if (dateErrors.Count > 0)
+            return HarvestValidationProblem(dateErrors);
+
+        var (list, errors) = await harvests.ListAsync(AccountId, plantingId, startDate, endDate,
+            Request.Query.TryGetValue("sortBy", out var sortField) ? sortField.ToString() : sortBy,
+            Request.Query.TryGetValue("sortDirection", out var direction) ? direction.ToString() : sortDirection,
+            HttpContext.RequestAborted);
+        if (errors is not null)
+            return HarvestValidationProblem(errors);
+        return list is null ? NotFound() : Ok(HarvestDtoMapper.ToDto(list));
+    }
+
+    /// <summary>日期查詢可省略。提供時須使用單一 ISO 日期。</summary>
+    private bool MatchesHarvestFilterDate(string name, DateOnly? date) =>
+        !Request.Query.TryGetValue(name, out var value) ||
+        date is { } parsed && string.Equals(value.ToString(),
+            parsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+    /// <summary>新增採收並在成功時回傳該筆紀錄。</summary>
+    public override async Task<IActionResult> CreateHarvest(Guid plantingId, SaveHarvestRqDto request) =>
+        HarvestResponse(await harvests.CreateAsync(AccountId, plantingId, request, HttpContext.RequestAborted),
+            StatusCodes.Status201Created);
+
+    /// <summary>編輯採收並在成功時回傳更新後的紀錄。</summary>
+    public override async Task<IActionResult> EditHarvest(Guid harvestId, SaveHarvestRqDto request) =>
+        HarvestResponse(await harvests.EditAsync(AccountId, harvestId, request, HttpContext.RequestAborted),
+            StatusCodes.Status200OK);
+
+    /// <summary>刪除帳號所屬的一筆採收，成功時回傳 204。</summary>
+    public override async Task<IActionResult> DeleteHarvest(Guid harvestId) =>
+        await harvests.DeleteAsync(AccountId, harvestId, HttpContext.RequestAborted) ? NoContent() : NotFound();
+
+    /// <summary>將採收寫入結果轉為契約規定的 HTTP 回應。</summary>
+    private IActionResult HarvestResponse(HarvestWriteResult result, int successStatus) => result.Status switch
+    {
+        HarvestWriteStatus.Success => StatusCode(successStatus, HarvestDtoMapper.ToDto(result.Harvest!)),
+        HarvestWriteStatus.NotFound => NotFound(),
+        HarvestWriteStatus.Conflict => Problem(statusCode: StatusCodes.Status409Conflict,
+            detail: ErrorMessages.HarvestPlantingPlanned),
+        _ => HarvestValidationProblem(result.Errors!)
+    };
+
+    /// <summary>使用原始 JSON 欄位名回傳採收驗證錯誤。</summary>
+    private IActionResult HarvestValidationProblem(Dictionary<string, string> errors)
+    {
+        foreach (var (field, message) in errors)
+            ModelState.AddModelError(field, message);
+        return ValidationProblem(ModelState);
+    }
 
     /// <summary>回傳指定栽培的灌溉清單，無法存取栽培時回傳 404。</summary>
     public override async Task<IActionResult> ListIrrigations(Guid plantingId)

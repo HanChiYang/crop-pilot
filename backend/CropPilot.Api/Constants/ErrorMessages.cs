@@ -24,6 +24,7 @@ internal static class ErrorMessages
     internal const string PlantingStatusInvalid = "栽培狀態不正確。";
     internal const string PlantingTransitionInvalid = "目前的栽培狀態無法變更為所選狀態。";
     internal const string PlantingDeleteInvalid = "已結束的栽培紀錄保留於栽培歷史。";
+    internal const string PlantingDeleteHasHarvests = "這批栽培已有採收紀錄，無法整批刪除。";
     internal const string PlantingDeletePreviewChanged = "作業或庫存批次已變更。請重新確認刪除摘要。";
     internal const string PlantingAreaInvalid = "占用面積須大於 0，最多四位小數，且不得超過 9999999999.9999 m²。";
     internal const string PlantingAreaExceedsAvailable = "占用面積超過可分配的 {0:0.####} m²。";
@@ -51,6 +52,15 @@ internal static class ErrorMessages
     internal const string MaterialTypeInvalid = "資材類別須為農藥或肥料。";
     internal const string FertilizerSourceInvalid = "請選擇進貨或期初庫存。";
     internal const string FertilizerCurrencyInvalid = "首版肥料庫存僅支援新臺幣。";
+    internal const string HarvestDateInvalid = "請填寫實際採收日期，最晚為台北當日。";
+    internal const string HarvestWeightInvalid = "採收重量須大於零、小於 10 億公斤，且最多六位小數。";
+    internal const string HarvestDescriptionInvalid = "採收備註最多 500 字，且不可包含空字元。";
+    internal const string HarvestPlantingPlanned = "規劃中的栽培無法登記或編輯採收。";
+    internal const string HarvestFilterDateInvalid = "請使用 YYYY-MM-DD 格式填寫採收篩選日期。";
+    internal const string HarvestDateRangeInvalid = "篩選迄日須等於或晚於起日。";
+    internal const string HarvestSortByInvalid = "請依採收日期或採收重量排序。";
+    internal const string HarvestSortDirectionInvalid = "排序方向須為 asc 或 desc。";
+
     internal const string IrrigationMethodInvalid = "請選擇灌溉方式。";
     internal const string IrrigationDateInvalid = "請填寫實際灌溉日期，最晚為台北當日。";
     internal const string IrrigationVolumeInvalid = "用水量須大於零、小於 10 億公升，且最多六位小數。";

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 
 namespace CropPilot.Api.Fields;
 
-/// <summary>調整生成的田區、栽培及灌溉儲存請求在 MVC 中使用的驗證規則。</summary>
+/// <summary>調整生成的田區、栽培、灌溉及採收儲存請求在 MVC 中使用的驗證規則。</summary>
 internal sealed class FieldSaveValidationMetadata : IValidationMetadataProvider
 {
     /// <summary>移除 MVC 的字串長度驗證，交由服務以 Unicode 碼點計算字數。</summary>
@@ -14,7 +14,8 @@ internal sealed class FieldSaveValidationMetadata : IValidationMetadataProvider
             context.Key.ContainerType != typeof(EditFieldRqDto) &&
             context.Key.ContainerType != typeof(CreatePlantingRqDto) &&
             context.Key.ContainerType != typeof(EditPlantingRqDto) &&
-            context.Key.ContainerType != typeof(SaveIrrigationRqDto))
+            context.Key.ContainerType != typeof(SaveIrrigationRqDto) &&
+            context.Key.ContainerType != typeof(SaveHarvestRqDto))
         {
             return;
         }

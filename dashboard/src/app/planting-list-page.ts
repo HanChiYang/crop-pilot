@@ -18,6 +18,7 @@ import { FieldOverviewRsDto } from "./generated/model/fieldOverviewRsDto";
 import { PlantingDeletePreviewRsDto } from "./generated/model/plantingDeletePreviewRsDto";
 import { PlantingRsDto } from "./generated/model/plantingRsDto";
 import { plantingStatusLabel } from "./planting-display";
+import { operationError } from "./operation-form";
 
 type Row = PlantingRsDto & { fieldName: string };
 type SortColumn =
@@ -272,7 +273,7 @@ export class PlantingListPage {
         this.handleExpiredSession(error);
         if (error instanceof HttpErrorResponse && (error.status === 404 || error.status === 409)) {
           this.deleteError.set(error.status === 409
-            ? "已結束的栽培紀錄保留於栽培歷史。"
+            ? operationError(error, "目前無法刪除這筆栽培紀錄。")
             : "找不到可刪除的栽培紀錄。");
           this.reloadPlantings();
           return;

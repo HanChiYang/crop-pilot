@@ -11,19 +11,20 @@ namespace CropPilot.Api.Fields;
 /// <summary>檢查寫入請求中數值的小數位數。</summary>
 internal sealed class FieldDecimalJsonConverter(int scale) : JsonConverter<decimal>
 {
-    /// <summary>為生成的田區、栽培及肥料寫入請求註冊精度檢查。</summary>
+    /// <summary>為生成的田區、栽培、資材及採收寫入請求註冊精度檢查。</summary>
     internal static void ConfigureFieldSave(JsonTypeInfo type)
     {
-        var hasFertilizerQuantity = type.Type == typeof(CreateFertilizerLotRqDto)
+        var hasSixDecimalPlaces = type.Type == typeof(CreateFertilizerLotRqDto)
             || type.Type == typeof(EditFertilizerLotRqDto)
             || type.Type == typeof(MaterialApplicationDetailRqDto)
             || type.Type == typeof(EditMaterialApplicationDetailRqDto)
             || type.Type == typeof(CreateMaterialApplicationRqDto)
             || type.Type == typeof(EditMaterialApplicationRqDto)
-            || type.Type == typeof(CreatePesticideLotRqDto);
+            || type.Type == typeof(CreatePesticideLotRqDto)
+            || type.Type == typeof(SaveHarvestRqDto);
         var hasArea = type.Type == typeof(CreateFieldRqDto) || type.Type == typeof(EditFieldRqDto)
             || type.Type == typeof(CreatePlantingRqDto) || type.Type == typeof(EditPlantingRqDto);
-        if (!hasArea && !hasFertilizerQuantity)
+        if (!hasArea && !hasSixDecimalPlaces)
             return;
 
         foreach (var property in type.Properties)

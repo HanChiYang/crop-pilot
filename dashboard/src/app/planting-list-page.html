@@ -170,6 +170,9 @@
             [id]="'operations-' + row.id"
             class="row-action-menu"
           >
+            <a [routerLink]="[row.fieldId, row.id]" [queryParams]="{ fieldId: selectedFieldId() || null }">
+              查看詳情
+            </a>
             <a
               [routerLink]="[row.fieldId, row.id, 'edit']"
               [queryParams]="{ fieldId: selectedFieldId() || null }"

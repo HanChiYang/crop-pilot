@@ -33,6 +33,10 @@ import { EditPlantingRqDto } from '../model/editPlantingRqDto';
 // @ts-ignore
 import { FieldPlantingsRsDto } from '../model/fieldPlantingsRsDto';
 // @ts-ignore
+import { HarvestListRsDto } from '../model/harvestListRsDto';
+// @ts-ignore
+import { HarvestRsDto } from '../model/harvestRsDto';
+// @ts-ignore
 import { IrrigationRsDto } from '../model/irrigationRsDto';
 // @ts-ignore
 import { MaterialApplicationRsDto } from '../model/materialApplicationRsDto';
@@ -43,6 +47,8 @@ import { PlantingHistoryItemDto } from '../model/plantingHistoryItemDto';
 // @ts-ignore
 import { PlantingRsDto } from '../model/plantingRsDto';
 // @ts-ignore
+import { SaveHarvestRqDto } from '../model/saveHarvestRqDto';
+// @ts-ignore
 import { SaveIrrigationRqDto } from '../model/saveIrrigationRqDto';
 
 // @ts-ignore
@@ -50,6 +56,12 @@ import { BASE_PATH, COLLECTION_FORMATS }                     from '../variables'
 import { Configuration }                                     from '../configuration';
 import { BaseService } from '../api.base.service';
 
+
+export interface CreateHarvestRequestParams {
+    /** 栽培紀錄的 UUID。 */
+    plantingId: string;
+    saveHarvestRqDto: SaveHarvestRqDto;
+}
 
 export interface CreateIrrigationRequestParams {
     /** 栽培紀錄的 UUID。 */
@@ -69,6 +81,11 @@ export interface CreatePlantingRequestParams {
     createPlantingRqDto: CreatePlantingRqDto;
 }
 
+export interface DeleteHarvestRequestParams {
+    /** 採收紀錄的 UUID。 */
+    harvestId: string;
+}
+
 export interface DeleteIrrigationRequestParams {
     /** 灌溉作業識別碼 */
     irrigationId: string;
@@ -84,6 +101,12 @@ export interface DeletePlantingRequestParams {
     previewVersion: string;
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
+}
+
+export interface EditHarvestRequestParams {
+    /** 採收紀錄的 UUID。 */
+    harvestId: string;
+    saveHarvestRqDto: SaveHarvestRqDto;
 }
 
 export interface EditIrrigationRequestParams {
@@ -102,6 +125,19 @@ export interface EditPlantingRequestParams {
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
     editPlantingRqDto: EditPlantingRqDto;
+}
+
+export interface GetHarvetsRequestParams {
+    /** 栽培紀錄的 UUID。 */
+    plantingId: string;
+    /** 選填，採收日期篩選起日。 */
+    startDate?: string;
+    /** 選填，採收日期篩選迄日。與 startDate 同時提供時，不可早於 startDate。 */
+    endDate?: string;
+    /** 選填，依採收日期或採收公斤數排序。 */
+    sortBy?: 'harvestDate' | 'weightKg';
+    /** 選填，升冪或降冪。 */
+    sortDirection?: 'asc' | 'desc';
 }
 
 export interface GetPlantingRequestParams {
@@ -149,6 +185,82 @@ export class PlantingsService extends BaseService {
 
     constructor(protected httpClient: HttpClient, @Optional() @Inject(BASE_PATH) basePath: string|string[], @Optional() configuration?: Configuration) {
         super(basePath, configuration);
+    }
+
+    /**
+     * 新增採收紀錄
+     * 栽培中、採收中及已結束的批次均可登記。同一批次同一天可登記多筆。
+     * @endpoint post /api/v1/plantings/{plantingId}/harvests
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public createHarvest(requestParameters: CreateHarvestRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HarvestRsDto>;
+    public createHarvest(requestParameters: CreateHarvestRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<HarvestRsDto>>;
+    public createHarvest(requestParameters: CreateHarvestRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<HarvestRsDto>>;
+    public createHarvest(requestParameters: CreateHarvestRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling createHarvest.');
+        }
+        const saveHarvestRqDto = requestParameters?.saveHarvestRqDto;
+        if (saveHarvestRqDto === null || saveHarvestRqDto === undefined) {
+            throw new Error('Required parameter saveHarvestRqDto was null or undefined when calling createHarvest.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/harvests`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<HarvestRsDto>('post', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: saveHarvestRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
     }
 
     /**
@@ -380,6 +492,67 @@ export class PlantingsService extends BaseService {
     }
 
     /**
+     * 刪除一筆採收紀錄
+     * 刪除指定的採收紀錄，包含已結束批次中的紀錄。
+     * @endpoint delete /api/v1/harvests/{harvestId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public deleteHarvest(requestParameters: DeleteHarvestRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any>;
+    public deleteHarvest(requestParameters: DeleteHarvestRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<any>>;
+    public deleteHarvest(requestParameters: DeleteHarvestRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<any>>;
+    public deleteHarvest(requestParameters: DeleteHarvestRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const harvestId = requestParameters?.harvestId;
+        if (harvestId === null || harvestId === undefined) {
+            throw new Error('Required parameter harvestId was null or undefined when calling deleteHarvest.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/harvests/${this.configuration.encodeParam({name: "harvestId", value: harvestId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
      * 刪除灌溉作業
      * 規劃中、栽培中、採收中及已結束的批次可刪除灌溉紀錄。作業不存在、類型不符或其所屬田區不屬於登入帳號時回傳 404。
      * @endpoint delete /api/v1/irrigations/{irrigationId}
@@ -503,7 +676,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 刪除單筆栽培及所屬作業紀錄
-     * 規劃中、栽培中與採收中的栽培可刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。
+     * 規劃中、栽培中與採收中的栽培可刪除。已有採收紀錄時拒絕整批刪除。核對預覽版本後，在同一交易刪除栽培及所屬作業，釋放占用面積與原批次用量。
      * @endpoint delete /api/v1/plantings/{plantingId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -568,6 +741,82 @@ export class PlantingsService extends BaseService {
             {
                 context: localVarHttpContext,
                 params: localVarQueryParameters.toHttpParams(),
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 編輯採收紀錄
+     * 更新完整表單。省略 description、傳入 null 或只填空白時會清除原備註。日期與栽培狀態限制同新增。
+     * @endpoint put /api/v1/harvests/{harvestId}
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public editHarvest(requestParameters: EditHarvestRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HarvestRsDto>;
+    public editHarvest(requestParameters: EditHarvestRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<HarvestRsDto>>;
+    public editHarvest(requestParameters: EditHarvestRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<HarvestRsDto>>;
+    public editHarvest(requestParameters: EditHarvestRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const harvestId = requestParameters?.harvestId;
+        if (harvestId === null || harvestId === undefined) {
+            throw new Error('Required parameter harvestId was null or undefined when calling editHarvest.');
+        }
+        const saveHarvestRqDto = requestParameters?.saveHarvestRqDto;
+        if (saveHarvestRqDto === null || saveHarvestRqDto === undefined) {
+            throw new Error('Required parameter saveHarvestRqDto was null or undefined when calling editHarvest.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/harvests/${this.configuration.encodeParam({name: "harvestId", value: harvestId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<HarvestRsDto>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: saveHarvestRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -796,6 +1045,111 @@ export class PlantingsService extends BaseService {
             {
                 context: localVarHttpContext,
                 body: editPlantingRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 查詢單筆栽培的採收清單與累計重量
+     * 日期區間含起訖當日。篩選只影響清單，累計重量涵蓋整個栽培批次。 按重量排序時，同重紀錄先按採收日遞減。其餘同值紀錄依建立時間及識別碼遞減。
+     * @endpoint get /api/v1/plantings/{plantingId}/harvests
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public getHarvets(requestParameters: GetHarvetsRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HarvestListRsDto>;
+    public getHarvets(requestParameters: GetHarvetsRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<HarvestListRsDto>>;
+    public getHarvets(requestParameters: GetHarvetsRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<HarvestListRsDto>>;
+    public getHarvets(requestParameters: GetHarvetsRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling getHarvets.');
+        }
+        const startDate = requestParameters?.startDate;
+        const endDate = requestParameters?.endDate;
+        const sortBy = requestParameters?.sortBy;
+        const sortDirection = requestParameters?.sortDirection;
+
+        let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'startDate',
+            <any>startDate,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'endDate',
+            <any>endDate,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'sortBy',
+            <any>sortBy,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'sortDirection',
+            <any>sortDirection,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/harvests`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<HarvestListRsDto>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                params: localVarQueryParameters.toHttpParams(),
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,

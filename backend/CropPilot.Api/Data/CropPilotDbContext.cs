@@ -13,6 +13,7 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
     internal DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     internal DbSet<Field> Fields => Set<Field>();
     internal DbSet<Planting> Plantings => Set<Planting>();
+    internal DbSet<Harvest> Harvests => Set<Harvest>();
     internal DbSet<AgriculturalMaterial> AgriculturalMaterials => Set<AgriculturalMaterial>();
     internal DbSet<MaterialPurchaseLot> MaterialPurchaseLots => Set<MaterialPurchaseLot>();
     internal DbSet<FieldOperation> FieldOperations => Set<FieldOperation>();
@@ -83,6 +84,20 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
             planting.Property(value => value.Variety).HasMaxLength(120);
             planting.Property(value => value.Status).HasMaxLength(16).HasDefaultValue(Planting.Planned);
             planting.Property(value => value.Description).HasMaxLength(1000);
+        });
+
+        builder.Entity<Harvest>(harvest =>
+        {
+            harvest.ToTable("harvests", table => table.HasCheckConstraint("ck_harvests_weight_kg",
+                "weight_kg > 0 AND weight_kg < 1000000000"));
+            harvest.HasOne(value => value.Planting).WithMany().HasForeignKey(value => value.PlantingId)
+                .HasConstraintName(Harvest.PlantingForeignKey).OnDelete(DeleteBehavior.Restrict);
+            harvest.Property(value => value.WeightKg).HasPrecision(15, 6);
+            harvest.Property(value => value.Description).HasMaxLength(500);
+            harvest.Property(value => value.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            harvest.Property(value => value.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            harvest.HasIndex(value => new { value.PlantingId, value.HarvestDate, value.CreatedAt, value.Id })
+                .IsDescending(false, true, true, true);
         });
 
         builder.Entity<AuthSession>(session =>

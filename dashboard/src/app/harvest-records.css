@@ -1,0 +1,12 @@
+.harvest-section { margin-top: 1.25rem; }
+.harvest-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-block: 1.25rem; }
+.harvest-total-label, .harvest-help { color: var(--muted); }
+.harvest-total { display: block; font-size: 1.65rem; }
+.date-filter { display: flex; align-items: end; flex-wrap: wrap; gap: .65rem; padding: 0; border: 0; margin: 0; }
+.date-filter legend { margin-bottom: .5rem; font-weight: 700; }
+.harvest-table { margin-top: .9rem; }
+.harvest-table .harvest-description, .harvest-description { white-space: pre-wrap; overflow-wrap: anywhere; }
+.harvest-table .harvest-description { min-width: 8rem; }
+.harvest-table .harvest-state { text-align: center; white-space: normal; }
+.harvest-editor fieldset { display: grid; gap: 1rem; margin: 0; padding: 0; border: 0; }
+.harvest-editor .field-form-actions { margin-top: .25rem; }

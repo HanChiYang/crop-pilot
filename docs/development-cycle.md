@@ -26,6 +26,8 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 ## 目前進度
 
+栽培詳情與採收的後端已在 `feature/planting-harvest` 實作清單、篩選、排序、新增、編輯及刪除。採收累計涵蓋整批，已結束批次可補登。整批刪除預覽與確認會阻擋已有採收的批次。已生成 C# 契約與 Angular client，已驗證 PostgreSQL 18 升降版 SQL，90 個後端整合測試通過。桌機採收已從作物栽培列選單的「查看詳情」及栽培紀錄接上同一個畫面，支援日期篩選與排序、整批累計、增修刪及已結束批次補登。詳情顯示採收、販售、成本及累計損益四個頁籤，其中採收可操作。Angular 正式建置與 11 個相關 Edge 瀏覽器案例通過，其中一例以獨立 PostgreSQL 18 和實際 API 登入後驗證新增、重新整理、篩選、編輯與刪除。補上頁籤後再驗證三個採收案例，包含鍵盤切換及保留篩選。[採收設計](design/planting-harvest-data-api.md) · [OpenAPI 契約](openapi/openapi.yaml)
+
 作物栽培清單固定提供編輯、資材施用、灌溉紀錄與刪除。規劃中可登記兩種實際作業。整筆栽培刪除先查詢作業筆數、占用面積與原批次恢復量，確認後交易內核對版本並刪除。資材施用方式改為整筆選擇，加入備註及資材名稱搜尋。灌溉清單支援日期、方式及用水量排序。已通過 72 個 API 整合測試及 17 個 Edge 瀏覽器測試，並在隔離 PostgreSQL 18 核對升降版與新建 DDL。[UX 審查記錄](prototype-plan.md#ux-草案審查記錄) · [API 設計](design/first-desktop-slice-data-api.md)
 
 資材施用已接上共用的 OpenAPI、EF Core migration 和桌機表單，可在同一筆作業選擇農藥與肥料批次，記錄施用方式及噴施總水量。農藥主檔及批次可透過 API 建立和查詢。67 個 API 整合測試、11 個 Edge 瀏覽器測試及 Angular 正式建置通過。升版與降版 SQL 已核對，並以隔離資料庫驗證。[UX 審查記錄](prototype-plan.md#ux-草案審查記錄) · [資料庫設計](design/first-desktop-slice-database.md#material_applications) · [API 設計](design/first-desktop-slice-data-api.md#資材施用)

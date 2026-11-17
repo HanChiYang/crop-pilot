@@ -96,6 +96,8 @@ public sealed class PlantingService(PlantingRepository repository)
         var deletion = await repository.ReadDeletionAsync(accountId, plantingId, ct);
         if (deletion is null)
             return (PlantingWriteStatus.NotFound, null);
+        if (deletion.HasHarvests)
+            return (PlantingWriteStatus.HasHarvests, null);
         return deletion.Planting.Status == Planting.Completed
             ? (PlantingWriteStatus.Conflict, null)
             : (PlantingWriteStatus.Success, deletion);
@@ -105,6 +107,8 @@ public sealed class PlantingService(PlantingRepository repository)
     internal Task<PlantingWriteStatus> DeleteAsync(Guid accountId, Guid plantingId, string previewVersion,
         CancellationToken ct) => repository.DeleteWithOperationsAsync(accountId, plantingId, deletion =>
     {
+        if (deletion.HasHarvests)
+            return PlantingWriteStatus.HasHarvests;
         if (deletion.Planting.Status == Planting.Completed)
             return PlantingWriteStatus.Conflict;
         return deletion.Version() == previewVersion ? PlantingWriteStatus.Success : PlantingWriteStatus.PreviewChanged;
@@ -204,7 +208,7 @@ public sealed class PlantingService(PlantingRepository repository)
 }
 
 /// <summary>表示栽培寫入的可預期結果。</summary>
-internal enum PlantingWriteStatus { Success, InvalidInput, NotFound, Conflict, PreviewChanged }
+internal enum PlantingWriteStatus { Success, InvalidInput, NotFound, Conflict, PreviewChanged, HasHarvests }
 
 /// <summary>包含寫入狀態、儲存後的紀錄或欄位錯誤。</summary>
 internal sealed record PlantingWriteResult(PlantingWriteStatus Status, Planting? Planting = null,

@@ -1,6 +1,7 @@
 using System.Data;
 using CropPilot.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace CropPilot.Api.Plantings;
 
@@ -92,10 +93,18 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         if (status != PlantingWriteStatus.Success)
             return status;
 
-        await database.FieldOperations.Where(value => value.PlantingId == plantingId).ExecuteDeleteAsync(ct);
-        await database.Plantings.Where(value => value.Id == plantingId).ExecuteDeleteAsync(ct);
-        await transaction.CommitAsync(ct);
-        return PlantingWriteStatus.Success;
+        try
+        {
+            await database.FieldOperations.Where(value => value.PlantingId == plantingId).ExecuteDeleteAsync(ct);
+            await database.Plantings.Where(value => value.Id == plantingId).ExecuteDeleteAsync(ct);
+            await transaction.CommitAsync(ct);
+            return PlantingWriteStatus.Success;
+        }
+        catch (PostgresException error) when (error.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
+            error.ConstraintName == Harvest.PlantingForeignKey)
+        {
+            return PlantingWriteStatus.HasHarvests;
+        }
     }
 
     /// <summary>取得確認視窗需要的栽培及田區名稱。</summary>
@@ -127,7 +136,8 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         }).OrderBy(value => value.MaterialName, StringComparer.Ordinal).ThenBy(value => value.AvailableFrom)
             .ThenBy(value => value.LotId).ToList();
 
-        return new(planting, operations, inventory);
+        var hasHarvests = await database.Harvests.AnyAsync(harvest => harvest.PlantingId == planting.Id, ct);
+        return new(planting, operations, inventory, hasHarvests);
     }
 
     /// <summary>依栽培識別碼查詢一筆登入帳號的栽培紀錄。</summary>

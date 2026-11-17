@@ -10,7 +10,6 @@ import { FieldFormPage } from './field-form-page';
 import { FieldListPage } from './field-list-page';
 import { PlantingFormPage } from './planting-form-page';
 import { PlantingHistoryPage } from './planting-history-page';
-import { PlantingHistoryDetailPage } from './planting-history-detail-page';
 import { FertilizationPage } from './fertilization-page';
 import { IrrigationPage } from './irrigation-page';
 import { MaterialInventory } from './material-inventory';
@@ -42,6 +41,8 @@ const requireSession: CanActivateFn = () => {
   );
 };
 
+const loadPlantingDetail = () => import('./planting-detail-page').then(m => m.PlantingDetailPage);
+
 export const routes: Routes = [
   { path: '', component: LandingPage, canActivate: [redirectSignedIn], title: 'CropPilot' },
   { path: 'login', component: LoginPage, title: '登入 CropPilot' },
@@ -60,6 +61,7 @@ export const routes: Routes = [
       { path: 'plantings/:fieldId/:plantingId/edit', component: PlantingFormPage, title: '編輯栽培紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/fertilizations', component: FertilizationPage, title: '資材施用紀錄｜CropPilot' },
       { path: 'plantings/:fieldId/:plantingId/irrigations', component: IrrigationPage, title: '灌溉紀錄｜CropPilot' },
+      { path: 'plantings/:fieldId/:plantingId', loadComponent: loadPlantingDetail, title: '栽培詳情｜CropPilot' },
       { path: 'fertilizers', pathMatch: 'full', redirectTo: 'materials/fertilizers' },
       {
         path: 'materials',
@@ -84,7 +86,7 @@ export const routes: Routes = [
         component: PlantingHistoryPage,
         title: '栽培歷史｜CropPilot',
         children: [
-          { path: ':fieldId/:plantingId', component: PlantingHistoryDetailPage, title: '栽培紀錄詳情｜CropPilot' },
+          { path: ':fieldId/:plantingId', loadComponent: loadPlantingDetail, data: { fromHistory: true }, title: '栽培紀錄詳情｜CropPilot' },
           {
             path: ':fieldId/:plantingId/fertilizations',
             component: FertilizationPage,
