@@ -1,6 +1,7 @@
 using System.Text;
 using CropPilot.Api.Constants;
 using CropPilot.Api.Data;
+using CropPilot.Api.Plantings;
 using CropPilot.Contract.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,8 +66,8 @@ public sealed class IrrigationService(IrrigationRepository repository)
         SaveIrrigationRqDto request, CancellationToken ct)
     {
         await using var transaction = await repository.BeginAsync(ct);
-        var status = await repository.LockPlantingStatusAsync(accountId, plantingId, ct);
-        if (status is null)
+        var planting = await repository.LockPlantingStatusAsync(accountId, plantingId, ct);
+        if (planting is null)
         {
             return new(IrrigationWriteStatus.NotFound);
         }
@@ -84,6 +85,10 @@ public sealed class IrrigationService(IrrigationRepository repository)
         if (request.OperationDate == default || request.OperationDate > today)
         {
             return new(IrrigationWriteStatus.Invalid, Message: ErrorMessages.IrrigationDateInvalid, Field: "operationDate");
+        }
+        if (PlantingCompletionRules.DateAfterCompletionError(planting, request.OperationDate) is { } dateError)
+        {
+            return new(IrrigationWriteStatus.Invalid, Message: dateError, Field: "operationDate");
         }
         var method = ContractEnumJsonConverter<IrrigationMethod>.GetName(request.Method);
         if (method is null)

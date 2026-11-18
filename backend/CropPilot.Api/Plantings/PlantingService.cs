@@ -36,7 +36,7 @@ public sealed class PlantingService(PlantingRepository repository)
             Description = TrimOptional(request.Notes),
             Status = status
         };
-        return repository.WriteAsync(accountId, fieldId, null, (_, available) =>
+        return repository.WriteAsync(accountId, fieldId, null, (_, available, _) =>
             planting.AreaSquareMeters > available
                 ? AreaConflict(available)
                 : new(PlantingWriteStatus.Success, planting), cancellationToken);
@@ -61,12 +61,16 @@ public sealed class PlantingService(PlantingRepository repository)
         };
         var errors = Validate(request.CropName, request.Variety, request.Notes, request.AreaSquareMeters,
             status, request.ActualPlantingDate);
+        if (ValidateCompletionDate(status, request.ActualPlantingDate, request.CompletionDate) is { } completionError)
+        {
+            errors["completionDate"] = completionError;
+        }
         if (errors.Count > 0)
         {
             return Task.FromResult(new PlantingWriteResult(PlantingWriteStatus.InvalidInput, Errors: errors));
         }
 
-        return repository.WriteAsync(accountId, null, plantingId, (current, available) =>
+        return repository.WriteAsync(accountId, null, plantingId, (current, available, latestActivity) =>
         {
             var planting = current!;
             if (!CanTransition(planting.Status, status))
@@ -77,12 +81,21 @@ public sealed class PlantingService(PlantingRepository repository)
             {
                 return AreaConflict(available);
             }
+            if (status == Planting.Completed && latestActivity is { } last && request.CompletionDate < last)
+            {
+                return new(PlantingWriteStatus.Conflict, Errors: new()
+                {
+                    ["completionDate"] = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        ErrorMessages.PlantingCompletionBeforeActivity, last)
+                });
+            }
 
             planting.CropName = request.CropName.Trim();
             planting.Variety = TrimOptional(request.Variety);
             planting.Status = status;
             planting.PlannedPlantingDate = request.PlannedPlantingDate;
             planting.ActualPlantingDate = request.ActualPlantingDate;
+            planting.CompletionDate = request.CompletionDate;
             planting.AreaSquareMeters = request.AreaSquareMeters;
             planting.Description = TrimOptional(request.Notes);
             return new(PlantingWriteStatus.Success, planting);
@@ -122,6 +135,28 @@ public sealed class PlantingService(PlantingRepository repository)
         (Planting.Harvesting, Planting.Harvesting or Planting.Completed) => true,
         _ => false
     };
+
+    /// <summary>取得台北當日，作為結束日的上限。</summary>
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+
+    /// <summary>已結束須有不早於實際栽種日、不晚於台北當日的結束日，其他狀態不得填寫。</summary>
+    /// <returns>欄位錯誤訊息；結束日有效時為 null。</returns>
+    private static string? ValidateCompletionDate(string status, DateOnly? actualDate, DateOnly? completionDate)
+    {
+        if (status != Planting.Completed)
+        {
+            return completionDate is null ? null : ErrorMessages.PlantingCompletionDateNotAllowed;
+        }
+        if (completionDate is not { } date)
+        {
+            return ErrorMessages.PlantingCompletionDateRequired;
+        }
+        if (date > Today)
+        {
+            return ErrorMessages.PlantingCompletionDateAfterToday;
+        }
+        return actualDate is { } planted && date < planted ? ErrorMessages.PlantingCompletionDateBeforePlanting : null;
+    }
 
     /// <summary>以面積欄位錯誤回傳交易中計算出的可分配面積。</summary>
     private static PlantingWriteResult AreaConflict(decimal available) =>

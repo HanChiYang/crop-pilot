@@ -1,5 +1,5 @@
 -- CropPilot current PostgreSQL 18 schema.
--- Source: EF Core migrations through 20261117045413_CreateHarvests.
+-- Source: EF Core migrations through 20261118014227_AddPlantingCompletionDate.
 -- Regenerate after every schema migration.
 
 --
@@ -183,14 +183,8 @@ CREATE TABLE public.material_application_details (
     id uuid NOT NULL,
     material_application_id uuid NOT NULL,
     material_purchase_lot_id uuid NOT NULL,
-    material_name character varying(100) NOT NULL,
     quantity numeric(15,6) NOT NULL,
-    unit character varying(20) NOT NULL,
-    unit_price numeric(15,6),
-    currency_code character(3) NOT NULL,
     sort_order integer NOT NULL,
-    CONSTRAINT ck_material_application_details_currency CHECK ((currency_code = 'TWD'::bpchar)),
-    CONSTRAINT ck_material_application_details_price CHECK (((unit_price >= (0)::numeric) AND (unit_price <= 999999999.999999))),
     CONSTRAINT ck_material_application_details_quantity CHECK (((quantity >= 0.000001) AND (quantity <= 999999999.999999))),
     CONSTRAINT ck_material_application_details_sort_order CHECK ((sort_order >= 0))
 );
@@ -245,8 +239,10 @@ CREATE TABLE public.plantings (
     status character varying(16) DEFAULT 'PLANNED'::character varying NOT NULL,
     description character varying(1000),
     area_square_meters numeric(14,4) NOT NULL,
+    completion_date date,
     CONSTRAINT ck_plantings_actual_planting_date CHECK ((((status)::text <> ALL ((ARRAY['GROWING'::character varying, 'COMPLETED'::character varying])::text[])) OR (actual_planting_date IS NOT NULL))),
     CONSTRAINT ck_plantings_area_square_meters CHECK ((area_square_meters > (0)::numeric)),
+    CONSTRAINT ck_plantings_completion_date CHECK (((((status)::text = 'COMPLETED'::text) = (completion_date IS NOT NULL)) AND (completion_date >= actual_planting_date))),
     CONSTRAINT ck_plantings_crop_name CHECK ((btrim((crop_name)::text, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000'::text) <> ''::text)),
     CONSTRAINT ck_plantings_status CHECK (((status)::text = ANY ((ARRAY['PLANNED'::character varying, 'GROWING'::character varying, 'HARVESTING'::character varying, 'COMPLETED'::character varying])::text[])))
 );
@@ -680,4 +676,6 @@ INSERT INTO public.ef_migrations_history (migration_id, product_version) VALUES
     ('20261112085516_ReplaceFertilizationWithMaterialApplications', '10.0.13'),
     ('20261115092315_AddMaterialPackageSpecifications', '10.0.13'),
     ('20261116073756_MoveMaterialApplicationMethod', '10.0.13'),
-    ('20261117045413_CreateHarvests', '10.0.13');
+    ('20261117045413_CreateHarvests', '10.0.13'),
+    ('20261118014141_DeriveApplicationCostsFromLots', '10.0.13'),
+    ('20261118014227_AddPlantingCompletionDate', '10.0.13');

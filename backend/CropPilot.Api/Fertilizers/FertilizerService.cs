@@ -1,6 +1,7 @@
 using System.Text;
 using CropPilot.Api.Constants;
 using CropPilot.Api.Data;
+using CropPilot.Api.Plantings;
 using CropPilot.Contract.Models;
 using Microsoft.EntityFrameworkCore;
 using static CropPilot.Api.Fertilizers.FertilizerWriteStatus;
@@ -306,7 +307,8 @@ public sealed class FertilizerService(FertilizerRepository repository)
         if (!await owned.AnyAsync(ct))
             return new(null, NotFound);
         await repository.LockPlantingAsync(plantingId, ct);
-        if (!await owned.AnyAsync(ct))
+        var planting = await repository.FindPlantingStateAsync(accountId, plantingId, ct);
+        if (planting is null)
             return new(null, NotFound);
         if (operationId is { } existingOperationId)
             await repository.LockOperationAsync(plantingId, existingOperationId, ct);
@@ -317,6 +319,8 @@ public sealed class FertilizerService(FertilizerRepository repository)
             return new(null, NotFound);
         if (date == default || date > Today)
             return new(null, Invalid, ErrorMessages.FertilizerDateInvalid, "operationDate");
+        if (PlantingCompletionRules.DateAfterCompletionError(planting, date) is { } dateError)
+            return new(null, Invalid, dateError, "operationDate");
         if (input is null || input.Count == 0)
             return new(null, Invalid, ErrorMessages.FertilizerDetailsRequired, "details");
 
@@ -383,19 +387,8 @@ public sealed class FertilizerService(FertilizerRepository repository)
         {
             var row = rows[index];
             var lot = lots[row.LotId];
-            var detail = row.Id is { } detailId ? original[detailId] : new MaterialApplicationDetail
-            {
-                MaterialName = lot.Material.Name,
-                Unit = lot.Material.StockUnit
-            };
-            if (detail.MaterialPurchaseLotId != lot.Id)
-            {
-                detail.MaterialPurchaseLotId = lot.Id;
-                detail.MaterialName = lot.Material.Name;
-                detail.Unit = lot.Material.StockUnit;
-                detail.UnitPrice = lot.UnitPrice;
-                detail.CurrencyCode = lot.CurrencyCode;
-            }
+            var detail = row.Id is { } detailId ? original[detailId] : new MaterialApplicationDetail();
+            detail.MaterialPurchaseLotId = lot.Id;
             detail.Quantity = row.Quantity;
             detail.SortOrder = index;
             if (row.Id is null)

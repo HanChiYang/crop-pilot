@@ -480,20 +480,9 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("CurrencyCode")
-                        .IsRequired()
-                        .HasColumnType("char(3)")
-                        .HasColumnName("currency_code");
-
                     b.Property<Guid>("MaterialApplicationId")
                         .HasColumnType("uuid")
                         .HasColumnName("material_application_id");
-
-                    b.Property<string>("MaterialName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("material_name");
 
                     b.Property<Guid>("MaterialPurchaseLotId")
                         .HasColumnType("uuid")
@@ -508,17 +497,6 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("sort_order");
 
-                    b.Property<string>("Unit")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("unit");
-
-                    b.Property<decimal?>("UnitPrice")
-                        .HasPrecision(15, 6)
-                        .HasColumnType("numeric(15,6)")
-                        .HasColumnName("unit_price");
-
                     b.HasKey("Id")
                         .HasName("pk_material_application_details");
 
@@ -530,10 +508,6 @@ namespace CropPilot.Api.Data.Migrations
 
                     b.ToTable("material_application_details", null, t =>
                         {
-                            t.HasCheckConstraint("ck_material_application_details_currency", "currency_code = 'TWD'");
-
-                            t.HasCheckConstraint("ck_material_application_details_price", "unit_price BETWEEN 0 AND 999999999.999999");
-
                             t.HasCheckConstraint("ck_material_application_details_quantity", "quantity BETWEEN 0.000001 AND 999999999.999999");
 
                             t.HasCheckConstraint("ck_material_application_details_sort_order", "sort_order >= 0");
@@ -620,6 +594,10 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("numeric(14,4)")
                         .HasColumnName("area_square_meters");
 
+                    b.Property<DateOnly?>("CompletionDate")
+                        .HasColumnType("date")
+                        .HasColumnName("completion_date");
+
                     b.Property<string>("CropName")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -663,6 +641,8 @@ namespace CropPilot.Api.Data.Migrations
                             t.HasCheckConstraint("ck_plantings_actual_planting_date", "status NOT IN ('GROWING', 'COMPLETED') OR actual_planting_date IS NOT NULL");
 
                             t.HasCheckConstraint("ck_plantings_area_square_meters", "area_square_meters > 0");
+
+                            t.HasCheckConstraint("ck_plantings_completion_date", "(status = 'COMPLETED') = (completion_date IS NOT NULL) AND completion_date >= actual_planting_date");
 
                             t.HasCheckConstraint("ck_plantings_crop_name", "btrim(crop_name, U&'\\0009\\000A\\000B\\000C\\000D\\0020\\0085\\00A0\\1680\\2000\\2001\\2002\\2003\\2004\\2005\\2006\\2007\\2008\\2009\\200A\\2028\\2029\\202F\\205F\\3000') <> ''");
 

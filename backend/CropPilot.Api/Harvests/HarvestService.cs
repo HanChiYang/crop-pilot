@@ -1,6 +1,7 @@
 using System.Text;
 using CropPilot.Api.Constants;
 using CropPilot.Api.Data;
+using CropPilot.Api.Plantings;
 using CropPilot.Contract.Models;
 
 namespace CropPilot.Api.Harvests;
@@ -62,8 +63,8 @@ public sealed class HarvestService(HarvestRepository repository)
         SaveHarvestRqDto request, CancellationToken ct)
     {
         await using var transaction = await repository.BeginAsync(ct);
-        var status = await repository.LockPlantingStatusAsync(accountId, plantingId, ct);
-        if (status is null)
+        var planting = await repository.LockPlantingStatusAsync(accountId, plantingId, ct);
+        if (planting is null)
             return new(HarvestWriteStatus.NotFound);
 
         var harvest = harvestId is Guid id
@@ -71,10 +72,12 @@ public sealed class HarvestService(HarvestRepository repository)
             : new Harvest { PlantingId = plantingId };
         if (harvest is null)
             return new(HarvestWriteStatus.NotFound);
-        if (status == Planting.Planned)
+        if (planting.Status == Planting.Planned)
             return new(HarvestWriteStatus.Conflict);
 
         var errors = Validate(request);
+        if (!errors.ContainsKey("harvestDate") && PlantingCompletionRules.DateAfterCompletionError(planting, request.HarvestDate) is { } dateError)
+            errors["harvestDate"] = dateError;
         if (errors.Count > 0)
             return new(HarvestWriteStatus.Invalid, Errors: errors);
 

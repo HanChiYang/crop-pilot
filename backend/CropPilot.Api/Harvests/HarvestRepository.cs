@@ -51,16 +51,16 @@ public sealed class HarvestRepository(CropPilotDbContext database)
     /// <summary>開始採收寫入交易，栽培鎖在交易結束時釋放。</summary>
     internal Task<IDbContextTransaction> BeginAsync(CancellationToken ct) => database.Database.BeginTransactionAsync(ct);
 
-    /// <summary>鎖定本帳號的栽培並讀取當前狀態，不存在或不屬於帳號時回傳空值。</summary>
-    internal async Task<string?> LockPlantingStatusAsync(Guid accountId, Guid plantingId, CancellationToken ct)
+    /// <summary>鎖定本帳號的栽培並讀取當前狀態與結束日，不存在或不屬於帳號時回傳空值。</summary>
+    internal async Task<PlantingLockState?> LockPlantingStatusAsync(Guid accountId, Guid plantingId, CancellationToken ct)
     {
-        var statuses = await database.Database.SqlQuery<string>($"""
-            SELECT p.status AS "Value"
+        var states = await database.Database.SqlQuery<PlantingLockState>($"""
+            SELECT p.status, p.completion_date
             FROM plantings p JOIN fields f ON f.id = p.field_id
             WHERE p.id = {plantingId} AND f.main_account_id = {accountId}
             FOR UPDATE OF p
             """).ToListAsync(ct);
-        return statuses.SingleOrDefault();
+        return states.SingleOrDefault();
     }
 
     /// <summary>將新的採收加入目前交易。</summary>

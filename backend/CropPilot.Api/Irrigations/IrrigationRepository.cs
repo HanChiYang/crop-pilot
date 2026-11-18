@@ -19,16 +19,16 @@ public sealed class IrrigationRepository(CropPilotDbContext db)
     /// <summary>開始交易，使栽培鎖維持到寫入完成。</summary>
     internal Task<IDbContextTransaction> BeginAsync(CancellationToken ct) => db.Database.BeginTransactionAsync(ct);
 
-    /// <summary>鎖定登入帳號擁有的栽培並取得當前狀態，查無時回傳 null。</summary>
-    internal async Task<string?> LockPlantingStatusAsync(Guid accountId, Guid plantingId, CancellationToken ct)
+    /// <summary>鎖定登入帳號擁有的栽培並取得當前狀態與結束日，查無時回傳 null。</summary>
+    internal async Task<PlantingLockState?> LockPlantingStatusAsync(Guid accountId, Guid plantingId, CancellationToken ct)
     {
-        var statuses = await db.Database.SqlQuery<string>($"""
-            SELECT p.status AS "Value"
+        var states = await db.Database.SqlQuery<PlantingLockState>($"""
+            SELECT p.status, p.completion_date
             FROM plantings p JOIN fields f ON f.id = p.field_id
             WHERE p.id = {plantingId} AND f.main_account_id = {accountId}
             FOR UPDATE OF p
             """).ToListAsync(ct);
-        return statuses.SingleOrDefault();
+        return states.SingleOrDefault();
     }
 
     /// <summary>將作業及明細加入交易。</summary>

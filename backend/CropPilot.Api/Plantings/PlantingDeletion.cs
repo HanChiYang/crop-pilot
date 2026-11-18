@@ -12,7 +12,7 @@ internal sealed record PlantingDeletion(Planting Planting, List<PlantingOperatio
     internal string Version() => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new
     {
         Planting.Id, Planting.Field.Name, Planting.CropName, Planting.Status, Planting.AreaSquareMeters,
-        Planting.Variety, Planting.PlannedPlantingDate, Planting.ActualPlantingDate, Planting.Description,
+        Planting.Variety, Planting.PlannedPlantingDate, Planting.ActualPlantingDate, Planting.CompletionDate, Planting.Description,
         Operations, InventoryReturns
     })));
 }

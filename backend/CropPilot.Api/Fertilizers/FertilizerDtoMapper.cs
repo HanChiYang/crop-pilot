@@ -43,7 +43,7 @@ internal static class FertilizerDtoMapper
         CurrencyCode = FertilizerLotRsDto.CurrencyCodeEnum.TWDEnum
     };
 
-    /// <summary>依表單順序回傳作業明細及當時的價格。</summary>
+    /// <summary>依表單順序回傳作業明細，名稱、單位及單價採用批次與資材主檔目前的值。</summary>
     internal static MaterialApplicationRsDto ToDto(FieldOperation operation) => new()
     {
         Id = operation.Id,
@@ -57,13 +57,13 @@ internal static class FertilizerDtoMapper
             Id = x.Id,
             MaterialId = x.Lot.MaterialId,
             MaterialPurchaseLotId = x.MaterialPurchaseLotId,
-            MaterialName = x.MaterialName,
+            MaterialName = x.Lot.Material.Name,
             MaterialType = x.Lot.Material.MaterialType == AgriculturalMaterial.Pesticide
                 ? MaterialApplicationDetailRsDto.MaterialTypeEnum.PesticideEnum
                 : MaterialApplicationDetailRsDto.MaterialTypeEnum.FertilizerEnum,
             Quantity = x.Quantity,
-            Unit = x.Unit,
-            UnitPrice = x.UnitPrice,
+            Unit = x.Lot.Material.StockUnit,
+            UnitPrice = x.Lot.UnitPrice,
             CurrencyCode = MaterialApplicationDetailRsDto.CurrencyCodeEnum.TWDEnum
         }).ToList()
     };

@@ -64,7 +64,7 @@ internal sealed class MaterialApplication
     public List<MaterialApplicationDetail> Details { get; } = [];
 }
 
-/// <summary>保存一次資材施用的批次用量與資材快照。</summary>
+/// <summary>保存一次資材施用的批次用量；名稱、單位及單價由批次和資材主檔取得。</summary>
 internal sealed class MaterialApplicationDetail
 {
     public Guid Id { get; init; } = Guid.NewGuid();
@@ -72,10 +72,6 @@ internal sealed class MaterialApplicationDetail
     public MaterialApplication Application { get; init; } = null!;
     public Guid MaterialPurchaseLotId { get; set; }
     public MaterialPurchaseLot Lot { get; set; } = null!;
-    public required string MaterialName { get; set; }
     public decimal Quantity { get; set; }
-    public required string Unit { get; set; }
-    public decimal? UnitPrice { get; set; }
-    public string CurrencyCode { get; set; } = MaterialPurchaseLot.TaiwanDollar;
     public int SortOrder { get; set; }
 }
