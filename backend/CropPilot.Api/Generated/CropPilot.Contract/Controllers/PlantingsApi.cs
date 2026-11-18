@@ -306,7 +306,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 編輯單筆栽培紀錄
         /// </summary>
-        /// <remarks>更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日。</remarks>
+        /// <remarks>更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日，改為已結束時另需結束日。</remarks>
         /// <param name="plantingId">栽培紀錄的 UUID。</param>
         /// <param name="editPlantingRqDto"></param>
         /// <response code="200">已更新的栽培紀錄</response>

@@ -27,9 +27,9 @@ namespace CropPilot.Contract.Models
     public class CreateMaterialApplicationRqDto : IEquatable<CreateMaterialApplicationRqDto>
     {
         /// <summary>
-        /// 實際施用日期。寫入不得晚於台北當日。
+        /// 實際施用日期。寫入不得晚於台北當日，已結束的栽培也不得晚於結束日。
         /// </summary>
-        /// <value>實際施用日期。寫入不得晚於台北當日。</value>
+        /// <value>實際施用日期。寫入不得晚於台北當日，已結束的栽培也不得晚於結束日。</value>
         [Required]
         [DataMember(Name="operationDate", EmitDefaultValue=true)]
         public DateOnly OperationDate { get; set; }
@@ -119,14 +119,14 @@ namespace CropPilot.Contract.Models
                 ) && 
                 (
                     ApplicationMethod == other.ApplicationMethod ||
-
+                    
                     ApplicationMethod.Equals(other.ApplicationMethod)
-                ) &&
+                ) && 
                 (
                     Description == other.Description ||
                     Description != null &&
                     Description.Equals(other.Description)
-                ) &&
+                ) && 
                 (
                     SprayWaterVolumeLiters == other.SprayWaterVolumeLiters ||
                     SprayWaterVolumeLiters != null &&
@@ -152,7 +152,7 @@ namespace CropPilot.Contract.Models
                 // Suitable nullity checks etc, of course :)
                     
                     hashCode = hashCode * 59 + OperationDate.GetHashCode();
-
+                    
                     hashCode = hashCode * 59 + ApplicationMethod.GetHashCode();
                     if (Description != null)
                     hashCode = hashCode * 59 + Description.GetHashCode();

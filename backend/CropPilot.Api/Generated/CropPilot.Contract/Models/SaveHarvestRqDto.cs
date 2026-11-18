@@ -19,17 +19,17 @@ using Newtonsoft.Json;
 using CropPilot.Contract.Converters;
 
 namespace CropPilot.Contract.Models
-{
+{ 
     /// <summary>
-    ///
+    /// 
     /// </summary>
     [DataContract]
     public class SaveHarvestRqDto : IEquatable<SaveHarvestRqDto>
     {
         /// <summary>
-        /// 實際採收日期，最晚為台北當日。
+        /// 實際採收日期，最晚為台北當日，已結束的栽培也不得晚於結束日。
         /// </summary>
-        /// <value>實際採收日期，最晚為台北當日。</value>
+        /// <value>實際採收日期，最晚為台北當日，已結束的栽培也不得晚於結束日。</value>
         [Required]
         [DataMember(Name="harvestDate", EmitDefaultValue=true)]
         public DateOnly HarvestDate { get; set; }
@@ -97,17 +97,17 @@ namespace CropPilot.Contract.Models
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
 
-            return
+            return 
                 (
                     HarvestDate == other.HarvestDate ||
-
+                    
                     HarvestDate.Equals(other.HarvestDate)
-                ) &&
+                ) && 
                 (
                     WeightKg == other.WeightKg ||
-
+                    
                     WeightKg.Equals(other.WeightKg)
-                ) &&
+                ) && 
                 (
                     Description == other.Description ||
                     Description != null &&
@@ -125,9 +125,9 @@ namespace CropPilot.Contract.Models
             {
                 var hashCode = 41;
                 // Suitable nullity checks etc, of course :)
-
+                    
                     hashCode = hashCode * 59 + HarvestDate.GetHashCode();
-
+                    
                     hashCode = hashCode * 59 + WeightKg.GetHashCode();
                     if (Description != null)
                     hashCode = hashCode * 59 + Description.GetHashCode();

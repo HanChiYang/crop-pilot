@@ -9,9 +9,9 @@
  */
 
 
-export interface SaveHarvestRqDto {
+export interface SaveHarvestRqDto { 
     /**
-     * 實際採收日期，最晚為台北當日。
+     * 實際採收日期，最晚為台北當日，已結束的栽培也不得晚於結束日。
      */
     harvestDate: string;
     /**
@@ -23,3 +23,4 @@ export interface SaveHarvestRqDto {
      */
     description?: string | null;
 }
+

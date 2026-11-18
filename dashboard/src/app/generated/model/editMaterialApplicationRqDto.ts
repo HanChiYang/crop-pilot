@@ -13,7 +13,7 @@ import { EditMaterialApplicationDetailRqDto } from './editMaterialApplicationDet
 
 export interface EditMaterialApplicationRqDto { 
     /**
-     * 實際施用日期。寫入不得晚於台北當日。
+     * 實際施用日期。寫入不得晚於台北當日，已結束的栽培也不得晚於結束日。
      */
     operationDate: string;
     applicationMethod: MaterialApplicationMethod;
@@ -29,3 +29,5 @@ export interface EditMaterialApplicationRqDto {
 }
 export namespace EditMaterialApplicationRqDto {
 }
+
+

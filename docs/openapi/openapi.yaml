@@ -466,7 +466,7 @@ paths:
       tags: [Plantings]
       operationId: editPlanting
       summary: 編輯單筆栽培紀錄
-      description: 更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日。
+      description: 更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日，改為已結束時另需結束日。
       security:
         - BearerAuth: []
       requestBody:
@@ -492,7 +492,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: 超過可分配面積或目前狀態不允許更新。errors 以 areaSquareMeters 或 status 標示欄位，超額訊息包含當下可分配面積。
+          description: 超過可分配面積或目前狀態不允許更新。結束日早於該批最後一筆採收或作業日時也回傳 409。errors 以 areaSquareMeters、status 或 completionDate 標示欄位，超額訊息包含當下可分配面積，結束日訊息包含最後活動日。
         '500':
           $ref: '#/components/responses/ServerError'
     delete:
@@ -567,6 +567,7 @@ paths:
                   cropName: 番茄
                   variety: 玉女
                   actualPlantingDate: '2026-03-12'
+                  completionDate: '2026-07-20'
                   areaSquareMeters: 240
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -1849,7 +1850,7 @@ components:
         operationDate:
           type: string
           format: date
-          description: 實際灌溉日期，最晚為台北當日。
+          description: 實際灌溉日期，最晚為台北當日，已結束的栽培也不得晚於結束日。
         method:
           $ref: '#/components/schemas/IrrigationMethod'
         waterVolumeLiters:
@@ -1896,7 +1897,7 @@ components:
         harvestDate:
           type: string
           format: date
-          description: 實際採收日期，最晚為台北當日。
+          description: 實際採收日期，最晚為台北當日，已結束的栽培也不得晚於結束日。
         weightKg:
           $ref: '#/components/schemas/HarvestWeightKg'
         description:
@@ -1957,7 +1958,7 @@ components:
         operationDate:
           type: string
           format: date
-          description: 實際施用日期。寫入不得晚於台北當日。
+          description: 實際施用日期。寫入不得晚於台北當日，已結束的栽培也不得晚於結束日。
         applicationMethod:
           $ref: '#/components/schemas/MaterialApplicationMethod'
         description:
@@ -1990,7 +1991,7 @@ components:
         operationDate:
           type: string
           format: date
-          description: 實際施用日期。寫入不得晚於台北當日。
+          description: 實際施用日期。寫入不得晚於台北當日，已結束的栽培也不得晚於結束日。
         applicationMethod:
           $ref: '#/components/schemas/MaterialApplicationMethod'
         description:
@@ -2017,7 +2018,7 @@ components:
         operationDate:
           type: string
           format: date
-          description: 實際施用日期。寫入不得晚於台北當日。
+          description: 實際施用日期。寫入不得晚於台北當日，已結束的栽培也不得晚於結束日。
         applicationMethod:
           $ref: '#/components/schemas/MaterialApplicationMethod'
         description:
@@ -2082,6 +2083,7 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+          description: 批次所屬資材目前的名稱。
         quantity:
           type: number
           exclusiveMinimum: 0
@@ -2091,11 +2093,11 @@ components:
           type: string
           minLength: 1
           maxLength: 20
-          description: 作業當時的庫存單位快照。
+          description: 批次所屬資材的庫存單位。
         unitPrice:
           type: [number, 'null']
           minimum: 0
-          description: 作業採用的單價快照。null 表示成本待補。
+          description: 批次目前的每庫存單位單價，更正或補填批次單價後隨之更新。null 表示成本待補。
           exclusiveMaximum: 1000000000
         currencyCode:
           type: string
@@ -2277,6 +2279,15 @@ components:
         properties:
           actualPlantingDate:
             type: string
+        if:
+          properties:
+            status:
+              const: completed
+        then:
+          required: [completionDate]
+          properties:
+            completionDate:
+              type: string
       properties:
         cropName:
           type: string
@@ -2293,6 +2304,10 @@ components:
         actualPlantingDate:
           type: [string, 'null']
           format: date
+        completionDate:
+          type: [string, 'null']
+          format: date
+          description: 結束日。已結束必填，不得早於實際栽種日或晚於台北當日。其他狀態須省略或傳 null。
         status:
           $ref: '#/components/schemas/PlantingStatus'
         notes:
@@ -2366,7 +2381,7 @@ components:
           type: string
     PlantingRsDto:
       type: object
-      required: [id, fieldId, cropName, variety, plannedPlantingDate, actualPlantingDate, status, notes, areaSquareMeters]
+      required: [id, fieldId, cropName, variety, plannedPlantingDate, actualPlantingDate, completionDate, status, notes, areaSquareMeters]
       properties:
         id:
           type: string
@@ -2388,6 +2403,10 @@ components:
         actualPlantingDate:
           type: [string, 'null']
           format: date
+        completionDate:
+          type: [string, 'null']
+          format: date
+          description: 已結束時為結束日，其他狀態為 null。
         status:
           $ref: '#/components/schemas/PlantingStatus'
         notes:
@@ -2395,7 +2414,7 @@ components:
           maxLength: 1000
     PlantingHistoryItemDto:
       type: object
-      required: [id, fieldId, fieldName, cropName, variety, actualPlantingDate, areaSquareMeters]
+      required: [id, fieldId, fieldName, cropName, variety, actualPlantingDate, completionDate, areaSquareMeters]
       properties:
         id:
           type: string
@@ -2414,6 +2433,9 @@ components:
           type: [string, 'null']
           maxLength: 120
         actualPlantingDate:
+          type: string
+          format: date
+        completionDate:
           type: string
           format: date
         areaSquareMeters:

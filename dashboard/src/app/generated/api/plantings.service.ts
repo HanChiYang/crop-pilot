@@ -981,7 +981,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 編輯單筆栽培紀錄
-     * 更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日。
+     * 更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日，改為已結束時另需結束日。
      * @endpoint put /api/v1/plantings/{plantingId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.

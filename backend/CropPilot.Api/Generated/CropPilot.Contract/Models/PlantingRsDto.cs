@@ -79,6 +79,14 @@ namespace CropPilot.Contract.Models
         public DateOnly? ActualPlantingDate { get; set; }
 
         /// <summary>
+        /// 已結束時為結束日，其他狀態為 null。
+        /// </summary>
+        /// <value>已結束時為結束日，其他狀態為 null。</value>
+        [Required]
+        [DataMember(Name="completionDate", EmitDefaultValue=true)]
+        public DateOnly? CompletionDate { get; set; }
+
+        /// <summary>
         /// Gets or Sets Status
         /// </summary>
         [Required]
@@ -108,6 +116,7 @@ namespace CropPilot.Contract.Models
             sb.Append("  Variety: ").Append(Variety).Append("\n");
             sb.Append("  PlannedPlantingDate: ").Append(PlannedPlantingDate).Append("\n");
             sb.Append("  ActualPlantingDate: ").Append(ActualPlantingDate).Append("\n");
+            sb.Append("  CompletionDate: ").Append(CompletionDate).Append("\n");
             sb.Append("  Status: ").Append(Status).Append("\n");
             sb.Append("  Notes: ").Append(Notes).Append("\n");
             sb.Append("}\n");
@@ -158,9 +167,9 @@ namespace CropPilot.Contract.Models
                 ) && 
                 (
                     AreaSquareMeters == other.AreaSquareMeters ||
-
+                    
                     AreaSquareMeters.Equals(other.AreaSquareMeters)
-                ) &&
+                ) && 
                 (
                     CropName == other.CropName ||
                     CropName != null &&
@@ -180,6 +189,11 @@ namespace CropPilot.Contract.Models
                     ActualPlantingDate == other.ActualPlantingDate ||
                     ActualPlantingDate != null &&
                     ActualPlantingDate.Equals(other.ActualPlantingDate)
+                ) && 
+                (
+                    CompletionDate == other.CompletionDate ||
+                    CompletionDate != null &&
+                    CompletionDate.Equals(other.CompletionDate)
                 ) && 
                 (
                     Status == other.Status ||
@@ -207,7 +221,7 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + Id.GetHashCode();
                     
                     hashCode = hashCode * 59 + FieldId.GetHashCode();
-
+                    
                     hashCode = hashCode * 59 + AreaSquareMeters.GetHashCode();
                     if (CropName != null)
                     hashCode = hashCode * 59 + CropName.GetHashCode();
@@ -217,6 +231,8 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + PlannedPlantingDate.GetHashCode();
                     if (ActualPlantingDate != null)
                     hashCode = hashCode * 59 + ActualPlantingDate.GetHashCode();
+                    if (CompletionDate != null)
+                    hashCode = hashCode * 59 + CompletionDate.GetHashCode();
                     
                     hashCode = hashCode * 59 + Status.GetHashCode();
                     if (Notes != null)

@@ -19,9 +19,9 @@ using Newtonsoft.Json;
 using CropPilot.Contract.Converters;
 
 namespace CropPilot.Contract.Models
-{
+{ 
     /// <summary>
-    ///
+    /// 
     /// </summary>
     [DataContract]
     public class EditPlantingRqDto : IEquatable<EditPlantingRqDto>
@@ -63,6 +63,13 @@ namespace CropPilot.Contract.Models
         public DateOnly? ActualPlantingDate { get; set; }
 
         /// <summary>
+        /// 結束日。已結束必填，不得早於實際栽種日或晚於台北當日。其他狀態須省略或傳 null。
+        /// </summary>
+        /// <value>結束日。已結束必填，不得早於實際栽種日或晚於台北當日。其他狀態須省略或傳 null。</value>
+        [DataMember(Name="completionDate", EmitDefaultValue=true)]
+        public DateOnly? CompletionDate { get; set; }
+
+        /// <summary>
         /// Gets or Sets Status
         /// </summary>
         [Required]
@@ -89,6 +96,7 @@ namespace CropPilot.Contract.Models
             sb.Append("  Variety: ").Append(Variety).Append("\n");
             sb.Append("  PlannedPlantingDate: ").Append(PlannedPlantingDate).Append("\n");
             sb.Append("  ActualPlantingDate: ").Append(ActualPlantingDate).Append("\n");
+            sb.Append("  CompletionDate: ").Append(CompletionDate).Append("\n");
             sb.Append("  Status: ").Append(Status).Append("\n");
             sb.Append("  Notes: ").Append(Notes).Append("\n");
             sb.Append("}\n");
@@ -126,37 +134,42 @@ namespace CropPilot.Contract.Models
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
 
-            return
+            return 
                 (
                     CropName == other.CropName ||
                     CropName != null &&
                     CropName.Equals(other.CropName)
-                ) &&
+                ) && 
                 (
                     AreaSquareMeters == other.AreaSquareMeters ||
-
+                    
                     AreaSquareMeters.Equals(other.AreaSquareMeters)
-                ) &&
+                ) && 
                 (
                     Variety == other.Variety ||
                     Variety != null &&
                     Variety.Equals(other.Variety)
-                ) &&
+                ) && 
                 (
                     PlannedPlantingDate == other.PlannedPlantingDate ||
                     PlannedPlantingDate != null &&
                     PlannedPlantingDate.Equals(other.PlannedPlantingDate)
-                ) &&
+                ) && 
                 (
                     ActualPlantingDate == other.ActualPlantingDate ||
                     ActualPlantingDate != null &&
                     ActualPlantingDate.Equals(other.ActualPlantingDate)
-                ) &&
+                ) && 
+                (
+                    CompletionDate == other.CompletionDate ||
+                    CompletionDate != null &&
+                    CompletionDate.Equals(other.CompletionDate)
+                ) && 
                 (
                     Status == other.Status ||
-
+                    
                     Status.Equals(other.Status)
-                ) &&
+                ) && 
                 (
                     Notes == other.Notes ||
                     Notes != null &&
@@ -176,7 +189,7 @@ namespace CropPilot.Contract.Models
                 // Suitable nullity checks etc, of course :)
                     if (CropName != null)
                     hashCode = hashCode * 59 + CropName.GetHashCode();
-
+                    
                     hashCode = hashCode * 59 + AreaSquareMeters.GetHashCode();
                     if (Variety != null)
                     hashCode = hashCode * 59 + Variety.GetHashCode();
@@ -184,7 +197,9 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + PlannedPlantingDate.GetHashCode();
                     if (ActualPlantingDate != null)
                     hashCode = hashCode * 59 + ActualPlantingDate.GetHashCode();
-
+                    if (CompletionDate != null)
+                    hashCode = hashCode * 59 + CompletionDate.GetHashCode();
+                    
                     hashCode = hashCode * 59 + Status.GetHashCode();
                     if (Notes != null)
                     hashCode = hashCode * 59 + Notes.GetHashCode();

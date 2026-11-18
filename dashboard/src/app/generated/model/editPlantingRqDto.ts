@@ -16,6 +16,10 @@ export interface EditPlantingRqDto {
     variety?: string | null;
     plannedPlantingDate?: string | null;
     actualPlantingDate?: string | null;
+    /**
+     * 結束日。已結束必填，不得早於實際栽種日或晚於台北當日。其他狀態須省略或傳 null。
+     */
+    completionDate?: string | null;
     status: PlantingStatus;
     notes?: string | null;
 }
