@@ -22,4 +22,4 @@ internal sealed record PlantingOperationVersion(Guid Id, string Type, DateTimeOf
 
 /// <summary>同一原庫存批次在刪除時會恢復的合計用量。</summary>
 internal sealed record PlantingInventoryReturn(Guid LotId, string MaterialName, string Source,
-    DateOnly AvailableFrom, decimal Quantity, string Unit);
+    DateOnly AvailableFrom, decimal Quantity, string Unit, string MaterialType);

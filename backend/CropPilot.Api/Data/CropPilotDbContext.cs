@@ -27,13 +27,17 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
         {
             detail.ToTable("irrigation_details", table =>
             {
+                table.HasCheckConstraint("ck_irrigation_details_operation_type", "operation_type = 'IRRIGATION'");
                 table.HasCheckConstraint("ck_irrigation_details_method",
-                    "method IN ('drip', 'sprinkler', 'furrow', 'manual', 'other')");
+                    "method IN ('DRIP', 'SPRINKLER', 'FURROW', 'MANUAL', 'OTHER')");
                 table.HasCheckConstraint("ck_irrigation_details_water_volume_liters",
                     "water_volume_liters > 0 AND water_volume_liters < 1000000000");
             });
+            detail.Property(value => value.OperationType).HasMaxLength(24);
             detail.HasOne(value => value.FieldOperation).WithOne(value => value.IrrigationDetail)
-                .HasForeignKey<IrrigationDetail>(value => value.FieldOperationId).OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey<IrrigationDetail>(value => new { value.FieldOperationId, value.OperationType })
+                .HasPrincipalKey<FieldOperation>(value => new { value.Id, value.OperationType })
+                .HasConstraintName("fk_irrigation_details_field_operations").OnDelete(DeleteBehavior.Cascade);
             detail.Property(value => value.Method).HasMaxLength(24);
             detail.Property(value => value.WaterVolumeLiters).HasPrecision(15, 6);
         });
@@ -61,6 +65,8 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
             field.Property(value => value.Latitude).HasPrecision(9, 6);
             field.Property(value => value.Longitude).HasPrecision(9, 6);
             field.Property(value => value.Description).HasMaxLength(1000);
+            field.Property(value => value.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            field.Property(value => value.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             field.HasIndex(value => new { value.MainAccountId, value.Name }).IsUnique();
         });
 
@@ -86,6 +92,8 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
             planting.Property(value => value.Variety).HasMaxLength(120);
             planting.Property(value => value.Status).HasMaxLength(16).HasDefaultValue(Planting.Planned);
             planting.Property(value => value.Description).HasMaxLength(1000);
+            planting.Property(value => value.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            planting.Property(value => value.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
 
         builder.Entity<Harvest>(harvest =>

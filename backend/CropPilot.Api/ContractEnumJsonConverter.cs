@@ -21,6 +21,12 @@ internal sealed class ContractEnumJsonConverter<TValue>(string invalidMessage) :
     /// <summary>以已知的契約值還原列舉。</summary>
     internal static TValue FromName(string name) => Values[name];
 
+    /// <summary>取得列舉在資料庫保存的大寫代碼，未定義時回傳 null。</summary>
+    internal static string? ToCode(TValue value) => GetName(value)?.ToUpperInvariant();
+
+    /// <summary>以資料庫保存的大寫代碼還原列舉。</summary>
+    internal static TValue FromCode(string code) => Values[code.ToLowerInvariant()];
+
     /// <summary>只接受契約定義的字串值。</summary>
     public override TValue Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
         reader.TokenType == JsonTokenType.String && Values.TryGetValue(reader.GetString()!, out var value)

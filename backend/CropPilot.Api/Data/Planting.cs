@@ -20,6 +20,8 @@ internal sealed class Planting
     public DateOnly? CompletionDate { get; set; }
     public string Status { get; set; } = Planned;
     public string? Description { get; set; }
+    public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 /// <summary>交易內鎖定栽培後讀取的狀態與結束日，供作業及採收寫入核對日期。</summary>

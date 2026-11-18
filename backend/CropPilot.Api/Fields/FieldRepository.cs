@@ -36,7 +36,8 @@ public sealed class FieldRepository(CropPilotDbContext database)
                     .SetProperty(value => value.AreaSquareMeters, field.AreaSquareMeters)
                     .SetProperty(value => value.Latitude, field.Latitude)
                     .SetProperty(value => value.Longitude, field.Longitude)
-                    .SetProperty(value => value.Description, field.Description), cancellationToken);
+                    .SetProperty(value => value.Description, field.Description)
+                    .SetProperty(value => value.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return count == 0 ? FieldWriteStatus.NotFound : FieldWriteStatus.Success;
         }

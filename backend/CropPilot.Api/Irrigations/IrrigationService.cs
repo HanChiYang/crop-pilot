@@ -90,7 +90,7 @@ public sealed class IrrigationService(IrrigationRepository repository)
         {
             return new(IrrigationWriteStatus.Invalid, Message: dateError, Field: "operationDate");
         }
-        var method = ContractEnumJsonConverter<IrrigationMethod>.GetName(request.Method);
+        var method = ContractEnumJsonConverter<IrrigationMethod>.ToCode(request.Method);
         if (method is null)
         {
             return new(IrrigationWriteStatus.Invalid, Message: ErrorMessages.IrrigationMethodInvalid, Field: "method");

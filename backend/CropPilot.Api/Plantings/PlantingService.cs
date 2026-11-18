@@ -98,6 +98,7 @@ public sealed class PlantingService(PlantingRepository repository)
             planting.CompletionDate = request.CompletionDate;
             planting.AreaSquareMeters = request.AreaSquareMeters;
             planting.Description = TrimOptional(request.Notes);
+            planting.UpdatedAt = DateTimeOffset.UtcNow;
             return new(PlantingWriteStatus.Success, planting);
         }, cancellationToken);
     }

@@ -9,4 +9,6 @@ internal sealed class Field
     public decimal? Latitude { get; init; }
     public decimal? Longitude { get; init; }
     public string? Description { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset UpdatedAt { get; init; }
 }

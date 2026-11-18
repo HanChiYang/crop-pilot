@@ -68,6 +68,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("stock_unit");
 
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.HasKey("Id")
                         .HasName("pk_agricultural_materials");
 
@@ -85,9 +91,9 @@ namespace CropPilot.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_agricultural_materials_name", "btrim(name) <> ''");
 
-                            t.HasCheckConstraint("ck_agricultural_materials_package", "(package_quantity IS NULL AND package_unit IS NULL)\r\nOR (package_quantity IS NOT NULL AND package_quantity BETWEEN 0.000001 AND 999999999.999999\r\n    AND package_unit IS NOT NULL AND package_unit IN ('liter', 'milliliter', 'kilogram', 'gram'))");
+                            t.HasCheckConstraint("ck_agricultural_materials_package", "(package_quantity IS NULL AND package_unit IS NULL)\r\nOR (package_quantity IS NOT NULL AND package_quantity BETWEEN 0.000001 AND 999999999.999999\r\n    AND package_unit IS NOT NULL AND package_unit IN ('LITER', 'MILLILITER', 'KILOGRAM', 'GRAM'))");
 
-                            t.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> '' AND (material_type <> 'PESTICIDE' OR stock_unit IN ('公升', '毫升', '公斤', '公克'))");
+                            t.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> '' AND (material_type <> 'PESTICIDE' OR stock_unit IN ('LITER', 'MILLILITER', 'KILOGRAM', 'GRAM'))");
 
                             t.HasCheckConstraint("ck_agricultural_materials_type", "material_type IN ('FERTILIZER', 'PESTICIDE')");
                         });
@@ -173,6 +179,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("numeric(14,4)")
                         .HasColumnName("area_square_meters");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
@@ -198,6 +210,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("character varying(120)")
                         .HasColumnName("name")
                         .UseCollation("C");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.HasKey("Id")
                         .HasName("pk_fields");
@@ -256,6 +274,9 @@ namespace CropPilot.Api.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_field_operations");
+
+                    b.HasAlternateKey("Id", "OperationType")
+                        .HasName("ak_field_operations_id_operation_type");
 
                     b.HasIndex("PlantingId", "OperationType", "OperationDate", "CreatedAt", "Id")
                         .IsDescending(false, false, true, true, true)
@@ -334,6 +355,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("character varying(24)")
                         .HasColumnName("method");
 
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("operation_type");
+
                     b.Property<decimal?>("WaterVolumeLiters")
                         .HasPrecision(15, 6)
                         .HasColumnType("numeric(15,6)")
@@ -342,13 +369,15 @@ namespace CropPilot.Api.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_irrigation_details");
 
-                    b.HasIndex("FieldOperationId")
+                    b.HasIndex("FieldOperationId", "OperationType")
                         .IsUnique()
-                        .HasDatabaseName("ix_irrigation_details_field_operation_id");
+                        .HasDatabaseName("ix_irrigation_details_field_operation_id_operation_type");
 
                     b.ToTable("irrigation_details", null, t =>
                         {
-                            t.HasCheckConstraint("ck_irrigation_details_method", "method IN ('drip', 'sprinkler', 'furrow', 'manual', 'other')");
+                            t.HasCheckConstraint("ck_irrigation_details_method", "method IN ('DRIP', 'SPRINKLER', 'FURROW', 'MANUAL', 'OTHER')");
+
+                            t.HasCheckConstraint("ck_irrigation_details_operation_type", "operation_type = 'IRRIGATION'");
 
                             t.HasCheckConstraint("ck_irrigation_details_water_volume_liters", "water_volume_liters > 0 AND water_volume_liters < 1000000000");
                         });
@@ -453,6 +482,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("field_operation_id");
 
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("operation_type");
+
                     b.Property<decimal?>("SprayWaterVolumeLiters")
                         .HasPrecision(15, 6)
                         .HasColumnType("numeric(15,6)")
@@ -461,15 +496,17 @@ namespace CropPilot.Api.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_material_applications");
 
-                    b.HasIndex("FieldOperationId")
+                    b.HasIndex("FieldOperationId", "OperationType")
                         .IsUnique()
-                        .HasDatabaseName("ix_material_applications_field_operation_id");
+                        .HasDatabaseName("ix_material_applications_field_operation_id_operation_type");
 
                     b.ToTable("material_applications", null, t =>
                         {
-                            t.HasCheckConstraint("ck_material_applications_method", "application_method IN ('spray', 'broadcast')");
+                            t.HasCheckConstraint("ck_material_applications_method", "application_method IN ('SPRAY', 'BROADCAST')");
 
-                            t.HasCheckConstraint("ck_material_applications_water", "spray_water_volume_liters IS NULL OR (application_method = 'spray' AND spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999)");
+                            t.HasCheckConstraint("ck_material_applications_operation_type", "operation_type = 'MATERIAL_APPLICATION'");
+
+                            t.HasCheckConstraint("ck_material_applications_water", "spray_water_volume_liters IS NULL OR (application_method = 'SPRAY' AND spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999)");
                         });
                 });
 
@@ -560,6 +597,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("numeric(15,6)")
                         .HasColumnName("unit_price");
 
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.HasKey("Id")
                         .HasName("pk_material_purchase_lots");
 
@@ -598,6 +641,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("completion_date");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.Property<string>("CropName")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -624,6 +673,12 @@ namespace CropPilot.Api.Data.Migrations
                         .HasColumnType("character varying(16)")
                         .HasDefaultValue("PLANNED")
                         .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Variety")
                         .HasMaxLength(120)
@@ -797,10 +852,11 @@ namespace CropPilot.Api.Data.Migrations
                 {
                     b.HasOne("CropPilot.Api.Data.FieldOperation", "FieldOperation")
                         .WithOne("IrrigationDetail")
-                        .HasForeignKey("CropPilot.Api.Data.IrrigationDetail", "FieldOperationId")
+                        .HasForeignKey("CropPilot.Api.Data.IrrigationDetail", "FieldOperationId", "OperationType")
+                        .HasPrincipalKey("CropPilot.Api.Data.FieldOperation", "Id", "OperationType")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_irrigation_details_field_operations_field_operation_id");
+                        .HasConstraintName("fk_irrigation_details_field_operations");
 
                     b.Navigation("FieldOperation");
                 });
@@ -819,10 +875,11 @@ namespace CropPilot.Api.Data.Migrations
                 {
                     b.HasOne("CropPilot.Api.Data.FieldOperation", "FieldOperation")
                         .WithOne("Application")
-                        .HasForeignKey("CropPilot.Api.Data.MaterialApplication", "FieldOperationId")
+                        .HasForeignKey("CropPilot.Api.Data.MaterialApplication", "FieldOperationId", "OperationType")
+                        .HasPrincipalKey("CropPilot.Api.Data.FieldOperation", "Id", "OperationType")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_material_applications_field_operations_field_operation_id");
+                        .HasConstraintName("fk_material_applications_field_operations");
 
                     b.Navigation("FieldOperation");
                 });

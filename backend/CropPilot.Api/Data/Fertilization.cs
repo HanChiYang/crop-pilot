@@ -14,6 +14,7 @@ internal sealed class AgriculturalMaterial
     public decimal? PackageQuantity { get; set; }
     public string? PackageUnit { get; set; }
     public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 /// <summary>保存一次進貨或期初盤點的數量及單價。</summary>
@@ -33,6 +34,7 @@ internal sealed class MaterialPurchaseLot
     public decimal? UnitPrice { get; set; }
     public string CurrencyCode { get; init; } = TaiwanDollar;
     public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 /// <summary>保存一次田間作業所屬的栽培紀錄及實際作業日。</summary>
@@ -59,6 +61,9 @@ internal sealed class MaterialApplication
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid FieldOperationId { get; init; }
     public FieldOperation FieldOperation { get; init; } = null!;
+
+    /// <summary>固定為資材施用，與作業識別碼組成複合外鍵，避免施用資料接到其他類型的作業。</summary>
+    public string OperationType { get; init; } = FieldOperation.MaterialApplication;
     public string ApplicationMethod { get; set; } = null!;
     public decimal? SprayWaterVolumeLiters { get; set; }
     public List<MaterialApplicationDetail> Details { get; } = [];

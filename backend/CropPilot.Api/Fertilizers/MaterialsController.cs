@@ -62,18 +62,11 @@ public sealed class MaterialsController(FertilizerService service) : MaterialsAp
         Ok((await service.ListMaterialsAsync(AccountId, Aborted, AgriculturalMaterial.Pesticide))
             .ConvertAll(FertilizerDtoMapper.ToPesticideDto));
 
-    /// <summary>建立農藥規格，將庫存單位對應至資料庫使用的文字。</summary>
+    /// <summary>建立農藥規格，將庫存單位對應至資料庫使用的大寫代碼。</summary>
     /// <param name="request">農藥名稱、庫存單位及包裝規格。</param>
     public override async Task<IActionResult> CreatePesticideMaterial(CreatePesticideMaterialRqDto request)
     {
-        var unit = request.StockUnit switch
-        {
-            PesticideStockUnit.LiterEnum => "公升",
-            PesticideStockUnit.MilliliterEnum => "毫升",
-            PesticideStockUnit.KilogramEnum => "公斤",
-            PesticideStockUnit.GramEnum => "公克",
-            _ => null
-        };
+        var unit = ContractEnumJsonConverter<PesticideStockUnit>.ToCode(request.StockUnit);
         if (unit is null)
         {
             ModelState.AddModelError("stockUnit", ErrorMessages.PesticideUnitInvalid);
