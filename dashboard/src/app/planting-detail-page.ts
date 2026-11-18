@@ -101,6 +101,9 @@ type DetailTab = (typeof detailTabs)[number]['id'];
             }
             <div><dt>品種</dt><dd>{{ planting.variety || '—' }}</dd></div>
             <div><dt>實際栽種日</dt><dd>{{ planting.actualPlantingDate || '—' }}</dd></div>
+            @if (planting.completionDate) {
+              <div><dt>結束日</dt><dd>{{ planting.completionDate }}</dd></div>
+            }
             <div><dt>占用面積</dt><dd>{{ planting.areaSquareMeters | number: '1.0-4' }} m²</dd></div>
             @if (fromHistory || planting.notes) {
               <div class="notes"><dt>備註</dt><dd>{{ planting.notes || '—' }}</dd></div>

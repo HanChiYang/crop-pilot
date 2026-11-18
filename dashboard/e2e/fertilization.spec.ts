@@ -108,7 +108,7 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
   await expect(page.getByLabel('施用日期')).toHaveValue('2026-01-03');
   await expect(batches).toHaveValue(lotId);
   await expect(batches.getByRole('option').nth(1)).toContainText('可用 8 公斤');
-  await expect(batches.getByRole('option').nth(1)).toContainText('原單價 成本待補');
+  await expect(batches.getByRole('option').nth(1)).toContainText('批次單價 NT$20');
   await page.getByLabel('用量').fill('2');
   await page.getByRole('button', { name: '儲存', exact: true }).click();
   await expect(list).toContainText('2 公斤');

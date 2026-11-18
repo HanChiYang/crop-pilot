@@ -50,6 +50,12 @@ public sealed class FertilizerRepository(CropPilotDbContext db)
     internal Task LockPlantingAsync(Guid id, CancellationToken ct) =>
         db.Database.ExecuteSqlInterpolatedAsync($"""SELECT id FROM plantings WHERE id = {id} FOR UPDATE""", ct);
 
+    /// <summary>讀取帳號所屬栽培的狀態與結束日，應在鎖定栽培後呼叫；查無時回傳 null。</summary>
+    internal Task<PlantingLockState?> FindPlantingStateAsync(Guid accountId, Guid plantingId, CancellationToken ct) =>
+        Plantings(accountId).Where(x => x.Id == plantingId)
+            .Select(x => new PlantingLockState { Status = x.Status, CompletionDate = x.CompletionDate })
+            .SingleOrDefaultAsync(ct);
+
     /// <summary>在已鎖定的栽培下鎖定待修改的施肥作業。</summary>
     internal Task LockOperationAsync(Guid plantingId, Guid operationId, CancellationToken ct) =>
         db.Database.ExecuteSqlInterpolatedAsync($"""

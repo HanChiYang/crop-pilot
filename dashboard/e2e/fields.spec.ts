@@ -383,7 +383,15 @@ test('栽培超額保留輸入，編輯、刪除與結束後更新面積及總�
   await expect(remaining).toContainText('剩餘面積 30 m²');
   await status.selectOption('completed');
   await page.getByLabel('實際栽種日（必填）').fill('2026-11-01');
+  const completionDate = page.getByLabel('結束日（必填）');
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
+  await expect(completionDate).toHaveValue(today);
+  await completionDate.fill('2026-10-31');
   await save.click();
+  await expect(page.locator('#completion-date-error')).toHaveText('結束日不得早於實際栽種日。');
+  await completionDate.fill('2026-11-02');
+  await save.click();
+  await expect(page.getByRole('dialog', { name: '確認結束栽培' })).toContainText('結束日 2026-11-02');
   await page.getByRole('button', { name: '確認結束' }).click();
   await add.click();
   await picker.selectOption(fieldId);

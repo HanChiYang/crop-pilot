@@ -10,9 +10,9 @@
 import { IrrigationMethod } from './irrigationMethod';
 
 
-export interface SaveIrrigationRqDto {
+export interface SaveIrrigationRqDto { 
     /**
-     * 實際灌溉日期，最晚為台北當日。
+     * 實際灌溉日期，最晚為台北當日，已結束的栽培也不得晚於結束日。
      */
     operationDate: string;
     method: IrrigationMethod;
@@ -27,3 +27,5 @@ export interface SaveIrrigationRqDto {
 }
 export namespace SaveIrrigationRqDto {
 }
+
+

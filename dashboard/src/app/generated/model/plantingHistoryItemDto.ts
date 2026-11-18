@@ -9,7 +9,7 @@
  */
 
 
-export interface PlantingHistoryItemDto {
+export interface PlantingHistoryItemDto { 
     id: string;
     fieldId: string;
     /**
@@ -19,5 +19,7 @@ export interface PlantingHistoryItemDto {
     cropName: string;
     variety: string | null;
     actualPlantingDate: string;
+    completionDate: string;
     areaSquareMeters: number;
 }
+

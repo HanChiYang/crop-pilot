@@ -8,9 +8,9 @@ namespace CropPilot.Api.Plantings;
 /// <summary>依田區的擁有者帳號讀寫栽培紀錄。</summary>
 public sealed class PlantingRepository(CropPilotDbContext database)
 {
-    /// <summary>鎖定田區後取得目前紀錄與可分配面積。業務驗證成功時提交新增或編輯。</summary>
+    /// <summary>鎖定田區與既有栽培後取得目前紀錄、可分配面積及最後採收或作業日。業務驗證成功時提交新增或編輯。</summary>
     internal async Task<PlantingWriteResult> WriteAsync(Guid accountId, Guid? requestedFieldId, Guid? plantingId,
-        Func<Planting?, decimal, PlantingWriteResult> apply, CancellationToken cancellationToken)
+        Func<Planting?, decimal, DateOnly?, PlantingWriteResult> apply, CancellationToken cancellationToken)
     {
         await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var resolvedFieldId = requestedFieldId ?? await OwnedPlantings(accountId)
@@ -28,18 +28,23 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         }
 
         Planting? current = null;
+        DateOnly? latestActivity = null;
         if (plantingId is Guid id)
         {
+            // 採收與作業寫入會鎖定同一列，讓結束日與最後活動日的核對不受並行寫入影響。
+            await database.Database.ExecuteSqlInterpolatedAsync(
+                $"""SELECT id FROM plantings WHERE id = {id} AND field_id = {fieldId} FOR UPDATE""", cancellationToken);
             current = await database.Plantings.SingleOrDefaultAsync(
                 value => value.FieldId == fieldId && value.Id == id, cancellationToken);
             if (current is null)
             {
                 return new(PlantingWriteStatus.NotFound);
             }
+            latestActivity = await LatestActivityDateAsync(id, cancellationToken);
         }
 
         var allocated = await FieldAreaQueries.AllocatedAsync(database, fieldId, plantingId, cancellationToken);
-        var result = apply(current, area.Value - allocated);
+        var result = apply(current, area.Value - allocated, latestActivity);
         if (result.Status != PlantingWriteStatus.Success)
         {
             return result;
@@ -51,6 +56,16 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return result;
+    }
+
+    /// <summary>取得栽培最後一筆採收或田間作業的日期，沒有紀錄時回傳 null。</summary>
+    private async Task<DateOnly?> LatestActivityDateAsync(Guid plantingId, CancellationToken ct)
+    {
+        var harvest = await database.Harvests.Where(value => value.PlantingId == plantingId)
+            .MaxAsync(value => (DateOnly?)value.HarvestDate, ct);
+        var operation = await database.FieldOperations.Where(value => value.PlantingId == plantingId)
+            .MaxAsync(value => (DateOnly?)value.OperationDate, ct);
+        return harvest > operation || operation is null ? harvest : operation;
     }
 
     /// <summary>從同一資料庫快照讀取栽培與作業，供刪除確認使用。</summary>
@@ -124,7 +139,8 @@ public sealed class PlantingRepository(CropPilotDbContext database)
             .OrderBy(value => value.Id)
             .Select(value => new
             {
-                value.MaterialPurchaseLotId, value.MaterialName, value.Unit, value.Quantity,
+                value.MaterialPurchaseLotId, MaterialName = value.Lot.Material.Name,
+                Unit = value.Lot.Material.StockUnit, value.Quantity,
                 value.Lot.Source, value.Lot.AvailableFrom
             }).ToListAsync(ct);
 
@@ -175,7 +191,8 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         return query.OrderByDescending(planting => planting.ActualPlantingDate)
             .ThenBy(planting => planting.Id)
             .Select(planting => new PlantingHistoryEntry(planting.Id, planting.FieldId, planting.Field.Name,
-                planting.CropName, planting.Variety, planting.ActualPlantingDate!.Value, planting.AreaSquareMeters))
+                planting.CropName, planting.Variety, planting.ActualPlantingDate!.Value, planting.CompletionDate!.Value,
+                planting.AreaSquareMeters))
             .ToListAsync(cancellationToken);
     }
 
@@ -210,4 +227,4 @@ internal sealed record FieldPlantings(Field Field, List<Planting> Plantings);
 
 /// <summary>歷史清單顯示的已結束紀錄與目前田區名稱。</summary>
 internal sealed record PlantingHistoryEntry(Guid Id, Guid FieldId, string FieldName, string CropName,
-    string? Variety, DateOnly ActualPlantingDate, decimal AreaSquareMeters);
+    string? Variety, DateOnly ActualPlantingDate, DateOnly CompletionDate, decimal AreaSquareMeters);

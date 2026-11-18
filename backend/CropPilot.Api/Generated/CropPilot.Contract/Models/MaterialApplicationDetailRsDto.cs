@@ -79,8 +79,9 @@ namespace CropPilot.Contract.Models
         public MaterialTypeEnum MaterialType { get; set; }
 
         /// <summary>
-        /// Gets or Sets MaterialName
+        /// 批次所屬資材目前的名稱。
         /// </summary>
+        /// <value>批次所屬資材目前的名稱。</value>
         [Required]
         [StringLength(100, MinimumLength=1)]
         [DataMember(Name="materialName", EmitDefaultValue=false)]
@@ -96,18 +97,18 @@ namespace CropPilot.Contract.Models
         public decimal Quantity { get; set; }
 
         /// <summary>
-        /// 作業當時的庫存單位快照。
+        /// 批次所屬資材的庫存單位。
         /// </summary>
-        /// <value>作業當時的庫存單位快照。</value>
+        /// <value>批次所屬資材的庫存單位。</value>
         [Required]
         [StringLength(20, MinimumLength=1)]
         [DataMember(Name="unit", EmitDefaultValue=false)]
         public string Unit { get; set; }
 
         /// <summary>
-        /// 作業採用的單價快照。null 表示成本待補。
+        /// 批次目前的每庫存單位單價，更正或補填批次單價後隨之更新。null 表示成本待補。
         /// </summary>
-        /// <value>作業採用的單價快照。null 表示成本待補。</value>
+        /// <value>批次目前的每庫存單位單價，更正或補填批次單價後隨之更新。null 表示成本待補。</value>
         [Required]
         [Range(0, 1000000000)]
         [DataMember(Name="unitPrice", EmitDefaultValue=true)]

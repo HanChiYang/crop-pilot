@@ -15,6 +15,7 @@ internal static class PlantingDtoMapper
         CropName = entry.CropName,
         Variety = entry.Variety!,
         ActualPlantingDate = entry.ActualPlantingDate,
+        CompletionDate = entry.CompletionDate,
         AreaSquareMeters = entry.AreaSquareMeters
     };
 
@@ -28,6 +29,7 @@ internal static class PlantingDtoMapper
         Variety = planting.Variety!,
         PlannedPlantingDate = planting.PlannedPlantingDate,
         ActualPlantingDate = planting.ActualPlantingDate,
+        CompletionDate = planting.CompletionDate,
         Notes = planting.Description!,
         Status = ToStatus(planting.Status)
     };

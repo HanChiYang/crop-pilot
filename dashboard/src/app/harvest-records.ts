@@ -8,7 +8,7 @@ import { HarvestRsDto } from './generated/model/harvestRsDto';
 import { HarvestListRsDto } from './generated/model/harvestListRsDto';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
 import { SaveHarvestRqDto } from './generated/model/saveHarvestRqDto';
-import { OperationSort, nextOperationSort, operationError, parseOperationDecimal, taipeiToday } from './operation-form';
+import { OperationSort, latestRecordDate, latestRecordLabel, nextOperationSort, operationError, parseOperationDecimal, taipeiToday } from './operation-form';
 
 type SortColumn = 'harvestDate' | 'weightKg';
 type ListState =
@@ -48,6 +48,7 @@ export class HarvestRecords {
     !!this.startDate() && !!this.endDate() && this.startDate() > this.endDate());
   protected readonly hasFilter = computed(() => !!this.filters().startDate || !!this.filters().endDate);
   protected readonly today = signal(taipeiToday());
+  protected readonly latestDate = computed(() => latestRecordDate(this.planting().completionDate, this.today()));
   protected readonly editor = signal<HarvestInput | null>(null);
   protected readonly pendingDelete = signal<HarvestRsDto | null>(null);
   protected readonly busy = signal(false);
@@ -105,7 +106,7 @@ export class HarvestRecords {
     this.writeError.set('');
     this.editor.set({
       id: record?.id,
-      date: record?.harvestDate ?? this.today(),
+      date: record?.harvestDate ?? this.latestDate(),
       weight: record?.weightKg.toString() ?? '',
       description: record?.description ?? '',
     });
@@ -115,8 +116,8 @@ export class HarvestRecords {
   protected async save(input: HarvestInput, dialog: HTMLDialogElement): Promise<void> {
     if (this.busy()) return;
     this.refreshToday();
-    if (!input.date || input.date > this.today()) {
-      this.writeError.set('請填寫實際採收日期，最晚為今天。');
+    if (!input.date || input.date > this.latestDate()) {
+      this.writeError.set(`請填寫實際採收日期，最晚為${latestRecordLabel(this.planting().completionDate, this.today())}。`);
       return;
     }
     const weightKg = parseOperationDecimal(input.weight);

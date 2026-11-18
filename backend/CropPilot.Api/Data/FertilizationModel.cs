@@ -101,20 +101,13 @@ internal static class FertilizationModel
             {
                 table.HasCheckConstraint("ck_material_application_details_quantity",
                     "quantity BETWEEN 0.000001 AND 999999999.999999");
-                table.HasCheckConstraint("ck_material_application_details_price",
-                    "unit_price BETWEEN 0 AND 999999999.999999");
-                table.HasCheckConstraint("ck_material_application_details_currency", "currency_code = 'TWD'");
                 table.HasCheckConstraint("ck_material_application_details_sort_order", "sort_order >= 0");
             });
             detail.HasOne(value => value.Application).WithMany(value => value.Details)
                 .HasForeignKey(value => value.MaterialApplicationId).OnDelete(DeleteBehavior.Cascade);
             detail.HasOne(value => value.Lot).WithMany().HasForeignKey(value => value.MaterialPurchaseLotId)
                 .OnDelete(DeleteBehavior.Restrict);
-            detail.Property(value => value.MaterialName).HasMaxLength(100);
             detail.Property(value => value.Quantity).HasPrecision(15, 6);
-            detail.Property(value => value.Unit).HasMaxLength(20);
-            detail.Property(value => value.UnitPrice).HasPrecision(15, 6);
-            detail.Property(value => value.CurrencyCode).HasColumnType("char(3)");
             detail.HasIndex(value => new { value.MaterialApplicationId, value.SortOrder });
         });
     }

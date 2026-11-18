@@ -18,6 +18,10 @@ export interface PlantingRsDto {
     variety: string | null;
     plannedPlantingDate: string | null;
     actualPlantingDate: string | null;
+    /**
+     * 已結束時為結束日，其他狀態為 null。
+     */
+    completionDate: string | null;
     status: PlantingStatus;
     notes: string | null;
 }

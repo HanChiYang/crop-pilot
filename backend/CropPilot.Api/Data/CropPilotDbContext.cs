@@ -76,6 +76,8 @@ public sealed class CropPilotDbContext(DbContextOptions<CropPilotDbContext> opti
                 table.HasCheckConstraint("ck_plantings_actual_planting_date",
                     "status NOT IN ('GROWING', 'COMPLETED') OR actual_planting_date IS NOT NULL");
                 table.HasCheckConstraint("ck_plantings_area_square_meters", "area_square_meters > 0");
+                table.HasCheckConstraint("ck_plantings_completion_date",
+                    "(status = 'COMPLETED') = (completion_date IS NOT NULL) AND completion_date >= actual_planting_date");
             });
             planting.HasOne(value => value.Field).WithMany().HasForeignKey(value => value.FieldId)
                 .HasConstraintName(Planting.FieldForeignKey).OnDelete(DeleteBehavior.Restrict);

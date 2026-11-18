@@ -19,9 +19,9 @@ using Newtonsoft.Json;
 using CropPilot.Contract.Converters;
 
 namespace CropPilot.Contract.Models
-{
+{ 
     /// <summary>
-    ///
+    /// 
     /// </summary>
     [DataContract]
     public class PlantingHistoryItemDto : IEquatable<PlantingHistoryItemDto>
@@ -73,6 +73,13 @@ namespace CropPilot.Contract.Models
         public DateOnly ActualPlantingDate { get; set; }
 
         /// <summary>
+        /// Gets or Sets CompletionDate
+        /// </summary>
+        [Required]
+        [DataMember(Name="completionDate", EmitDefaultValue=true)]
+        public DateOnly CompletionDate { get; set; }
+
+        /// <summary>
         /// Gets or Sets AreaSquareMeters
         /// </summary>
         [Required]
@@ -94,6 +101,7 @@ namespace CropPilot.Contract.Models
             sb.Append("  CropName: ").Append(CropName).Append("\n");
             sb.Append("  Variety: ").Append(Variety).Append("\n");
             sb.Append("  ActualPlantingDate: ").Append(ActualPlantingDate).Append("\n");
+            sb.Append("  CompletionDate: ").Append(CompletionDate).Append("\n");
             sb.Append("  AreaSquareMeters: ").Append(AreaSquareMeters).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -130,40 +138,45 @@ namespace CropPilot.Contract.Models
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
 
-            return
+            return 
                 (
                     Id == other.Id ||
-
+                    
                     Id.Equals(other.Id)
-                ) &&
+                ) && 
                 (
                     FieldId == other.FieldId ||
-
+                    
                     FieldId.Equals(other.FieldId)
-                ) &&
+                ) && 
                 (
                     FieldName == other.FieldName ||
                     FieldName != null &&
                     FieldName.Equals(other.FieldName)
-                ) &&
+                ) && 
                 (
                     CropName == other.CropName ||
                     CropName != null &&
                     CropName.Equals(other.CropName)
-                ) &&
+                ) && 
                 (
                     Variety == other.Variety ||
                     Variety != null &&
                     Variety.Equals(other.Variety)
-                ) &&
+                ) && 
                 (
                     ActualPlantingDate == other.ActualPlantingDate ||
-
+                    
                     ActualPlantingDate.Equals(other.ActualPlantingDate)
-                ) &&
+                ) && 
+                (
+                    CompletionDate == other.CompletionDate ||
+                    
+                    CompletionDate.Equals(other.CompletionDate)
+                ) && 
                 (
                     AreaSquareMeters == other.AreaSquareMeters ||
-
+                    
                     AreaSquareMeters.Equals(other.AreaSquareMeters)
                 );
         }
@@ -178,9 +191,9 @@ namespace CropPilot.Contract.Models
             {
                 var hashCode = 41;
                 // Suitable nullity checks etc, of course :)
-
+                    
                     hashCode = hashCode * 59 + Id.GetHashCode();
-
+                    
                     hashCode = hashCode * 59 + FieldId.GetHashCode();
                     if (FieldName != null)
                     hashCode = hashCode * 59 + FieldName.GetHashCode();
@@ -188,9 +201,11 @@ namespace CropPilot.Contract.Models
                     hashCode = hashCode * 59 + CropName.GetHashCode();
                     if (Variety != null)
                     hashCode = hashCode * 59 + Variety.GetHashCode();
-
+                    
                     hashCode = hashCode * 59 + ActualPlantingDate.GetHashCode();
-
+                    
+                    hashCode = hashCode * 59 + CompletionDate.GetHashCode();
+                    
                     hashCode = hashCode * 59 + AreaSquareMeters.GetHashCode();
                 return hashCode;
             }

@@ -15,7 +15,7 @@ import { PesticideLotRsDto } from './generated/model/pesticideLotRsDto';
 import { materialPackageLabel, pesticideUnits } from './pesticide-units';
 import { HttpErrorResponse } from '@angular/common/http';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
-import { compareOperationValues, nextOperationSort, OperationSort, operationError, parseOperationDecimal, taipeiToday } from './operation-form';
+import { compareOperationValues, nextOperationSort, OperationSort, operationError, parseOperationDecimal, latestRecordDate, latestRecordLabel, taipeiToday } from './operation-form';
 import { plantingStatusLabel } from './planting-display';
 
 type MaterialType = 'fertilizer' | 'pesticide';
@@ -25,7 +25,7 @@ const methods = { spray: '噴施', broadcast: '撒施' } as const;
 interface DetailInput {
   materialType: MaterialType;
   id?: string;
-  original?: { lotId: string; unitPrice: number | null };
+  original?: { lotId: string };
   materialId: string;
   lotId: string;
   quantity: string;
@@ -77,7 +77,7 @@ interface DetailInput {
         <fieldset [disabled]="busy()">
           <div class="field-control">
             <label for="operation-date">施用日期</label>
-            <input id="operation-date" type="date" name="operationDate" required [max]="today()"
+            <input id="operation-date" type="date" name="operationDate" required [max]="latestDate()"
               [ngModel]="operationDate()" (ngModelChange)="operationDate.set($event)">
           </div>
           <fieldset class="method-choices" [disabled]="busy()">
@@ -131,9 +131,7 @@ interface DetailInput {
                     [ngModel]="row.lotId" (ngModelChange)="row.lotId = $event">
                     <option value="">請選擇庫存批次</option>
                     @for (lot of lotsByMaterial().get(row.materialId) ?? []; track lot.id) {
-                      @let retained = row.original?.lotId === lot.id;
-                      @let price = retained ? row.original?.unitPrice : lot.unitPrice;
-                      <option [value]="lot.id">{{ lot.label }}｜可用 {{ lot.available | number:'1.0-6' }} {{ lot.unit }}｜{{ retained ? '原單價' : '批次單價' }} {{ price == null ? '成本待補' : 'NT$' + price }}</option>
+                      <option [value]="lot.id">{{ lot.label }}｜可用 {{ lot.available | number:'1.0-6' }} {{ lot.unit }}｜批次單價 {{ lot.unitPrice == null ? '成本待補' : 'NT$' + lot.unitPrice }}</option>
                     }
                     @if (row.lotId && !availableLotIds().has(row.lotId)) {
                       <option [value]="row.lotId" disabled>原選批次於該日無法使用</option>
@@ -282,6 +280,7 @@ export class FertilizationPage {
       .sort((a, b) => compareOperationValues(a[column], b[column], direction));
   });
   protected readonly today = signal(taipeiToday());
+  protected readonly latestDate = computed(() => latestRecordDate(this.planting()?.completionDate, this.today()));
   protected readonly operationDate = signal(this.today());
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
@@ -394,10 +393,10 @@ export class FertilizationPage {
     this.detailErrors.set({});
     this.pendingDelete.set(null);
     this.sprayWater.set(operation?.sprayWaterVolumeLiters == null ? '' : String(operation.sprayWaterVolumeLiters));
-    this.operationDate.set(operation?.operationDate ?? this.today());
+    this.operationDate.set(operation?.operationDate ?? this.latestDate());
     this.rows.set(operation?.details.map(detail => ({
       id: detail.id, materialType: detail.materialType, materialId: detail.materialId, lotId: detail.materialPurchaseLotId, quantity: String(detail.quantity),
-      original: { lotId: detail.materialPurchaseLotId, unitPrice: detail.unitPrice },
+      original: { lotId: detail.materialPurchaseLotId },
     })) ?? [{ materialType: 'fertilizer', materialId: '', lotId: '', quantity: '' }]);
     this.message.set('');
     this.editorOpen.set(true);
@@ -436,8 +435,8 @@ export class FertilizationPage {
     this.today.set(taipeiToday());
     const operationDate = this.operationDate();
     const applicationMethod = this.applicationMethod();
-    if (!operationDate || operationDate > this.today() || !applicationMethod) {
-      this.message.set('請確認施用日期及施用方式。');
+    if (!operationDate || operationDate > this.latestDate() || !applicationMethod) {
+      this.message.set(`請確認施用日期及施用方式，日期最晚為${latestRecordLabel(this.planting()?.completionDate, this.today())}。`);
       return;
     }
     this.detailErrors.set({});

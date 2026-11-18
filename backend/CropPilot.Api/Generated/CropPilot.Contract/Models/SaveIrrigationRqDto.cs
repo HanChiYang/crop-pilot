@@ -19,17 +19,17 @@ using Newtonsoft.Json;
 using CropPilot.Contract.Converters;
 
 namespace CropPilot.Contract.Models
-{
+{ 
     /// <summary>
-    ///
+    /// 
     /// </summary>
     [DataContract]
     public class SaveIrrigationRqDto : IEquatable<SaveIrrigationRqDto>
     {
         /// <summary>
-        /// 實際灌溉日期，最晚為台北當日。
+        /// 實際灌溉日期，最晚為台北當日，已結束的栽培也不得晚於結束日。
         /// </summary>
-        /// <value>實際灌溉日期，最晚為台北當日。</value>
+        /// <value>實際灌溉日期，最晚為台北當日，已結束的栽培也不得晚於結束日。</value>
         [Required]
         [DataMember(Name="operationDate", EmitDefaultValue=true)]
         public DateOnly OperationDate { get; set; }
@@ -104,22 +104,22 @@ namespace CropPilot.Contract.Models
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
 
-            return
+            return 
                 (
                     OperationDate == other.OperationDate ||
-
+                    
                     OperationDate.Equals(other.OperationDate)
-                ) &&
+                ) && 
                 (
                     Method == other.Method ||
-
+                    
                     Method.Equals(other.Method)
-                ) &&
+                ) && 
                 (
                     WaterVolumeLiters == other.WaterVolumeLiters ||
                     WaterVolumeLiters != null &&
                     WaterVolumeLiters.Equals(other.WaterVolumeLiters)
-                ) &&
+                ) && 
                 (
                     Description == other.Description ||
                     Description != null &&
@@ -137,9 +137,9 @@ namespace CropPilot.Contract.Models
             {
                 var hashCode = 41;
                 // Suitable nullity checks etc, of course :)
-
+                    
                     hashCode = hashCode * 59 + OperationDate.GetHashCode();
-
+                    
                     hashCode = hashCode * 59 + Method.GetHashCode();
                     if (WaterVolumeLiters != null)
                     hashCode = hashCode * 59 + WaterVolumeLiters.GetHashCode();

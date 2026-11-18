@@ -11,7 +11,7 @@ import { IrrigationMethod } from './generated/model/irrigationMethod';
 import { IrrigationRsDto } from './generated/model/irrigationRsDto';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
 import { SaveIrrigationRqDto } from './generated/model/saveIrrigationRqDto';
-import { compareOperationValues, nextOperationSort, OperationSort, operationError, parseOperationDecimal, taipeiToday } from './operation-form';
+import { compareOperationValues, nextOperationSort, OperationSort, operationError, parseOperationDecimal, latestRecordDate, latestRecordLabel, taipeiToday } from './operation-form';
 import { plantingStatusLabel } from './planting-display';
 
 type IrrigationSort = 'operationDate' | 'method' | 'waterVolumeLiters';
@@ -71,7 +71,7 @@ interface IrrigationInput {
           <div class="field-form-grid">
             <div class="field-control">
               <label for="irrigation-date">灌溉日期</label>
-              <input id="irrigation-date" type="date" name="operationDate" required [max]="today()"
+              <input id="irrigation-date" type="date" name="operationDate" required [max]="latestDate()"
                 [(ngModel)]="input.operationDate" (focus)="refreshToday()">
             </div>
             <div class="field-control">
@@ -187,6 +187,7 @@ export class IrrigationPage {
   protected readonly today = signal(taipeiToday());
   protected readonly planting = signal<PlantingRsDto | null>(null);
   protected readonly canSave = computed(() => this.planting() !== null);
+  protected readonly latestDate = computed(() => latestRecordDate(this.planting()?.completionDate, this.today()));
   protected readonly fieldName = signal('');
   protected readonly statusLabel = plantingStatusLabel;
   protected readonly sortableColumns = [
@@ -269,7 +270,7 @@ export class IrrigationPage {
     this.message.set('');
     this.editor.set({
       id: operation?.id,
-      operationDate: operation?.operationDate ?? this.today(),
+      operationDate: operation?.operationDate ?? this.latestDate(),
       method: operation?.method ?? '',
       volume: operation?.waterVolumeLiters?.toFixed(6).replace(/\.?0+$/, '') ?? '',
       description: operation?.description ?? '',
@@ -279,8 +280,8 @@ export class IrrigationPage {
   protected async save(input: IrrigationInput): Promise<void> {
     if (this.busy()) return;
     this.refreshToday();
-    if (!input.operationDate || input.operationDate > this.today() || !input.method) {
-      this.message.set('請確認灌溉日期與灌溉方式，日期最晚為今天。');
+    if (!input.operationDate || input.operationDate > this.latestDate() || !input.method) {
+      this.message.set(`請確認灌溉日期與灌溉方式，日期最晚為${latestRecordLabel(this.planting()?.completionDate, this.today())}。`);
       return;
     }
     const volume = input.volume.trim();
