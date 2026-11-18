@@ -204,7 +204,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         Assert.Equal(0, (await client.GetFromJsonAsync<JsonElement>("/api/v1/pesticides")).GetArrayLength());
     }
 
-    /// <summary>驗證已結束栽培的複合施肥補登、退回用量與單價快照。</summary>
+    /// <summary>驗證已結束栽培的複合施肥補登、退回用量，以及成本隨批次單價更正與補填。</summary>
     [Fact]
     public async Task CompletedPlantingCanRecordAndEditMultipleMaterials()
     {
@@ -232,6 +232,12 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         Assert.Equal(HttpStatusCode.Conflict, belowUsed.StatusCode);
         using var updatedLot = await client.PutAsJsonAsync(lotUrl, new { receivedQuantity = 10, unitPrice = 30 });
         Assert.Equal(HttpStatusCode.OK, updatedLot.StatusCode);
+        using var pricedOtherLot = await client.PutAsJsonAsync($"/api/v1/fertilizer-lots/{otherLot}",
+            new { receivedQuantity = 2, unitPrice = 5 });
+        Assert.Equal(HttpStatusCode.OK, pricedOtherLot.StatusCode);
+        var repriced = (await client.GetFromJsonAsync<JsonElement>(operationsUrl))[0].GetProperty("details");
+        Assert.Equal(30m, repriced[0].GetProperty("unitPrice").GetDecimal());
+        Assert.Equal(5m, repriced[1].GetProperty("unitPrice").GetDecimal());
         using var cannotDelete = await client.DeleteAsync(lotUrl);
         Assert.Equal(HttpStatusCode.Conflict, cannotDelete.StatusCode);
 
@@ -253,7 +259,7 @@ public sealed class FertilizationApiTests(FieldsApiFixture fixture) : IClassFixt
         var updated = await ReadAsync(edited, HttpStatusCode.OK);
         var updatedDetails = updated.GetProperty("details");
         Assert.Equal(detailId, updatedDetails[0].GetProperty("id").GetGuid());
-        Assert.Equal(20m, updatedDetails[0].GetProperty("unitPrice").GetDecimal());
+        Assert.Equal(30m, updatedDetails[0].GetProperty("unitPrice").GetDecimal());
         Assert.Equal(30m, updatedDetails[1].GetProperty("unitPrice").GetDecimal());
 
         var inventory = await client.GetFromJsonAsync<JsonElement>(MaterialsUrl);
