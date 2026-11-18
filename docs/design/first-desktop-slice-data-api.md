@@ -182,7 +182,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 | JSON 欄位 | 資料來源與行為 |
 | --- | --- |
 | `id`、`operationDate` | `field_operations.id`、`operation_date`。 |
-| `applicationMethod` | `material_applications.application_method`。整筆必填，`spray` 為噴施，`broadcast` 為撒施。 |
+| `applicationMethod` | `material_applications.application_method`。整筆必填，`spray` 為噴施，`broadcast` 為撒施，資料庫依序保存 `SPRAY`、`BROADCAST`。 |
 | `description` | `field_operations.description`。選填備註，最多 500 字。 |
 | `sprayWaterVolumeLiters` | `material_applications.spray_water_volume_liters`。選填，單位為公升。省略或傳 `null` 時保存為 NULL，回應以 `null` 表示未記錄或無噴施。 |
 | `details[].id` | `material_application_details.id`。編輯時帶原 ID 保留該明細，省略 ID 新增明細。未送回的原明細移除。重複或不屬於本作業的明細 ID 回 `400`。 |
@@ -225,7 +225,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 | `PUT /api/v1/pesticide-lots/{lotId}` | `200`，更新後的批次 | 更正登記量、日期或單價。來源固定，進貨單價必填。登記量低於已用量或生效日晚於相關施用日時回傳 `409`。 |
 | `DELETE /api/v1/pesticide-lots/{lotId}` | `204` | 刪除自己的農藥批次。已有資材施用明細引用回傳 `409`，批次不存在、不屬於自己或類別不符回傳 `404`。 |
 
-主檔的 `stockUnit` 和明細的 `unit` 使用 `liter`、`milliliter`、`kilogram`、`gram`，依序對應資料庫和畫面上的公升、毫升、公斤、公克。批次沿用主檔單位，以及肥料的購買日、生效日、數值精度及帳號歸屬規則。農藥進貨必填 `unitPrice`，可填 `0`。期初庫存成本未知可省略或傳 `null`。回傳的 `totalCost` 為 `receivedQuantity × unitPrice`，使用十進位計算，單價未知時回傳 `null`。`remainingQuantity` 為登記量扣除已提交的資材施用明細合計。
+農藥主檔的 `stockUnit` 與包裝規格的 `package.unit` 使用 `liter`、`milliliter`、`kilogram`、`gram`，資料庫依序保存 `LITER`、`MILLILITER`、`KILOGRAM`、`GRAM`，畫面顯示公升、毫升、公斤、公克。資材施用明細及栽培刪除預覽的 `unit` 回傳顯示文字，例如 `公升`。批次沿用主檔單位，以及肥料的購買日、生效日、數值精度及帳號歸屬規則。農藥進貨必填 `unitPrice`，可填 `0`。期初庫存成本未知可省略或傳 `null`。回傳的 `totalCost` 為 `receivedQuantity × unitPrice`，使用十進位計算，單價未知時回傳 `null`。`remainingQuantity` 為登記量扣除已提交的資材施用明細合計。
 
 例如登記 40 公升、每公升 NT$350 的進貨批次，回應的 `totalCost` 為 14000、`currencyCode` 為 `TWD`。
 
