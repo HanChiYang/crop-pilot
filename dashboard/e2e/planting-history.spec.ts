@@ -7,7 +7,7 @@ const historyUrl = '/dashboard/planting-history';
 const northField = { id: north, name: '北側田', areaSquareMeters: 1000 };
 const record = {
   id: plantingId, fieldId: north, fieldName: '北側田', cropName: '番茄',
-  variety: '玉女', actualPlantingDate: '2026-03-12', areaSquareMeters: 240,
+  variety: '玉女', actualPlantingDate: '2026-03-12', completionDate: '2026-07-20', areaSquareMeters: 240,
 };
 
 test('栽培歷史可依條件查詢、重試、看詳情及返回原結果', async ({ page }) => {
@@ -60,6 +60,7 @@ test('栽培歷史可依條件查詢、重試、看詳情及返回原結果', as
   expect(queries).toEqual([]);
   await search.click();
   await expect(table).toContainText('北側田');
+  await expect(table.getByRole('row').nth(1).getByRole('cell').nth(3)).toHaveText('2026-07-20');
   expect(queries).toEqual([[]]);
 
   await crops.selectOption('玉米');

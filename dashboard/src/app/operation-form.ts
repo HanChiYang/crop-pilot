@@ -11,6 +11,16 @@ export function taipeiToday(): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
 }
 
+/** 作業與採收日期的上限：已結束的栽培為結束日，其他狀態為台北當日。 */
+export function latestRecordDate(completionDate: string | null | undefined, today: string): string {
+  return completionDate && completionDate < today ? completionDate : today;
+}
+
+/** 日期上限的說明文字，用於前端驗證訊息。 */
+export function latestRecordLabel(completionDate: string | null | undefined, today: string): string {
+  return completionDate && completionDate < today ? `結束日 ${completionDate}` : '今天';
+}
+
 export function operationError(error: unknown, fallback: string): string {
   if (!(error instanceof HttpErrorResponse) || ![400, 409].includes(error.status)) return fallback;
   const problem = error.error as { detail?: string; errors?: Record<string, string[]> } | null;

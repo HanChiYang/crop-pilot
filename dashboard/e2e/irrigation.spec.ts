@@ -12,8 +12,8 @@ const itemApi = '/api/v1/irrigations/' + irrigationId;
 const historyPath = '/dashboard/planting-history/' + fieldId + '/' + plantingId;
 const managementPath = '/dashboard/plantings?fieldId=' + fieldId;
 
-async function mockApi(page: Page, status: 'completed' | 'growing' | 'planned') {
-  const record = { ...planting, status };
+async function mockApi(page: Page, status: 'completed' | 'growing' | 'planned', completionDate: string | null = null) {
+  const record = { ...planting, status, completionDate };
   const writes: { method: string; path: string; body: unknown }[] = [];
   let operation: IrrigationRsDto | null = null;
   await page.route('**/api/v1/**', async route => {
@@ -64,6 +64,23 @@ async function mockApi(page: Page, status: 'completed' | 'growing' | 'planned') 
   });
   return writes;
 }
+
+test('已結束栽培的灌溉日期以結束日為上限', async ({ page }) => {
+  const writes = await mockApi(page, 'completed', '2026-01-02');
+  await page.clock.setFixedTime(new Date('2026-01-05T04:00:00Z'));
+  await page.goto(historyPath);
+  await page.getByRole('link', { name: '灌溉紀錄' }).click();
+  await page.getByRole('button', { name: '新增灌溉' }).click();
+
+  const date = page.getByLabel('灌溉日期');
+  await expect(date).toHaveAttribute('max', '2026-01-02');
+  await expect(date).toHaveValue('2026-01-02');
+  await date.fill('2026-01-03');
+  await page.getByLabel('灌溉方式').selectOption('drip');
+  await page.getByRole('button', { name: '儲存', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('日期最晚為結束日 2026-01-02');
+  expect(writes).toHaveLength(0);
+});
 
 test('從栽培歷史補登灌溉、清空用水量並刪除紀錄', async ({ page }) => {
   const writes = await mockApi(page, 'completed');

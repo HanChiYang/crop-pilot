@@ -11,6 +11,7 @@ import { CreatePlantingRqDto } from "./generated/model/createPlantingRqDto";
 import { FieldDto } from "./generated/model/fieldDto";
 import { EditPlantingRqDto } from "./generated/model/editPlantingRqDto";
 import { PlantingStatus } from "./generated/model/plantingStatus";
+import { taipeiToday } from "./operation-form";
 import { plantingStatusLabel } from "./planting-display";
 
 type PlantingErrors = Partial<Record<keyof EditPlantingRqDto, string[]>>;
@@ -140,6 +141,25 @@ type PlantingErrors = Partial<Record<keyof EditPlantingRqDto, string[]>>;
                 </p>
               </div>
             }
+            @if (status() === "completed") {
+              <div class="field-control">
+                <label for="completion-date">結束日（必填）</label>
+                <input
+                  id="completion-date"
+                  type="date"
+                  formControlName="completionDate"
+                  required
+                  (focus)="refreshToday()"
+                  [min]="form.controls.actualPlantingDate.value || null"
+                  [max]="today()"
+                  [attr.aria-invalid]="errors().completionDate ? 'true' : null"
+                  aria-describedby="completion-date-error"
+                />
+                <p class="error" id="completion-date-error">
+                  {{ errors().completionDate?.[0] }}
+                </p>
+              </div>
+            }
             <div class="field-control">
               <label for="planting-area">占用面積（m²，必填）</label>
               <input
@@ -209,7 +229,7 @@ type PlantingErrors = Partial<Record<keyof EditPlantingRqDto, string[]>>;
     }
     <dialog #completeDialog class="field-delete-dialog" aria-labelledby="complete-title">
       <h2 id="complete-title">確認結束栽培</h2>
-      <p>結束後，這筆紀錄會移至栽培紀錄，並釋放占用面積。</p>
+      <p>結束日 {{ form.controls.completionDate.value }}。結束後，這筆紀錄會移至栽培紀錄，並釋放占用面積。</p>
       <div class="field-form-actions">
         <button type="button" class="button button-outline" autofocus (click)="completeDialog.close()">取消</button>
         <button type="button" class="button" (click)="completeDialog.close(); save(completeDialog, true)">確認結束</button>
@@ -263,6 +283,7 @@ export class PlantingFormPage {
     }
   });
   protected readonly statusLabel = plantingStatusLabel;
+  protected readonly today = signal(taipeiToday());
   protected readonly form = inject(FormBuilder).nonNullable.group({
     cropName: "",
     variety: "",
@@ -270,6 +291,7 @@ export class PlantingFormPage {
     areaSquareMeters: "",
     plannedPlantingDate: "",
     actualPlantingDate: "",
+    completionDate: this.today(),
     notes: "",
   });
   protected readonly status = toSignal(this.form.controls.status.valueChanges, {
@@ -321,6 +343,7 @@ export class PlantingFormPage {
               status: planting.status,
               plannedPlantingDate: planting.plannedPlantingDate ?? "",
               actualPlantingDate: planting.actualPlantingDate ?? "",
+              completionDate: planting.completionDate ?? this.today(),
               areaSquareMeters: String(planting.areaSquareMeters),
               notes: planting.notes ?? "",
             });
@@ -330,6 +353,10 @@ export class PlantingFormPage {
         error: (error: unknown) =>
           this.showFailure(error, "目前無法載入田區，請再試一次。"),
       });
+  }
+
+  protected refreshToday(): void {
+    this.today.set(taipeiToday());
   }
 
   protected selectField(fieldId: string): void {
@@ -342,6 +369,7 @@ export class PlantingFormPage {
     const field = this.field();
     if (this.saving() || this.saved() || !field) return;
     this.message.set("");
+    this.today.set(taipeiToday());
     const values = this.form.getRawValue();
     const cropName = values.cropName.trim();
     const errors: PlantingErrors = {};
@@ -359,6 +387,15 @@ export class PlantingFormPage {
     }
     if (this.requiresActualDate() && !values.actualPlantingDate) {
       errors.actualPlantingDate = ["請填寫實際栽種日。"];
+    }
+    if (values.status === "completed") {
+      if (!values.completionDate) {
+        errors.completionDate = ["請填寫結束日。"];
+      } else if (values.completionDate > this.today()) {
+        errors.completionDate = ["結束日不得晚於今天。"];
+      } else if (values.actualPlantingDate && values.completionDate < values.actualPlantingDate) {
+        errors.completionDate = ["結束日不得早於實際栽種日。"];
+      }
     }
     this.errors.set(errors);
     if (Object.keys(errors).length > 0) {
@@ -380,6 +417,7 @@ export class PlantingFormPage {
         !this.plantingId && values.status === "planned"
           ? null
           : values.actualPlantingDate || null,
+      completionDate: values.status === "completed" ? values.completionDate : null,
       areaSquareMeters,
       notes: values.notes.trim() || null,
     };
@@ -391,7 +429,12 @@ export class PlantingFormPage {
       : this.plantings.createPlanting({
           fieldId: field.id,
           createPlantingRqDto: {
-            ...request,
+            cropName: request.cropName,
+            variety: request.variety,
+            plannedPlantingDate: request.plannedPlantingDate,
+            actualPlantingDate: request.actualPlantingDate,
+            areaSquareMeters: request.areaSquareMeters,
+            notes: request.notes,
             status: values.status as CreatePlantingRqDto.StatusEnum,
           },
         });

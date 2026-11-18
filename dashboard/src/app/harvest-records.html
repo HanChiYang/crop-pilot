@@ -114,7 +114,7 @@
       <fieldset [disabled]="busy()">
         <div class="field-control">
           <label for="harvest-date">採收日期</label>
-          <input id="harvest-date" type="date" name="harvestDate" required [max]="today()"
+          <input id="harvest-date" type="date" name="harvestDate" required [max]="latestDate()"
             [(ngModel)]="form.date" (focus)="refreshToday()">
         </div>
         <div class="field-control">

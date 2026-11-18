@@ -98,6 +98,7 @@ function load<T>(request: Observable<T>): Observable<LoadState<T>> {
                     <th scope="col">作物</th>
                     <th scope="col">品種</th>
                     <th scope="col">實際栽種日</th>
+                    <th scope="col">結束日</th>
                     <th scope="col">占用面積</th>
                     <th scope="col">操作</th>
                   </tr>
@@ -109,6 +110,7 @@ function load<T>(request: Observable<T>): Observable<LoadState<T>> {
                       <th scope="row">{{ row.cropName }}</th>
                       <td>{{ row.variety || '—' }}</td>
                       <td>{{ row.actualPlantingDate }}</td>
+                      <td>{{ row.completionDate }}</td>
                       <td>{{ row.areaSquareMeters | number: '1.0-4' }} m²</td>
                       <td>
                         <a [routerLink]="[row.fieldId, row.id]"
