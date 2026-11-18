@@ -26,6 +26,8 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 ## 目前進度
 
+資料庫結構慣例已在 `feature/schema-conventions` 統一，API 契約不變。施用方式、灌溉方式、包裝單位及農藥庫存單位改存大寫代碼，農藥單位不再以中文保存。灌溉與資材施用明細加上固定的 `operation_type`，以複合外鍵參照 `field_operations (id, operation_type)`，資料庫會擋下接到其他類型作業的明細。田區、栽培、資材及批次補齊 `created_at` 與 `updated_at`，成功修改時更新。三個 migration 已在 PostgreSQL 18 以舊版資料驗證升版、降版與約束，DDL 改由 `pg_dump` 重新產生並核對與 migration 結構一致。95 個後端整合測試通過。
+
 資材施用成本改由批次目前的單價計算，明細不再保存名稱、單位與單價快照，更正或補填批次單價後既有成本隨之更新。栽培新增結束日，改為已結束時必填並預設台北當日，不得早於最後一筆採收或作業。結束後補登的採收、資材施用及灌溉不得晚於結束日，前端日期上限同步調整。栽培紀錄清單與詳情顯示結束日，既有已結束紀錄以最後活動日回填。兩個 migration 已在 PostgreSQL 18 以舊版資料驗證升版、降版與約束，DDL 與 migration 結構一致。92 個 API 整合測試及 22 個 Chromium 瀏覽器測試通過。已結束紀錄的結束日修正尚無編輯入口，留待後續。[資料庫設計](design/first-desktop-slice-database.md#material_application_details)
 
 栽培詳情與採收的後端已在 `feature/planting-harvest` 實作清單、篩選、排序、新增、編輯及刪除。採收累計涵蓋整批，已結束批次可補登。整批刪除預覽與確認會阻擋已有採收的批次。已生成 C# 契約與 Angular client，已驗證 PostgreSQL 18 升降版 SQL，90 個後端整合測試通過。桌機採收已從作物栽培列選單的「查看詳情」及栽培紀錄接上同一個畫面，支援日期篩選與排序、整批累計、增修刪及已結束批次補登。詳情顯示採收、販售、成本及累計損益四個頁籤，其中採收可操作。Angular 正式建置與 11 個相關 Edge 瀏覽器案例通過，其中一例以獨立 PostgreSQL 18 和實際 API 登入後驗證新增、重新整理、篩選、編輯與刪除。補上頁籤後再驗證三個採收案例，包含鍵盤切換及保留篩選。[採收設計](design/planting-harvest-data-api.md) · [OpenAPI 契約](openapi/openapi.yaml)

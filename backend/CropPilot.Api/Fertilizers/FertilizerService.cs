@@ -45,14 +45,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
         if (!ValidText(unit, 20))
             return new(null, Invalid, ErrorMessages.FertilizerTextInvalid, "stockUnit");
 
-        var packageUnit = package?.Unit switch
-        {
-            MaterialPackageUnit.LiterEnum => "liter",
-            MaterialPackageUnit.MilliliterEnum => "milliliter",
-            MaterialPackageUnit.KilogramEnum => "kilogram",
-            MaterialPackageUnit.GramEnum => "gram",
-            _ => null
-        };
+        var packageUnit = package is null ? null : ContractEnumJsonConverter<MaterialPackageUnit>.ToCode(package.Unit);
         if (package is not null)
         {
             if (package.Quantity <= 0 || !ValidQuantity(package.Quantity))
@@ -84,6 +77,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
             }
             material.Name = name;
             material.StockUnit = unit;
+            material.UpdatedAt = DateTimeOffset.UtcNow;
         }
         else
         {
@@ -237,6 +231,8 @@ public sealed class FertilizerService(FertilizerRepository repository)
         lot.UnitPrice = price;
         if (lotId is null)
             repository.Add(lot);
+        else
+            lot.UpdatedAt = DateTimeOffset.UtcNow;
         await repository.SaveAsync(ct);
         await transaction.CommitAsync(ct);
         return new(new(lot, quantity - used), lotId is null ? Created : Updated);
@@ -399,7 +395,7 @@ public sealed class FertilizerService(FertilizerRepository repository)
             }
         }
 
-        application.ApplicationMethod = method == MaterialApplicationMethod.SprayEnum ? "spray" : "broadcast";
+        application.ApplicationMethod = ContractEnumJsonConverter<MaterialApplicationMethod>.ToCode(method)!;
         application.SprayWaterVolumeLiters = water;
         operation.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         operation.OperationDate = date;

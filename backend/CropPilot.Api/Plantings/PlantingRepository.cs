@@ -140,7 +140,7 @@ public sealed class PlantingRepository(CropPilotDbContext database)
             .Select(value => new
             {
                 value.MaterialPurchaseLotId, MaterialName = value.Lot.Material.Name,
-                Unit = value.Lot.Material.StockUnit, value.Quantity,
+                Unit = value.Lot.Material.StockUnit, value.Lot.Material.MaterialType, value.Quantity,
                 value.Lot.Source, value.Lot.AvailableFrom
             }).ToListAsync(ct);
 
@@ -148,7 +148,7 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         {
             var first = group.First();
             return new PlantingInventoryReturn(group.Key, first.MaterialName, first.Source, first.AvailableFrom,
-                group.Sum(value => value.Quantity), first.Unit);
+                group.Sum(value => value.Quantity), first.Unit, first.MaterialType);
         }).OrderBy(value => value.MaterialName, StringComparer.Ordinal).ThenBy(value => value.AvailableFrom)
             .ThenBy(value => value.LotId).ToList();
 

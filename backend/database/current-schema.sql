@@ -1,5 +1,5 @@
 -- CropPilot current PostgreSQL 18 schema.
--- Source: EF Core migrations through 20261118014227_AddPlantingCompletionDate.
+-- Source: EF Core migrations through 20261118023002_AddAuditTimestamps.
 -- Regenerate after every schema migration.
 
 --
@@ -40,9 +40,10 @@ CREATE TABLE public.agricultural_materials (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     package_quantity numeric(15,6),
     package_unit character varying(10),
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_agricultural_materials_name CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT ck_agricultural_materials_package CHECK ((((package_quantity IS NULL) AND (package_unit IS NULL)) OR ((package_quantity IS NOT NULL) AND ((package_quantity >= 0.000001) AND (package_quantity <= 999999999.999999)) AND (package_unit IS NOT NULL) AND ((package_unit)::text = ANY ((ARRAY['liter'::character varying, 'milliliter'::character varying, 'kilogram'::character varying, 'gram'::character varying])::text[]))))),
-    CONSTRAINT ck_agricultural_materials_stock_unit CHECK (((btrim((stock_unit)::text) <> ''::text) AND (((material_type)::text <> 'PESTICIDE'::text) OR ((stock_unit)::text = ANY ((ARRAY['公升'::character varying, '毫升'::character varying, '公斤'::character varying, '公克'::character varying])::text[]))))),
+    CONSTRAINT ck_agricultural_materials_package CHECK ((((package_quantity IS NULL) AND (package_unit IS NULL)) OR ((package_quantity IS NOT NULL) AND ((package_quantity >= 0.000001) AND (package_quantity <= 999999999.999999)) AND (package_unit IS NOT NULL) AND ((package_unit)::text = ANY ((ARRAY['LITER'::character varying, 'MILLILITER'::character varying, 'KILOGRAM'::character varying, 'GRAM'::character varying])::text[]))))),
+    CONSTRAINT ck_agricultural_materials_stock_unit CHECK (((btrim((stock_unit)::text) <> ''::text) AND (((material_type)::text <> 'PESTICIDE'::text) OR ((stock_unit)::text = ANY ((ARRAY['LITER'::character varying, 'MILLILITER'::character varying, 'KILOGRAM'::character varying, 'GRAM'::character varying])::text[]))))),
     CONSTRAINT ck_agricultural_materials_type CHECK (((material_type)::text = ANY ((ARRAY['FERTILIZER'::character varying, 'PESTICIDE'::character varying])::text[])))
 );
 
@@ -110,6 +111,8 @@ CREATE TABLE public.fields (
     latitude numeric(9,6),
     longitude numeric(9,6),
     description character varying(1000),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_fields_area_square_meters CHECK (((area_square_meters > (0)::numeric) AND (area_square_meters <= 9999999999.9999))),
     CONSTRAINT ck_fields_coordinates CHECK ((((latitude IS NULL) AND (longitude IS NULL)) OR ((latitude IS NOT NULL) AND (longitude IS NOT NULL) AND ((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric)) AND ((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))))),
     CONSTRAINT ck_fields_name CHECK ((btrim((name)::text, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000'::text) <> ''::text))
@@ -141,7 +144,9 @@ CREATE TABLE public.irrigation_details (
     field_operation_id uuid NOT NULL,
     method character varying(24) NOT NULL,
     water_volume_liters numeric(15,6),
-    CONSTRAINT ck_irrigation_details_method CHECK (((method)::text = ANY ((ARRAY['drip'::character varying, 'sprinkler'::character varying, 'furrow'::character varying, 'manual'::character varying, 'other'::character varying])::text[]))),
+    operation_type character varying(24) NOT NULL,
+    CONSTRAINT ck_irrigation_details_method CHECK (((method)::text = ANY ((ARRAY['DRIP'::character varying, 'SPRINKLER'::character varying, 'FURROW'::character varying, 'MANUAL'::character varying, 'OTHER'::character varying])::text[]))),
+    CONSTRAINT ck_irrigation_details_operation_type CHECK (((operation_type)::text = 'IRRIGATION'::text)),
     CONSTRAINT ck_irrigation_details_water_volume_liters CHECK (((water_volume_liters > (0)::numeric) AND (water_volume_liters < (1000000000)::numeric)))
 );
 
@@ -199,8 +204,10 @@ CREATE TABLE public.material_applications (
     field_operation_id uuid NOT NULL,
     spray_water_volume_liters numeric(15,6),
     application_method character varying(24) NOT NULL,
-    CONSTRAINT ck_material_applications_method CHECK (application_method IN ('spray', 'broadcast')),
-    CONSTRAINT ck_material_applications_water CHECK (spray_water_volume_liters IS NULL OR (application_method = 'spray' AND spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999))
+    operation_type character varying(24) NOT NULL,
+    CONSTRAINT ck_material_applications_method CHECK (((application_method)::text = ANY ((ARRAY['SPRAY'::character varying, 'BROADCAST'::character varying])::text[]))),
+    CONSTRAINT ck_material_applications_operation_type CHECK (((operation_type)::text = 'MATERIAL_APPLICATION'::text)),
+    CONSTRAINT ck_material_applications_water CHECK (((spray_water_volume_liters IS NULL) OR (((application_method)::text = 'SPRAY'::text) AND ((spray_water_volume_liters >= 0.000001) AND (spray_water_volume_liters <= 999999999.999999)))))
 );
 
 
@@ -218,6 +225,7 @@ CREATE TABLE public.material_purchase_lots (
     unit_price numeric(15,6),
     currency_code character(3) NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_material_purchase_lots_currency CHECK ((currency_code = 'TWD'::bpchar)),
     CONSTRAINT ck_material_purchase_lots_dates CHECK (((((source)::text = 'PURCHASE'::text) AND (purchased_on IS NOT NULL) AND (purchased_on = available_from)) OR (((source)::text = 'OPENING_STOCK'::text) AND ((purchased_on IS NULL) OR (purchased_on <= available_from))))),
     CONSTRAINT ck_material_purchase_lots_price CHECK (((unit_price >= (0)::numeric) AND (unit_price <= 999999999.999999))),
@@ -240,6 +248,8 @@ CREATE TABLE public.plantings (
     description character varying(1000),
     area_square_meters numeric(14,4) NOT NULL,
     completion_date date,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_plantings_actual_planting_date CHECK ((((status)::text <> ALL ((ARRAY['GROWING'::character varying, 'COMPLETED'::character varying])::text[])) OR (actual_planting_date IS NOT NULL))),
     CONSTRAINT ck_plantings_area_square_meters CHECK ((area_square_meters > (0)::numeric)),
     CONSTRAINT ck_plantings_completion_date CHECK (((((status)::text = 'COMPLETED'::text) = (completion_date IS NOT NULL)) AND (completion_date >= actual_planting_date))),
@@ -272,6 +282,14 @@ CREATE TABLE public.user_roles (
     role character varying(16) NOT NULL,
     CONSTRAINT ck_user_roles_role CHECK (((role)::text = ANY ((ARRAY['USER'::character varying, 'ADMIN'::character varying])::text[])))
 );
+
+
+--
+-- Name: field_operations ak_field_operations_id_operation_type; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.field_operations
+    ADD CONSTRAINT ak_field_operations_id_operation_type UNIQUE (id, operation_type);
 
 
 --
@@ -445,10 +463,10 @@ CREATE INDEX ix_harvests_planting_id_harvest_date_created_at_id ON public.harves
 
 
 --
--- Name: ix_irrigation_details_field_operation_id; Type: INDEX; Schema: public; Owner: -
+-- Name: ix_irrigation_details_field_operation_id_operation_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX ix_irrigation_details_field_operation_id ON public.irrigation_details USING btree (field_operation_id);
+CREATE UNIQUE INDEX ix_irrigation_details_field_operation_id_operation_type ON public.irrigation_details USING btree (field_operation_id, operation_type);
 
 
 --
@@ -473,10 +491,10 @@ CREATE INDEX ix_material_application_details_material_purchase_lot_id ON public.
 
 
 --
--- Name: ix_material_applications_field_operation_id; Type: INDEX; Schema: public; Owner: -
+-- Name: ix_material_applications_field_operation_id_operation_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX ix_material_applications_field_operation_id ON public.material_applications USING btree (field_operation_id);
+CREATE UNIQUE INDEX ix_material_applications_field_operation_id_operation_type ON public.material_applications USING btree (field_operation_id, operation_type);
 
 
 --
@@ -584,11 +602,11 @@ ALTER TABLE ONLY public.harvests
 
 
 --
--- Name: irrigation_details fk_irrigation_details_field_operations_field_operation_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: irrigation_details fk_irrigation_details_field_operations; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.irrigation_details
-    ADD CONSTRAINT fk_irrigation_details_field_operations_field_operation_id FOREIGN KEY (field_operation_id) REFERENCES public.field_operations(id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_irrigation_details_field_operations FOREIGN KEY (field_operation_id, operation_type) REFERENCES public.field_operations(id, operation_type) ON DELETE CASCADE;
 
 
 --
@@ -616,11 +634,11 @@ ALTER TABLE ONLY public.material_application_details
 
 
 --
--- Name: material_applications fk_material_applications_field_operations_field_operation_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: material_applications fk_material_applications_field_operations; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.material_applications
-    ADD CONSTRAINT fk_material_applications_field_operations_field_operation_id FOREIGN KEY (field_operation_id) REFERENCES public.field_operations(id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_material_applications_field_operations FOREIGN KEY (field_operation_id, operation_type) REFERENCES public.field_operations(id, operation_type) ON DELETE CASCADE;
 
 
 --
@@ -678,4 +696,7 @@ INSERT INTO public.ef_migrations_history (migration_id, product_version) VALUES
     ('20261116073756_MoveMaterialApplicationMethod', '10.0.13'),
     ('20261117045413_CreateHarvests', '10.0.13'),
     ('20261118014141_DeriveApplicationCostsFromLots', '10.0.13'),
-    ('20261118014227_AddPlantingCompletionDate', '10.0.13');
+    ('20261118014227_AddPlantingCompletionDate', '10.0.13'),
+    ('20261118022654_NormalizeEnumCodes', '10.0.13'),
+    ('20261118022829_EnforceOperationDetailTypes', '10.0.13'),
+    ('20261118023002_AddAuditTimestamps', '10.0.13');

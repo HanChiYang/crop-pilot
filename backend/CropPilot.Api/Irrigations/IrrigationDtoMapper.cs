@@ -12,7 +12,7 @@ internal static class IrrigationDtoMapper
         Id = operation.Id,
         OperationDate = operation.OperationDate,
         Description = operation.Description!,
-        Method = ContractEnumJsonConverter<IrrigationMethod>.FromName(operation.IrrigationDetail!.Method),
+        Method = ContractEnumJsonConverter<IrrigationMethod>.FromCode(operation.IrrigationDetail!.Method),
         WaterVolumeLiters = operation.IrrigationDetail.WaterVolumeLiters
     };
 }

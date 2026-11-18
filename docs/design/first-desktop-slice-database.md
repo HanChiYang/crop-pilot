@@ -26,6 +26,10 @@
 
 PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式的資料表一律以單欄 `id` 為主鍵，型別為 `uuid`。新 ID 由伺服器產生。指向這些主鍵的外鍵也使用 `uuid`。帳號相關資料表由 `DesktopAccountModel` migration 建立，田區資料表由 `CreateFields` migration 建立。栽培資料表由 CreatePlantings migration 建立。API JSON 欄位採 OpenAPI 契約中的名稱，例如 `crop_name` 對應 `cropName`。
 
+列舉欄位一律保存大寫 `SNAKE_CASE` 代碼，例如 `SPRAY`、`DRIP`、`LITER`，由 `CHECK` 限定允許值。API 的列舉值依 OpenAPI 契約使用小寫，由 API 層轉換。`NormalizeEnumCodes` migration 將施用方式、灌溉方式、包裝單位及農藥庫存單位的既有資料轉為大寫代碼，降版時轉回原本的值。
+
+使用者可直接建立及修改的主表都有 `created_at` 與 `updated_at`。建立時由資料庫預設值寫入兩欄，成功修改時由應用程式更新 `updated_at`。`AddAuditTimestamps` migration 補上 `fields`、`plantings` 的兩欄，以及 `agricultural_materials`、`material_purchase_lots` 的 `updated_at`。既有資料的 `created_at` 以升版時間回填，原本已有 `created_at` 的兩張表則以 `created_at` 回填 `updated_at`。
+
 #### main_account
 
 | 欄位 | PostgreSQL 型別 | 約束 | 描述 |
@@ -115,6 +119,8 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `latitude` | `numeric(9,6)` | 可為 NULL，範圍 −90 至 90，與 `longitude` 成對填寫 | 田區定位點的緯度，以十進位度數表示。 |
 | `longitude` | `numeric(9,6)` | 可為 NULL，範圍 −180 至 180，與 `latitude` 成對填寫 | 田區定位點的經度，以十進位度數表示。 |
 | `description` | `varchar(1000)` | 可為 NULL | 田區備註。 |
+| `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 建立時間。 |
+| `updated_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 每次成功編輯後更新。 |
 
 栽培占用面積切片中，縮小田區與新增或變更栽培占用的操作，須在同一田區的寫入交易中先鎖定該筆 `fields`，再計算未結束紀錄的占用面積並驗證寫入結果。這可避免縮小田區和新增占用同時儲存後超額。
 
@@ -132,6 +138,8 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `completion_date` | `date` | `COMPLETED` 時必填，其他狀態須為 NULL，不得早於 `actual_planting_date` | 栽培結束日。改為已結束時由表單填寫，預設台北當日，不得晚於當日，也不得早於最後一筆採收或田間作業。結束後補登的採收與作業不得晚於結束日，兩者都在鎖定栽培列後於交易內核對。`AddPlantingCompletionDate` migration 以實際栽種日、最後採收日及最後作業日中最晚的一天回填既有已結束紀錄。 |
 | `status` | `varchar(16)` | NOT NULL，預設 `PLANNED`，以 `CHECK` 限定 `PLANNED`、`GROWING`、`HARVESTING`、`COMPLETED` | 目前的栽培階段。 |
 | `description` | `varchar(1000)` | 可為 NULL | 這筆栽培紀錄的備註。 |
+| `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 建立時間。 |
+| `updated_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 每次成功編輯後更新，包含改為已結束。 |
 
 田區與栽培的具名 `CHECK` 約束涵蓋非空白名稱、面積大於零且不超過 `9999999999.9999`、成對且在合法範圍內的座標，以及栽培狀態。座標條件明確要求兩欄皆為 NULL 或皆有值，避免 SQL 的 NULL 比較放過只填一欄的資料。栽培狀態為 `GROWING` 或 `COMPLETED` 時，實際栽種日須有值。API 在儲存前檢查數值精度，超過欄位小數位數就回傳驗證錯誤。[PostgreSQL 約束](https://www.postgresql.org/docs/current/ddl-constraints.html)
 
@@ -174,8 +182,9 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | 欄位 | 型別 | 約束 | 說明 |
 | --- | --- | --- | --- |
 | `id` | `uuid` | PK | 灌溉明細識別碼。 |
-| `field_operation_id` | `uuid` | NOT NULL、UNIQUE、FK 至 `field_operations.id`，ON DELETE CASCADE | 每筆灌溉作業只對應一筆明細。 |
-| `method` | `varchar(24)` | NOT NULL、CHECK 允許 `drip`、`sprinkler`、`furrow`、`manual`、`other` | 灌溉方式。 |
+| `field_operation_id` | `uuid` | NOT NULL，與 `operation_type` 組成 UNIQUE 及複合 FK 至 `field_operations (id, operation_type)`，ON DELETE CASCADE | 每筆灌溉作業只對應一筆明細。 |
+| `operation_type` | `varchar(24)` | NOT NULL、CHECK 固定為 `IRRIGATION` | 讓複合外鍵只能指向灌溉作業。 |
+| `method` | `varchar(24)` | NOT NULL、CHECK 允許 `DRIP`、`SPRINKLER`、`FURROW`、`MANUAL`、`OTHER` | 灌溉方式。 |
 | `water_volume_liters` | `numeric(15,6)` | 可為 NULL，已知時大於 0 且小於 10 億 | 單位為公升。API 拒絕超過六位小數的輸入。 |
 
 新增及編輯時，在同一交易寫入作業與明細。查詢、編輯和刪除均依所屬栽培與 `IRRIGATION` 篩選；清單沿用作業索引。刪除作業時由外鍵一併刪除明細。
@@ -185,9 +194,12 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | 欄位 | 型別 | 約束 | 說明 |
 | --- | --- | --- | --- |
 | `id` | `uuid` | PK | 一筆資材施用的識別碼。 |
-| `field_operation_id` | `uuid` | NOT NULL、UNIQUE、FK 至 `field_operations.id`，ON DELETE CASCADE | 每筆 `MATERIAL_APPLICATION` 作業對應一筆資材施用資料。 |
-| `application_method` | `varchar(24)` | NOT NULL、CHECK 允許 `spray`、`broadcast` | 整筆作業共用的施用方式。 |
-| `spray_water_volume_liters` | `numeric(15,6)` | 可為 NULL，有值時方式須為 `spray` 且大於 0、小於 10 億 | 本次噴施的農藥與肥料明細共用的水量，單位為公升。 |
+| `field_operation_id` | `uuid` | NOT NULL，與 `operation_type` 組成 UNIQUE 及複合 FK 至 `field_operations (id, operation_type)`，ON DELETE CASCADE | 每筆 `MATERIAL_APPLICATION` 作業對應一筆資材施用資料。 |
+| `operation_type` | `varchar(24)` | NOT NULL、CHECK 固定為 `MATERIAL_APPLICATION` | 讓複合外鍵只能指向資材施用作業。 |
+| `application_method` | `varchar(24)` | NOT NULL、CHECK 允許 `SPRAY`、`BROADCAST` | 整筆作業共用的施用方式。 |
+| `spray_water_volume_liters` | `numeric(15,6)` | 可為 NULL，有值時方式須為 `SPRAY` 且大於 0、小於 10 億 | 本次噴施的農藥與肥料明細共用的水量，單位為公升。 |
+
+`field_operations` 以 `(id, operation_type)` 建立唯一約束，供兩張明細表的複合外鍵參照。資料庫因此擋下接到其他類型作業的明細，也擋下已有明細的作業改變類型。`EnforceOperationDetailTypes` migration 以固定值回填既有明細，既有資料若有類型不符的明細，升版會失敗並回滾。
 
 同一栽培在同一作業日可以有多筆資材施用。每桶配液有自己的作業和水量。例如兩支農藥與葉肥共用 20 公升水時，這裡存一次 `20`，三項資材各存一筆用量明細。若同日另外撒施顆粒肥，該筆作業的水量存 NULL。
 
@@ -205,7 +217,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 
 索引使用 `(material_application_id, sort_order)` 及 `material_purchase_lot_id`。寫入服務驗證至少一筆明細、批次屬於作業所屬帳號的農藥或肥料，且已於作業日生效。編輯和刪除先鎖定作業。新增、編輯及刪除依 UUID 順序鎖定涉及的新舊批次。取得批次鎖後重算其他作業的已用量，加上本次各批次用量合計，確認未超出登記量後一次提交。刪除作業會串聯刪除資材施用和明細，該筆用量隨交易提交退回原批次。批次生效日與數量均依交易內讀取的資料驗證。
 
-寫入服務依整份表單驗證水量。至少一筆明細為 `spray` 時才可填水量。所有明細均為 `broadcast` 時，水量為 NULL 並顯示「不適用」。有噴施但未填水量時顯示「未記錄」。
+寫入服務依整份表單驗證水量。施用方式為 `SPRAY` 時才可填水量。方式為 `BROADCAST` 時，水量為 NULL 並顯示「不適用」。有噴施但未填水量時顯示「未記錄」。
 
 #### agricultural_materials
 
@@ -217,14 +229,15 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `material_type` | `varchar(24)` | NOT NULL、CHECK 允許 `FERTILIZER`、`PESTICIDE` | 資材類別。 |
 | `stock_unit` | `varchar(20)` | NOT NULL、去除首尾空白後非空 | 批次與施用共用的單位。已有批次後固定。 |
 | `package_quantity` | `numeric(15,6)` | 與 `package_unit` 同時有值或同時為 NULL。有值時介於 0.000001 和 999999999.999999。 | 每件包裝的容量或重量。舊資料可留空。已有批次後固定。 |
-| `package_unit` | `varchar(10)` | 有值時為 `liter`、`milliliter`、`kilogram` 或 `gram`。 | 原始包裝的單位。已有批次後固定。 |
+| `package_unit` | `varchar(10)` | 有值時為 `LITER`、`MILLILITER`、`KILOGRAM` 或 `GRAM`。 | 原始包裝的單位。已有批次後固定。 |
 | `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 建立時間。 |
+| `updated_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 每次成功編輯後更新。 |
 
 有包裝規格的資料以 `(main_account_id, material_type, name, package_quantity, package_unit)` 唯一。名稱以去除首尾空白後的文字精確比較。包裝採原始數值與單位比對，1 公升與 1,000 毫升可各自建立。未填包裝的資料以原有的 `(main_account_id, material_type, name)` 唯一。各規格以自己的 ID 關聯批次並彙總庫存。
 
 升版保留既有資材與批次的 ID，既有資材的包裝欄位留空。新增同名規格後，舊版名稱唯一索引會在降版時產生衝突並使交易回滾。若要降版，須先處理會衝突的同名規格。
 
-農藥的 `stock_unit` 以依類型適用的 CHECK 限制為公升、毫升、公斤、公克。既有肥料單位沿用原有約束。
+農藥的 `stock_unit` 以依類型適用的 CHECK 限制為 `LITER`、`MILLILITER`、`KILOGRAM`、`GRAM`，與包裝單位使用同一組代碼。API 回傳施用明細及刪除預覽的 `unit` 時，將農藥單位轉為公升、毫升、公斤、公克。肥料的庫存單位是使用者輸入的文字，不屬於列舉，原樣保存及回傳。
 
 #### material_purchase_lots
 
@@ -239,6 +252,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `unit_price` | `numeric(15,6)` | 可為 NULL，已知時介於 0 和欄位上限 | 每庫存單位的單價。 |
 | `currency_code` | `char(3)` | NOT NULL、CHECK 首版為 `TWD` | 批次幣別。 |
 | `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 登記時間。 |
+| `updated_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 每次成功修改批次後更新，例如更正或補填單價。 |
 
 以 `(material_id, available_from, id)` 建立批次清單索引。批次餘量由 `received_quantity` 減去所有關聯資材施用明細的 `quantity` 算出，資材餘量為各批合計。編輯施用作業時，同批次的新舊明細用量差額決定扣量或退回。作業與全部明細同時提交或回滾。
 
@@ -261,9 +275,9 @@ erDiagram
         uuid id PK
     }
     field_operations {
-        uuid id PK
+        uuid id PK, UK
         uuid planting_id FK
-        varchar operation_type
+        varchar operation_type UK
         date operation_date
         varchar description
         timestamptz created_at
@@ -272,12 +286,14 @@ erDiagram
     irrigation_details {
         uuid id PK
         uuid field_operation_id FK, UK
+        varchar operation_type FK, UK
         varchar method
         numeric water_volume_liters
     }
     material_applications {
         uuid id PK
         uuid field_operation_id FK, UK
+        varchar operation_type FK, UK
         varchar application_method
         numeric spray_water_volume_liters
     }
@@ -297,6 +313,7 @@ erDiagram
         numeric package_quantity
         varchar package_unit
         timestamptz created_at
+        timestamptz updated_at
     }
     material_purchase_lots {
         uuid id PK
@@ -308,6 +325,7 @@ erDiagram
         numeric unit_price
         char currency_code
         timestamptz created_at
+        timestamptz updated_at
     }
 ```
 
@@ -363,6 +381,8 @@ erDiagram
         string name
         decimal area_square_meters
         string description
+        timestamptz created_at
+        timestamptz updated_at
     }
     plantings {
         uuid id PK
@@ -370,6 +390,8 @@ erDiagram
         string crop_name
         decimal area_square_meters
         string description
+        timestamptz created_at
+        timestamptz updated_at
     }
 ```
 

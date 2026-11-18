@@ -1,4 +1,5 @@
 using CropPilot.Api.Data;
+using CropPilot.Api.Fertilizers;
 using CropPilot.Contract.Models;
 
 namespace CropPilot.Api.Plantings;
@@ -52,7 +53,7 @@ internal static class PlantingDtoMapper
                 ? PlantingInventoryReturnDto.SourceEnum.PurchaseEnum : PlantingInventoryReturnDto.SourceEnum.OpeningStockEnum,
             AvailableFrom = value.AvailableFrom,
             Quantity = value.Quantity,
-            Unit = value.Unit
+            Unit = MaterialUnitLabels.Display(value.MaterialType, value.Unit)
         }),
         PreviewVersion = deletion.Version()
     };

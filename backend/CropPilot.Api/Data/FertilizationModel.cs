@@ -18,11 +18,11 @@ internal static class FertilizationModel
             {
                 table.HasCheckConstraint("ck_agricultural_materials_type", "material_type IN ('FERTILIZER', 'PESTICIDE')");
                 table.HasCheckConstraint("ck_agricultural_materials_name", "btrim(name) <> ''");
-                table.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> '' AND (material_type <> 'PESTICIDE' OR stock_unit IN ('公升', '毫升', '公斤', '公克'))");
+                table.HasCheckConstraint("ck_agricultural_materials_stock_unit", "btrim(stock_unit) <> '' AND (material_type <> 'PESTICIDE' OR stock_unit IN ('LITER', 'MILLILITER', 'KILOGRAM', 'GRAM'))");
                 table.HasCheckConstraint("ck_agricultural_materials_package", """
                     (package_quantity IS NULL AND package_unit IS NULL)
                     OR (package_quantity IS NOT NULL AND package_quantity BETWEEN 0.000001 AND 999999999.999999
-                        AND package_unit IS NOT NULL AND package_unit IN ('liter', 'milliliter', 'kilogram', 'gram'))
+                        AND package_unit IS NOT NULL AND package_unit IN ('LITER', 'MILLILITER', 'KILOGRAM', 'GRAM'))
                     """);
             });
             material.HasOne<MainAccount>().WithMany().HasForeignKey(value => value.MainAccountId)
@@ -33,6 +33,7 @@ internal static class FertilizationModel
             material.Property(value => value.PackageQuantity).HasPrecision(15, 6);
             material.Property(value => value.PackageUnit).HasMaxLength(10);
             material.Property(value => value.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            material.Property(value => value.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             material.HasIndex(value => new { value.MainAccountId, value.MaterialType, value.Name })
                 .IsUnique().HasFilter("package_quantity IS NULL").HasDatabaseName(MaterialNameIndex);
             material.HasIndex(value => new
@@ -62,6 +63,7 @@ internal static class FertilizationModel
             lot.Property(value => value.UnitPrice).HasPrecision(15, 6);
             lot.Property(value => value.CurrencyCode).HasColumnType("char(3)");
             lot.Property(value => value.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            lot.Property(value => value.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             lot.HasIndex(value => new { value.MaterialId, value.AvailableFrom, value.Id });
         });
 
@@ -85,13 +87,17 @@ internal static class FertilizationModel
         {
             application.ToTable("material_applications", table =>
             {
-                table.HasCheckConstraint("ck_material_applications_method", "application_method IN ('spray', 'broadcast')");
+                table.HasCheckConstraint("ck_material_applications_operation_type", "operation_type = 'MATERIAL_APPLICATION'");
+                table.HasCheckConstraint("ck_material_applications_method", "application_method IN ('SPRAY', 'BROADCAST')");
                 table.HasCheckConstraint("ck_material_applications_water",
-                    "spray_water_volume_liters IS NULL OR (application_method = 'spray' AND spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999)");
+                    "spray_water_volume_liters IS NULL OR (application_method = 'SPRAY' AND spray_water_volume_liters BETWEEN 0.000001 AND 999999999.999999)");
             });
             application.Property(value => value.ApplicationMethod).HasMaxLength(24);
+            application.Property(value => value.OperationType).HasMaxLength(24);
             application.HasOne(value => value.FieldOperation).WithOne(value => value.Application)
-                .HasForeignKey<MaterialApplication>(value => value.FieldOperationId).OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey<MaterialApplication>(value => new { value.FieldOperationId, value.OperationType })
+                .HasPrincipalKey<FieldOperation>(value => new { value.Id, value.OperationType })
+                .HasConstraintName("fk_material_applications_field_operations").OnDelete(DeleteBehavior.Cascade);
             application.Property(value => value.SprayWaterVolumeLiters).HasPrecision(15, 6);
         });
 

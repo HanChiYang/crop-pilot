@@ -49,8 +49,7 @@ internal static class FertilizerDtoMapper
         Id = operation.Id,
         OperationDate = operation.OperationDate,
         Description = operation.Description,
-        ApplicationMethod = operation.Application!.ApplicationMethod == "spray"
-            ? MaterialApplicationMethod.SprayEnum : MaterialApplicationMethod.BroadcastEnum,
+        ApplicationMethod = ContractEnumJsonConverter<MaterialApplicationMethod>.FromCode(operation.Application!.ApplicationMethod),
         SprayWaterVolumeLiters = operation.Application.SprayWaterVolumeLiters,
         Details = operation.Application.Details.OrderBy(x => x.SortOrder).Select(x => new MaterialApplicationDetailRsDto
         {
@@ -62,7 +61,7 @@ internal static class FertilizerDtoMapper
                 ? MaterialApplicationDetailRsDto.MaterialTypeEnum.PesticideEnum
                 : MaterialApplicationDetailRsDto.MaterialTypeEnum.FertilizerEnum,
             Quantity = x.Quantity,
-            Unit = x.Lot.Material.StockUnit,
+            Unit = MaterialUnitLabels.Display(x.Lot.Material.MaterialType, x.Lot.Material.StockUnit),
             UnitPrice = x.Lot.UnitPrice,
             CurrencyCode = MaterialApplicationDetailRsDto.CurrencyCodeEnum.TWDEnum
         }).ToList()
@@ -74,14 +73,7 @@ internal static class FertilizerDtoMapper
     {
         Id = stock.Material.Id,
         Name = stock.Material.Name,
-        StockUnit = stock.Material.StockUnit switch
-        {
-            "公升" => PesticideStockUnit.LiterEnum,
-            "毫升" => PesticideStockUnit.MilliliterEnum,
-            "公斤" => PesticideStockUnit.KilogramEnum,
-            "公克" => PesticideStockUnit.GramEnum,
-            _ => throw new InvalidOperationException()
-        },
+        StockUnit = ContractEnumJsonConverter<PesticideStockUnit>.FromCode(stock.Material.StockUnit),
         Package = ToPackageDto(stock.Material),
         RemainingQuantity = stock.Remaining
     };
@@ -93,14 +85,7 @@ internal static class FertilizerDtoMapper
         material.PackageQuantity is { } quantity ? new()
         {
             Quantity = quantity,
-            Unit = material.PackageUnit switch
-            {
-                "liter" => MaterialPackageUnit.LiterEnum,
-                "milliliter" => MaterialPackageUnit.MilliliterEnum,
-                "kilogram" => MaterialPackageUnit.KilogramEnum,
-                "gram" => MaterialPackageUnit.GramEnum,
-                _ => throw new InvalidOperationException()
-            }
+            Unit = ContractEnumJsonConverter<MaterialPackageUnit>.FromCode(material.PackageUnit!)
         } : null;
 
     /// <summary>回傳農藥批次、剩餘量及可計算的整批成本。</summary>
