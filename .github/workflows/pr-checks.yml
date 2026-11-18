@@ -25,6 +25,13 @@ jobs:
       - name: Build ASP.NET Core API
         run: dotnet build backend/CropPilot.Api/CropPilot.Api.csproj --configuration Release
 
+      - name: Check EF Core model has no pending migration
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes \
+            --project backend/CropPilot.Api/CropPilot.Api.csproj \
+            --configuration Release --no-build
+
       - uses: actions/setup-node@v7
         with:
           node-version: "24.x"
@@ -46,3 +53,78 @@ jobs:
           curl --fail --silent --show-error --location --retry 3 --output "$jar" \
             "https://repo.maven.apache.org/maven2/org/openapitools/openapi-generator-cli/$OPENAPI_GENERATOR_VERSION/openapi-generator-cli-$OPENAPI_GENERATOR_VERSION.jar"
           java -jar "$jar" validate -i docs/openapi/openapi.yaml
+
+      # Committed generated files have trailing whitespace trimmed, so compare
+      # content while ignoring whitespace-only differences.
+      - name: Check generated code matches the OpenAPI contract
+        shell: pwsh
+        run: |
+          ./backend/tools/Generate-ApiContract.ps1 -GeneratorJar "$env:RUNNER_TEMP/openapi-generator-cli.jar"
+          $paths = 'backend/CropPilot.Api/Generated', 'dashboard/src/app/generated'
+          git diff --ignore-all-space --ignore-blank-lines --exit-code -- $paths
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Generated code is out of date. Run backend/tools/Generate-ApiContract.ps1 and commit the result.'
+          }
+          $untracked = git status --porcelain --untracked-files=all -- $paths | Where-Object { $_.StartsWith('??') }
+          if ($untracked) {
+            $untracked
+            throw 'Generated files are missing from the commit. Run backend/tools/Generate-ApiContract.ps1 and commit the result.'
+          }
+
+  api-tests:
+    name: API integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+      - name: Run API integration tests
+        run: dotnet test backend/CropPilot.Api.Tests/CropPilot.Api.Tests.csproj --configuration Release
+
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CROPPILOT_E2E_USERNAME: Farmer01
+      CROPPILOT_E2E_PASSWORD: password
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Start API and PostgreSQL
+        run: |
+          docker compose -p croppilot-backend -f backend/compose.yaml up -d --build
+          curl --silent --output /dev/null --retry 30 --retry-all-errors --retry-delay 2 \
+            http://127.0.0.1:7081/api/v1/auth/session
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24.x"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        working-directory: dashboard
+        run: npm run test:e2e
+
+      - name: Show API logs
+        if: failure()
+        run: docker compose -p croppilot-backend -f backend/compose.yaml logs --no-color
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-test-results
+          path: dashboard/test-results/
+          retention-days: 7
