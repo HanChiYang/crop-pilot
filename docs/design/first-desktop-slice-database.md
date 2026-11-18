@@ -129,6 +129,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `area_square_meters` | `numeric(14,4)` | NOT NULL，無預設值，CHECK 大於 0 | 栽培占用面積，單位為平方公尺。於栽培占用面積切片加入。 |
 | `planned_planting_date` | `date` | 可為 NULL | 預計開始栽種的日期。 |
 | `actual_planting_date` | `date` | `GROWING` 或 `COMPLETED` 時必填，其餘可為 NULL | 實際開始栽種的日期。規劃中的新增表單不提供此欄，API 仍接受日期或空值。補登採收中紀錄時，日期未知可留空。 |
+| `completion_date` | `date` | `COMPLETED` 時必填，其他狀態須為 NULL，不得早於 `actual_planting_date` | 栽培結束日。改為已結束時由表單填寫，預設台北當日，不得晚於當日，也不得早於最後一筆採收或田間作業。結束後補登的採收與作業不得晚於結束日，兩者都在鎖定栽培列後於交易內核對。`AddPlantingCompletionDate` migration 以實際栽種日、最後採收日及最後作業日中最晚的一天回填既有已結束紀錄。 |
 | `status` | `varchar(16)` | NOT NULL，預設 `PLANNED`，以 `CHECK` 限定 `PLANNED`、`GROWING`、`HARVESTING`、`COMPLETED` | 目前的栽培階段。 |
 | `description` | `varchar(1000)` | 可為 NULL | 這筆栽培紀錄的備註。 |
 
@@ -144,6 +145,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `fieldName` | `fields.name` | 使用目前名稱，田區改名後會反映在後續查詢。 |
 | `cropName`、`variety` | `plantings.crop_name`、`plantings.variety` | 品種可為 NULL。 |
 | `actualPlantingDate` | `plantings.actual_planting_date` | 已結束紀錄依現有 CHECK 必有值。 |
+| `completionDate` | `plantings.completion_date` | 已結束紀錄依 CHECK 必有值。 |
 | `areaSquareMeters` | `plantings.area_square_meters` | 顯示結束時儲存於紀錄的占用面積，後續田區面積變動也能讀到原值。 |
 | `status`、`plannedPlantingDate`、`notes` | `plantings.status`、`plantings.planned_planting_date`、`plantings.description` | 單筆詳情回傳 `completed`，預定日期與備註可為 NULL。 |
 
@@ -196,12 +198,10 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `id` | `uuid` | PK | 一筆資材用量明細。 |
 | `material_application_id` | `uuid` | NOT NULL、FK 至 `material_applications.id`，ON DELETE CASCADE | 所屬資材施用。 |
 | `material_purchase_lot_id` | `uuid` | NOT NULL、FK 至 `material_purchase_lots.id`，ON DELETE RESTRICT | 實際扣用的農藥或肥料庫存批次。資材類別由批次所屬主檔取得。 |
-| `material_name` | `varchar(100)` | NOT NULL | 農藥或肥料名稱快照。 |
 | `quantity` | `numeric(15,6)` | NOT NULL、CHECK 大於 0 且小於 10 億 | 依庫存單位保存實際用量，例如葉肥用量 `30` 毫升。 |
-| `unit` | `varchar(20)` | NOT NULL | 庫存單位快照，由批次所屬主檔取得。 |
-| `unit_price` | `numeric(15,6)` | 可為 NULL，已知時大於等於 0 且小於 10 億 | 當次單價快照。 |
-| `currency_code` | `char(3)` | NOT NULL、CHECK 為 `TWD` | 幣別快照。 |
 | `sort_order` | `integer` | NOT NULL、CHECK 大於等於 0 | 依表單列順序從 0 編號。 |
+
+明細不保存資材名稱、庫存單位、單價及幣別。這些值由 `material_purchase_lots` 及 `agricultural_materials` 讀取，施用成本以用量乘以批次目前的 `unit_price` 計算。一個批次只對應一次進貨的單價，所以更正或補填批次單價會同步反映到既有施用成本。`DeriveApplicationCostsFromLots` migration 移除原有的四個快照欄位，降版時從批次及資材主檔回填。
 
 索引使用 `(material_application_id, sort_order)` 及 `material_purchase_lot_id`。寫入服務驗證至少一筆明細、批次屬於作業所屬帳號的農藥或肥料，且已於作業日生效。編輯和刪除先鎖定作業。新增、編輯及刪除依 UUID 順序鎖定涉及的新舊批次。取得批次鎖後重算其他作業的已用量，加上本次各批次用量合計，確認未超出登記量後一次提交。刪除作業會串聯刪除資材施用和明細，該筆用量隨交易提交退回原批次。批次生效日與數量均依交易內讀取的資料驗證。
 
@@ -285,11 +285,7 @@ erDiagram
         uuid id PK
         uuid material_application_id FK
         uuid material_purchase_lot_id FK
-        varchar material_name
         numeric quantity
-        varchar unit
-        numeric unit_price
-        char currency_code
         integer sort_order
     }
     agricultural_materials {

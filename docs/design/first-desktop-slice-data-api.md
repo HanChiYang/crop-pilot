@@ -80,7 +80,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 新增與編輯栽培紀錄皆要求 `areaSquareMeters` 為大於 0 的數值，最多四位小數。缺少、空值或格式不符時回傳 `400`，以 `areaSquareMeters` 標示欄位錯誤。
 
-栽培管理的單筆編輯使用同一個更新請求提交作物名稱、品種、狀態、預定栽種日、實際栽種日、占用面積與備註。伺服器依儲存前的狀態驗證允許的轉換，依儲存後的狀態與日期驗證必填條件，並以更新後的占用面積取代原紀錄在合計中的占用。整筆更新在同一交易完成。
+栽培管理的單筆編輯使用同一個更新請求提交作物名稱、品種、狀態、預定栽種日、實際栽種日、結束日、占用面積與備註。狀態為 `completed` 時 `completionDate` 必填，須不早於實際栽種日且不晚於台北當日；其他狀態須省略或傳 `null`。違反時回傳 `400` 並以 `errors.completionDate` 標示。結束日早於該批最後一筆採收或田間作業時回傳 `409`，訊息包含最後活動日。已結束栽培補登或修改採收、資材施用及灌溉時，日期晚於結束日回傳 `400`，以日期欄位標示。單筆回應的 `completionDate` 在已結束時為結束日，其他狀態為 `null`。伺服器依儲存前的狀態驗證允許的轉換，依儲存後的狀態與日期驗證必填條件，並以更新後的占用面積取代原紀錄在合計中的占用。整筆更新在同一交易完成。
 
 #### 田區栽培列表
 
@@ -132,7 +132,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 作物下拉選項直接從共用範圍取出名稱，依完整名稱去重並按 PostgreSQL `C` 定序升冪。前端用回傳的名稱填入選單，使用者選定後可將原值送為歷史清單的 `cropName`。
 
-例如先送出 `GET /api/v1/planting-history/crops?fieldId=ad31b935-6b1c-4669-8c92-fb1c8489900f`，取得 `["番茄"]`，再以相同的 `fieldId` 和 `cropName=%E7%95%AA%E8%8C%84` 查詢清單。清單回傳 `id`、`fieldId`、`fieldName`、`cropName`、`variety`、`actualPlantingDate` 和 `areaSquareMeters`。其中田區名稱為查詢當下的名稱，實際栽種日必有值，占用面積取自該筆栽培紀錄。
+例如先送出 `GET /api/v1/planting-history/crops?fieldId=ad31b935-6b1c-4669-8c92-fb1c8489900f`，取得 `["番茄"]`，再以相同的 `fieldId` 和 `cropName=%E7%95%AA%E8%8C%84` 查詢清單。清單回傳 `id`、`fieldId`、`fieldName`、`cropName`、`variety`、`actualPlantingDate`、`completionDate` 和 `areaSquareMeters`。其中田區名稱為查詢當下的名稱，實際栽種日與結束日必有值，占用面積取自該筆栽培紀錄。
 
 點開清單項目時，以該項目的 `id` 呼叫單筆栽培端點，取得 `PlantingRsDto` 的 `status: completed`、預定與實際栽種日、占用面積及備註等資料。田區名稱使用 `fieldId` 透過既有的 `GET /api/v1/fields/{fieldId}` 取得，直接開啟詳情連結時也能顯示。詳情為唯讀，返回時保留先前查詢的條件與清單。查詢失敗保留條件供重試，空陣列顯示查無結果。
 
@@ -188,7 +188,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 | `details[].id` | `material_application_details.id`。編輯時帶原 ID 保留該明細，省略 ID 新增明細。未送回的原明細移除。重複或不屬於本作業的明細 ID 回 `400`。 |
 | `details[].materialPurchaseLotId`、`quantity` | `material_application_details.material_purchase_lot_id`、`quantity`。依庫存單位記錄取用量。同一批次多筆明細合計驗證餘量。 |
 | `details[].materialId`、`details[].materialType` | 從批次取得資材 ID 及類別。回應以 `pesticide`、`fertilizer` 對應主檔的 `PESTICIDE`、`FERTILIZER`。 |
-| `details[].materialName`、`unit`、`unitPrice`、`currencyCode` | `material_application_details` 的名稱、單位、單價與幣別快照。新增明細或換批次時取新批次當下值，保留原批次時沿用原快照。單位回傳快照字串。 |
+| `details[].materialName`、`unit`、`unitPrice`、`currencyCode` | 由明細所屬批次及資材主檔讀取目前的名稱、庫存單位、單價與幣別，明細不另存快照。更正或補填批次單價後，既有施用成本隨之更新。 |
 
 一筆作業至少有一項明細，依表單列順序回傳。噴施與撒施分開登記。撒施若填了水量回 `400`，以 `sprayWaterVolumeLiters` 定位欄位。噴施總水量及各筆用量必須大於零、小於 10 億且最多六位小數。扣量以各明細的資材用量計算。同日同栽培可分開登記多筆，每筆各有自己的水量和明細。
 
@@ -257,7 +257,7 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 `receivedQuantity` 對應 `received_quantity`，`purchasedOn` 對應 `purchased_on`，`availableFrom` 對應 `available_from`。`remainingQuantity` 由批次登記量與資材施用用量即時計算。批次登記量須大於零，單價可為零。兩者以 JSON 數值傳輸，須小於 10 億且最多六位小數。首版使用 `TWD`，每庫存單位的價格以 `unitPrice` 傳入。未知價格省略或傳 `null`，免費取得傳 `0`。
 
-編輯或刪除時，以批次 ID 定位，並核對所屬資材為登入帳號的肥料。批次不存在、資材類型不符或歸屬不符時回傳 `404`。批次更正後的登記量須大於 0 且至少等於已用量，生效日須早於或等於所有關聯施用日期，與既有用量或日期衝突時回傳 `409`。更正進貨單價只影響之後採用該批次價格的新明細，既有施用成本仍使用當次快照。
+編輯或刪除時，以批次 ID 定位，並核對所屬資材為登入帳號的肥料。批次不存在、資材類型不符或歸屬不符時回傳 `404`。批次更正後的登記量須大於 0 且至少等於已用量，生效日須早於或等於所有關聯施用日期，與既有用量或日期衝突時回傳 `409`。一個批次只有一個進貨單價，施用成本一律以批次目前的單價計算。更正或補填單價時，已記錄的施用成本隨之更新，原本「成本待補」的明細也會補上金額。
 
 ```json
 {
