@@ -98,6 +98,24 @@ public sealed class FieldsApiFixture : IAsyncLifetime
             """).SingleAsync();
     }
 
+    /// <summary>直接查詢資料庫，用於核對 API 不會回傳的欄位值。</summary>
+    /// <param name="sql">結果欄位須命名為 <c>"Value"</c> 的單欄查詢。</param>
+    internal async Task<T> QuerySingleAsync<T>(FormattableString sql)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<CropPilotDbContext>();
+        return await database.Database.SqlQuery<T>(sql).SingleAsync();
+    }
+
+    /// <summary>直接對資料庫執行寫入，用於驗證資料庫約束。</summary>
+    /// <param name="sql">以參數化插值傳入值的 SQL 指令。</param>
+    internal async Task ExecuteAsync(FormattableString sql)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<CropPilotDbContext>();
+        await database.Database.ExecuteSqlInterpolatedAsync(sql);
+    }
+
     /// <summary>加入一筆以台北當日結束的栽培紀錄，供查詢、刪除限制及補登作業的測試使用。</summary>
     internal async Task<Guid> AddCompletedPlantingAsync(Guid fieldId, string cropName = "已結束作物",
         DateOnly? actualPlantingDate = null)
