@@ -127,7 +127,7 @@ test('同名農藥依包裝分開登記進貨與扣量，既有期初庫存仍�
   await page.goto('/dashboard');
   await page.getByRole('link', { name: '資材管理', exact: true }).click();
   await page.getByRole('button', { name: '新增農藥規格' }).click();
-  await page.getByLabel('農藥名稱').fill('示例農藥');
+  await page.getByRole('textbox', { name: '農藥名稱', exact: true }).fill('示例農藥');
   await page.getByLabel('庫存單位').selectOption('milliliter');
   await page.getByLabel('每件容量或重量').fill('500');
   const packageUnit = page.getByRole('combobox', { name: '規格單位', exact: true });
