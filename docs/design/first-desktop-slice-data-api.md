@@ -37,6 +37,8 @@ Angular 只在記憶體保存權杖，重新整理後用續期 Cookie 取得新�
 | 查詢栽培紀錄 | `GET /api/v1/plantings/{plantingId}` | `200`，回傳 `PlantingRsDto`。 |
 | 查詢栽培歷史清單 | `GET /api/v1/planting-history`，選用 `fieldId`、`cropName` | `200`，回傳 `PlantingHistoryItemDto` 陣列。 |
 | 查詢栽培歷史作物選項 | `GET /api/v1/planting-history/crops`，選用 `fieldId` | `200`，回傳去重後的作物名稱字串陣列。 |
+| 查詢結束日可填範圍 | `GET /api/v1/plantings/{plantingId}/completion-date-range` | `200`，回傳 `PlantingCompletionDateRangeRsDto`。 |
+| 修正結束日 | `PUT /api/v1/plantings/{plantingId}/completion-date`，傳 `EditPlantingCompletionDateRqDto` 的 `completionDate` | `200`，回傳更新後的 `PlantingRsDto`。 |
 | 田區總覽 | `GET /api/v1/overview` | `200`，回傳自己的 `FieldOverviewRsDto` 陣列，每筆加上 `plantings`。田區沒有目前的栽培紀錄時，`plantings` 為空陣列。 |
 
 各端點的 `409 Conflict` 共用 `application/problem+json` 回應。以 `detail` 說明衝突原因，有欄位提示時以 `errors` 提供對應訊息。各端點的 `409` 說明列出會觸發的情境。
@@ -134,9 +136,62 @@ API 的小寫 `status` 值對應資料庫 `plantings.status` 的大寫值，例�
 
 例如先送出 `GET /api/v1/planting-history/crops?fieldId=ad31b935-6b1c-4669-8c92-fb1c8489900f`，取得 `["番茄"]`，再以相同的 `fieldId` 和 `cropName=%E7%95%AA%E8%8C%84` 查詢清單。清單回傳 `id`、`fieldId`、`fieldName`、`cropName`、`variety`、`actualPlantingDate`、`completionDate` 和 `areaSquareMeters`。其中田區名稱為查詢當下的名稱，實際栽種日與結束日必有值，占用面積取自該筆栽培紀錄。
 
-點開清單項目時，以該項目的 `id` 呼叫單筆栽培端點，取得 `PlantingRsDto` 的 `status: completed`、預定與實際栽種日、占用面積及備註等資料。田區名稱使用 `fieldId` 透過既有的 `GET /api/v1/fields/{fieldId}` 取得，直接開啟詳情連結時也能顯示。詳情為唯讀，返回時保留先前查詢的條件與清單。查詢失敗保留條件供重試，空陣列顯示查無結果。
+點開清單項目時，以該項目的 `id` 呼叫單筆栽培端點，取得 `PlantingRsDto` 的 `status: completed`、預定與實際栽種日、占用面積及備註等資料。田區名稱使用 `fieldId` 透過既有的 `GET /api/v1/fields/{fieldId}` 取得，直接開啟詳情連結時也能顯示。詳情除結束日外皆為唯讀，結束日依[修正結束日](#修正結束日)更新。返回時保留先前查詢的條件與清單。查詢失敗保留條件供重試，空陣列顯示查無結果。
 
 驗收涵蓋預設全部、田區及作物交集、選項去重、同日排序、空結果、參數錯誤及兩個帳號的隔離。也要確認同一筆栽培結束後會出現在歷史與單筆詳情，並從田區的目前栽培列表及總覽移除。
+
+### 修正結束日
+
+已結束栽培的詳情以兩個端點修正結束日，其他欄位與狀態不變。單筆編輯端點 `PUT /api/v1/plantings/{plantingId}` 仍拒絕已結束的紀錄。兩個端點都使用 Bearer 驗證並要求 `USER` 角色，透過所屬田區核對登入帳號。紀錄不存在或屬於其他帳號時回 `404`。栽培未結束時回 `409`，以 `errors.status` 說明只有已結束的栽培可修正結束日。[需求](../requirements/desktop-field-and-planting.md#修正結束日)
+
+| 端點 | `operationId` | 標題 |
+| --- | --- | --- |
+| `GET /api/v1/plantings/{plantingId}/completion-date-range` | `getPlantingCompletionDateRange` | 列出已結束栽培的結束日可填範圍詳細資料 |
+| `PUT /api/v1/plantings/{plantingId}/completion-date` | `editPlantingCompletionDate` | 修正單筆已結束栽培的結束日 |
+
+對話框開啟時查詢可填範圍。回應為快照，不鎖定資料，儲存時再由修正端點核對。
+
+| `PlantingCompletionDateRangeRsDto` 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| `completionDate` | `date` | 目前的結束日。 |
+| `earliestDate` | `date` | 可填下限：實際栽種日與最後一筆採收、資材施用、灌溉日期中最晚的一天。 |
+| `earliestDateSource` | `CompletionDateLowerBoundSource` | 下限的來源，值為 `harvest`、`materialApplication`、`irrigation` 或 `actualPlanting`。多個來源在同一天時，依此順序取第一個。 |
+| `latestDate` | `date` | 可填上限，即伺服器計算的台北當日。 |
+
+北側田番茄的實際栽種日為 2026-03-01，最後一筆採收為 2026-10-08，2026-11-18 查詢時回傳下列內容。
+
+```json
+{
+  "completionDate": "2026-10-20",
+  "earliestDate": "2026-10-08",
+  "earliestDateSource": "harvest",
+  "latestDate": "2026-11-18"
+}
+```
+
+修正請求只含必填的 `completionDate`。修正端點以 `FOR UPDATE OF p` 鎖定帳號所屬的栽培列，與採收、資材施用及灌溉的寫入使用同一把鎖。鎖定後再讀取最後活動日並核對，通過時更新 `completion_date` 與 `updated_at`。新日期與原結束日相同時回 `200` 並保留 `updated_at`，前端仍關閉對話框並顯示「結束日已更新為 2026/10/20。」。
+
+| 情況 | HTTP 回應 | Angular 畫面 |
+| --- | --- | --- |
+| `completionDate` 缺漏、為 `null` 或格式錯誤 | `400`，`errors.completionDate`。 | 前端先擋下空白，欄位下顯示「請填寫結束日。」。 |
+| 晚於台北當日 | `400`，`errors.completionDate` 為「結束日不得晚於今天。」 | 前端依 `latestDate` 先擋，欄位下顯示同一訊息。 |
+| 早於實際栽種日或最後一筆活動日 | `409`，`errors.completionDate` 的訊息含下限日期。 | 早於已取得的 `earliestDate` 時前端先擋，顯示「結束日不得早於 2026/10/08（最後一筆採收）。」。伺服器回 `409` 時，前端重新查詢可填範圍，更新範圍說明並顯示「已有 2026/10/15 的灌溉紀錄，結束日不得早於這天。」 |
+| 栽培未結束 | `409`，`errors.status`。 | 顯示對話框的儲存失敗訊息。 |
+| 栽培不存在或屬於其他帳號 | `404`。 | 顯示儲存失敗訊息。 |
+| 伺服器儲存失敗或連線中斷 | `500` 或無回應。 | 顯示「無法儲存結束日，請再試一次。」，保留輸入。 |
+
+來源在畫面上的標籤依序為「最後一筆採收」「最後一筆資材施用」「最後一筆灌溉」「實際栽種日」。
+
+詳情只在栽培歷史進入且 `status` 為 `completed` 時顯示「修正」。開啟對話框後，載入範圍期間停用欄位與儲存，日期輸入以 `earliestDate` 和 `latestDate` 設定 `min`、`max`。範圍載入失敗時，對話框顯示「無法載入可填範圍，請再試一次。」，停用日期欄位與儲存，並提供「重新載入」按鈕重新查詢可填範圍。修正成功後關閉對話框，以回應更新詳情並顯示「結束日已更新為 2026/10/12。」，栽培歷史以原條件重新查詢清單。補登表單的日期上限讀取更新後的 `completionDate`。
+
+這次修正不需要 migration。結束日沿用 `plantings.completion_date` 及既有 CHECK。最後活動日使用 `harvests` 與 `field_operations` 的既有清單索引，依 `planting_id` 及作業類型取最大日期。
+
+驗收涵蓋下列情況：
+
+- 可填範圍的四種來源、同日的來源順序，以及沒有任何活動紀錄的情況。
+- 修正成功後，結束日、`updated_at` 與栽培歷史清單一併更新，之後補登晚於新結束日的採收或作業回 `400`。
+- 空值、晚於今天、早於實際栽種日、早於最後活動日、未結束的栽培及其他帳號的栽培。
+- 修正與補登灌溉同時送出時，兩者不會都成功而讓灌溉日晚於結束日。
 
 ### 灌溉紀錄
 

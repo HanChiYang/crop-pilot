@@ -26,6 +26,8 @@ CropPilot 的學習目標是完整練習一個功能的開發流程，並保留�
 
 ## 目前進度
 
+已結束栽培的結束日修正已在 `feature/completion-date-correction` 完成前後端串接與驗證，不需要資料庫 migration。後端新增 `GET /api/v1/plantings/{plantingId}/completion-date-range`（`RepeatableRead` 快照查詢四種下限來源與同日優先序 `harvest` → `materialApplication` → `irrigation` → `actualPlanting`，上限為台北當日）及 `PUT /api/v1/plantings/{plantingId}/completion-date`（以 `FOR UPDATE OF p` 與採收、灌溉及資材施用共用列鎖，未變更日期時保留 `updated_at`）。OpenAPI 契約已通過 OpenAPI Generator 7.27.0 驗證並生成 C# 與 Angular client。Angular 栽培歷史詳情已對齊 Figma 版面並於結束日旁提供「修正」對話框，支援載入範圍失敗重試（`重新載入`）、前端與 `409` 下限變更刷新、儲存失敗重試、未變更日期更新提示、即時同步補登採收上限及原條件重查歷史清單。99 個 API 整合測試、16 個相關 Playwright 瀏覽器測試、Angular 正式建置，以及全新 Docker Compose 手動測試環境的實機瀏覽器流程皆已通過。[API 設計](design/first-desktop-slice-data-api.md#修正結束日) · [OpenAPI 契約](openapi/openapi.yaml) · [UX 審查記錄](prototype-plan.md#ux-草案審查記錄)
+
 資料庫結構慣例已在 `feature/schema-conventions` 統一，API 契約不變。施用方式、灌溉方式、包裝單位及農藥庫存單位改存大寫代碼，農藥單位不再以中文保存。灌溉與資材施用明細加上固定的 `operation_type`，以複合外鍵參照 `field_operations (id, operation_type)`，資料庫會擋下接到其他類型作業的明細。田區、栽培、資材及批次補齊 `created_at` 與 `updated_at`，成功修改時更新。三個 migration 已在 PostgreSQL 18 以舊版資料驗證升版、降版與約束，DDL 改由 `pg_dump` 重新產生並核對與 migration 結構一致。95 個後端整合測試通過。
 
 資材施用成本改由批次目前的單價計算，明細不再保存名稱、單位與單價快照，更正或補填批次單價後既有成本隨之更新。栽培新增結束日，改為已結束時必填並預設台北當日，不得早於最後一筆採收或作業。結束後補登的採收、資材施用及灌溉不得晚於結束日，前端日期上限同步調整。栽培紀錄清單與詳情顯示結束日，既有已結束紀錄以最後活動日回填。兩個 migration 已在 PostgreSQL 18 以舊版資料驗證升版、降版與約束，DDL 與 migration 結構一致。92 個 API 整合測試及 22 個 Chromium 瀏覽器測試通過。已結束紀錄的結束日修正尚無編輯入口，留待後續。[資料庫設計](design/first-desktop-slice-database.md#material_application_details)
