@@ -528,6 +528,383 @@ public sealed class PlantingsApiTests(FieldsApiFixture fixture) : IClassFixture<
             (HttpStatusCode.NoContent, HttpStatusCode.NotFound) or (HttpStatusCode.Conflict, HttpStatusCode.Created));
     }
 
+    /// <summary>驗證結束日可填範圍的四種來源、早於栽種日的作業、同日優先序與上限。</summary>
+    [Fact]
+    public async Task CompletionDateRangeReflectsAllSourcesAndTieBreakPriority()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "北側田");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+        var actualPlantingDate = today.AddDays(-20);
+        var completionDate = today.AddDays(-2);
+        var plantingId = await CreateCompletedPlantingAsync(owner, fieldId, actualPlantingDate, completionDate);
+        var rangeUrl = $"/api/v1/plantings/{plantingId}/completion-date-range";
+
+        using var material = await owner.PostAsJsonAsync("/api/v1/fertilizers", new { name = "有機肥", stockUnit = "公斤" });
+        Assert.Equal(HttpStatusCode.Created, material.StatusCode);
+        var materialId = (await material.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        using var lot = await owner.PostAsJsonAsync($"/api/v1/fertilizers/{materialId}/lots", new
+        {
+            source = "openingStock",
+            receivedQuantity = 20m,
+            availableFrom = today.AddDays(-30)
+        });
+        Assert.Equal(HttpStatusCode.Created, lot.StatusCode);
+        var lotId = (await lot.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        async Task AssertRangeAsync(DateOnly expectedEarliest, string expectedSource)
+        {
+            using var response = await owner.GetAsync(rangeUrl);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var range = await response.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(completionDate.ToString("yyyy-MM-dd"), range.GetProperty("completionDate").GetString());
+            Assert.Equal(expectedEarliest.ToString("yyyy-MM-dd"), range.GetProperty("earliestDate").GetString());
+            Assert.Equal(expectedSource, range.GetProperty("earliestDateSource").GetString());
+            Assert.Equal(today.ToString("yyyy-MM-dd"), range.GetProperty("latestDate").GetString());
+        }
+
+        // 尚無任何採收與作業紀錄時，下限為實際栽種日。
+        await AssertRangeAsync(actualPlantingDate, "actualPlanting");
+
+        // 早於實際栽種日的灌溉不影響下限。
+        using var beforePlantingIrrigation = await owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/irrigations",
+            new { operationDate = actualPlantingDate.AddDays(-1), method = "drip" });
+        Assert.Equal(HttpStatusCode.Created, beforePlantingIrrigation.StatusCode);
+        await AssertRangeAsync(actualPlantingDate, "actualPlanting");
+
+        // 與實際栽種日同天時，優先順序為 harvest > materialApplication > irrigation > actualPlanting。
+        using var tieIrrigation = await owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/irrigations",
+            new { operationDate = actualPlantingDate, method = "drip" });
+        Assert.Equal(HttpStatusCode.Created, tieIrrigation.StatusCode);
+        await AssertRangeAsync(actualPlantingDate, "irrigation");
+
+        using var tieMaterial = await owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/material-applications", new
+        {
+            operationDate = actualPlantingDate,
+            applicationMethod = "broadcast",
+            details = new[] { new { materialPurchaseLotId = lotId, quantity = 1m } }
+        });
+        Assert.Equal(HttpStatusCode.Created, tieMaterial.StatusCode);
+        await AssertRangeAsync(actualPlantingDate, "materialApplication");
+
+        using var tieHarvest = await owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/harvests",
+            new { harvestDate = actualPlantingDate, weightKg = 2m });
+        Assert.Equal(HttpStatusCode.Created, tieHarvest.StatusCode);
+        await AssertRangeAsync(actualPlantingDate, "harvest");
+
+        // 較晚的資材施用、灌溉與採收各自成為新的下限。
+        var laterMaterialDate = actualPlantingDate.AddDays(5);
+        using var laterMaterial = await owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/material-applications", new
+        {
+            operationDate = laterMaterialDate,
+            applicationMethod = "broadcast",
+            details = new[] { new { materialPurchaseLotId = lotId, quantity = 1m } }
+        });
+        Assert.Equal(HttpStatusCode.Created, laterMaterial.StatusCode);
+        await AssertRangeAsync(laterMaterialDate, "materialApplication");
+
+        var laterIrrigationDate = actualPlantingDate.AddDays(8);
+        using var laterIrrigation = await owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/irrigations",
+            new { operationDate = laterIrrigationDate, method = "sprinkler" });
+        Assert.Equal(HttpStatusCode.Created, laterIrrigation.StatusCode);
+        await AssertRangeAsync(laterIrrigationDate, "irrigation");
+
+        var laterHarvestDate = actualPlantingDate.AddDays(10);
+        using var laterHarvest = await owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/harvests",
+            new { harvestDate = laterHarvestDate, weightKg = 3m });
+        Assert.Equal(HttpStatusCode.Created, laterHarvest.StatusCode);
+        await AssertRangeAsync(laterHarvestDate, "harvest");
+    }
+
+    /// <summary>驗證修正成功會同步歷史與詳細資料、未變更保留原修改時間，並限制後續補登上限。</summary>
+    [Fact]
+    public async Task EditCompletionDateUpdatesHistoryPreservesUnchangedTimestampAndBoundsBackfills()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "北側田");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+        var planted = today.AddDays(-20);
+        var planned = today.AddDays(-25);
+        var initialCompletion = today.AddDays(-5);
+        var plantingId = await CreateCompletedPlantingAsync(
+            owner, fieldId, planted, initialCompletion, planned, "番茄", "玉女", "採收備註");
+        var editCompletionUrl = $"/api/v1/plantings/{plantingId}/completion-date";
+
+        await fixture.ExecuteAsync($"""
+            UPDATE plantings SET updated_at = CURRENT_TIMESTAMP - interval '5 minutes' WHERE id = {plantingId}
+            """);
+        var beforeUpdatedAt = await fixture.QuerySingleAsync<DateTimeOffset>($"""
+            SELECT updated_at AS "Value" FROM plantings WHERE id = {plantingId}
+            """);
+
+        using var unchanged = await owner.PutAsJsonAsync(editCompletionUrl, new { completionDate = initialCompletion });
+        Assert.Equal(HttpStatusCode.OK, unchanged.StatusCode);
+        var unchangedBody = await unchanged.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(initialCompletion.ToString("yyyy-MM-dd"), unchangedBody.GetProperty("completionDate").GetString());
+        Assert.Equal("completed", unchangedBody.GetProperty("status").GetString());
+        Assert.Equal("玉女", unchangedBody.GetProperty("variety").GetString());
+        Assert.Equal("採收備註", unchangedBody.GetProperty("notes").GetString());
+        var unchangedUpdatedAt = await fixture.QuerySingleAsync<DateTimeOffset>($"""
+            SELECT updated_at AS "Value" FROM plantings WHERE id = {plantingId}
+            """);
+        Assert.Equal(beforeUpdatedAt, unchangedUpdatedAt);
+
+        var editStartedAt = DateTimeOffset.UtcNow;
+        var shortened = today.AddDays(-10);
+        using var edited = await owner.PutAsJsonAsync(editCompletionUrl, new { completionDate = shortened });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var editedBody = await edited.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(shortened.ToString("yyyy-MM-dd"), editedBody.GetProperty("completionDate").GetString());
+        Assert.Equal("completed", editedBody.GetProperty("status").GetString());
+        Assert.Equal("番茄", editedBody.GetProperty("cropName").GetString());
+        Assert.Equal("玉女", editedBody.GetProperty("variety").GetString());
+        Assert.Equal("採收備註", editedBody.GetProperty("notes").GetString());
+        Assert.Equal(planned.ToString("yyyy-MM-dd"), editedBody.GetProperty("plannedPlantingDate").GetString());
+        Assert.Equal(planted.ToString("yyyy-MM-dd"), editedBody.GetProperty("actualPlantingDate").GetString());
+        Assert.Equal(25m, editedBody.GetProperty("areaSquareMeters").GetDecimal());
+
+        var afterUpdatedAt = await fixture.QuerySingleAsync<DateTimeOffset>($"""
+            SELECT updated_at AS "Value" FROM plantings WHERE id = {plantingId}
+            """);
+        Assert.True(afterUpdatedAt >= editStartedAt && afterUpdatedAt > beforeUpdatedAt);
+
+        var detail = await owner.GetFromJsonAsync<JsonElement>($"/api/v1/plantings/{plantingId}");
+        Assert.Equal(shortened.ToString("yyyy-MM-dd"), detail.GetProperty("completionDate").GetString());
+        var historyItem = Assert.Single((await owner.GetFromJsonAsync<PlantingHistoryItemDto[]>(HistoryUrl))!);
+        Assert.Equal(shortened, historyItem.CompletionDate);
+        var refreshedRange = await owner.GetFromJsonAsync<JsonElement>($"/api/v1/plantings/{plantingId}/completion-date-range");
+        Assert.Equal(shortened.ToString("yyyy-MM-dd"), refreshedRange.GetProperty("completionDate").GetString());
+
+        using var material = await owner.PostAsJsonAsync("/api/v1/fertilizers", new { name = "有機肥", stockUnit = "公斤" });
+        var materialId = (await material.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        using var lot = await owner.PostAsJsonAsync($"/api/v1/fertilizers/{materialId}/lots", new
+        {
+            source = "openingStock",
+            receivedQuantity = 5m,
+            availableFrom = today.AddDays(-30)
+        });
+        var lotId = (await lot.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        var afterNewCompletion = shortened.AddDays(1);
+        var rejectedBackfills = new (string Url, object Body, string Field)[]
+        {
+            ($"/api/v1/plantings/{plantingId}/harvests",
+                new { harvestDate = afterNewCompletion, weightKg = 2m }, "harvestDate"),
+            ($"/api/v1/plantings/{plantingId}/irrigations",
+                new { operationDate = afterNewCompletion, method = "drip" }, "operationDate"),
+            ($"/api/v1/plantings/{plantingId}/material-applications", new
+            {
+                operationDate = afterNewCompletion,
+                applicationMethod = "broadcast",
+                details = new[] { new { materialPurchaseLotId = lotId, quantity = 1m } }
+            }, "operationDate")
+        };
+        foreach (var (url, body, field) in rejectedBackfills)
+        {
+            using var rejected = await owner.PostAsJsonAsync(url, body);
+            Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+            var problem = await rejected.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.True(problem.GetProperty("errors").TryGetProperty(field, out _), problem.GetRawText());
+        }
+
+        using var allowedOnEnd = await owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/irrigations",
+            new { operationDate = shortened, method = "drip" });
+        Assert.Equal(HttpStatusCode.Created, allowedOnEnd.StatusCode);
+
+        using var extended = await owner.PutAsJsonAsync(editCompletionUrl, new { completionDate = today });
+        Assert.Equal(HttpStatusCode.OK, extended.StatusCode);
+        Assert.Equal(today, Assert.Single((await owner.GetFromJsonAsync<PlantingHistoryItemDto[]>(HistoryUrl))!).CompletionDate);
+    }
+
+    /// <summary>驗證修正結束日端點的輸入格式、上限、下限衝突、狀態限制及帳號權限隔離。</summary>
+    [Fact]
+    public async Task CompletionDateEndpointsEnforceValidationBoundsStatusAndOwnership()
+    {
+        using var anonymous = fixture.CreateClient();
+        using var admin = (await fixture.CreateAccountClientAsync(UserRole.Admin)).Client;
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        using var other = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "北側田");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+        var planted = today.AddDays(-20);
+        var initialCompletion = today.AddDays(-5);
+        var completedId = await CreateCompletedPlantingAsync(owner, fieldId, planted, initialCompletion);
+        var rangeUrl = $"/api/v1/plantings/{completedId}/completion-date-range";
+        var editUrl = $"/api/v1/plantings/{completedId}/completion-date";
+
+        var invalidPayloads = new[]
+        {
+            "{}",
+            """{"completionDate":null}""",
+            """{"completionDate":""}""",
+            """{"completionDate":"2026-02-30"}""",
+            $$$"""{"completionDate":"{{{today.AddDays(1):yyyy-MM-dd}}}"}"""
+        };
+        foreach (var json in invalidPayloads)
+        {
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var invalid = await owner.PutAsync(editUrl, content);
+            Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+            Assert.Equal("application/problem+json", invalid.Content.Headers.ContentType?.MediaType);
+            var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.True(problem.GetProperty("errors").TryGetProperty("completionDate", out var messages), problem.GetRawText());
+            if (json.Contains(today.AddDays(1).ToString("yyyy-MM-dd"), StringComparison.Ordinal))
+            {
+                Assert.Equal("結束日不得晚於今天。", messages[0].GetString());
+            }
+        }
+
+        // 無活動紀錄時早於實際栽種日回傳 409，並帶入實際栽種日。
+        using var beforePlanting = await owner.PutAsJsonAsync(editUrl, new { completionDate = planted.AddDays(-1) });
+        Assert.Equal(HttpStatusCode.Conflict, beforePlanting.StatusCode);
+        var beforePlantingProblem = await beforePlanting.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains(planted.ToString("yyyy-MM-dd"),
+            beforePlantingProblem.GetProperty("errors").GetProperty("completionDate")[0].GetString());
+
+        // 有較晚灌溉紀錄時早於最後活動日回傳 409，並帶入最後活動日。
+        var irrigationDate = today.AddDays(-10);
+        using var irrigation = await owner.PostAsJsonAsync($"/api/v1/plantings/{completedId}/irrigations",
+            new { operationDate = irrigationDate, method = "drip" });
+        Assert.Equal(HttpStatusCode.Created, irrigation.StatusCode);
+        using var beforeActivity = await owner.PutAsJsonAsync(editUrl, new { completionDate = irrigationDate.AddDays(-1) });
+        Assert.Equal(HttpStatusCode.Conflict, beforeActivity.StatusCode);
+        var beforeActivityProblem = await beforeActivity.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains(irrigationDate.ToString("yyyy-MM-dd"),
+            beforeActivityProblem.GetProperty("errors").GetProperty("completionDate")[0].GetString());
+
+        // 已結束的栽培仍不得透過整筆編輯端點修改。
+        using var regularEdit = await owner.PutAsJsonAsync($"/api/v1/plantings/{completedId}", new
+        {
+            cropName = "番茄",
+            areaSquareMeters = 25,
+            status = "completed",
+            actualPlantingDate = planted,
+            completionDate = today.AddDays(-4)
+        });
+        Assert.Equal(HttpStatusCode.Conflict, regularEdit.StatusCode);
+        Assert.True((await regularEdit.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("errors").TryGetProperty("status", out _));
+
+        // 未結束的三種狀態均無法查詢或修正結束日。
+        var nonCompletedBodies = new object[]
+        {
+            new { cropName = "計畫番茄", areaSquareMeters = 10, status = "planned" },
+            new { cropName = "生長番茄", areaSquareMeters = 10, status = "growing", actualPlantingDate = planted },
+            new { cropName = "採收番茄", areaSquareMeters = 10, status = "harvesting", actualPlantingDate = planted }
+        };
+        foreach (var body in nonCompletedBodies)
+        {
+            using var created = await owner.PostAsJsonAsync($"{FieldsUrl}/{fieldId}/plantings", body);
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+            using var getRange = await owner.GetAsync($"/api/v1/plantings/{id}/completion-date-range");
+            Assert.Equal(HttpStatusCode.Conflict, getRange.StatusCode);
+            Assert.True((await getRange.Content.ReadFromJsonAsync<JsonElement>())
+                .GetProperty("errors").TryGetProperty("status", out _));
+
+            using var putDate = await owner.PutAsJsonAsync($"/api/v1/plantings/{id}/completion-date",
+                new { completionDate = today });
+            Assert.Equal(HttpStatusCode.Conflict, putDate.StatusCode);
+            Assert.True((await putDate.Content.ReadFromJsonAsync<JsonElement>())
+                .GetProperty("errors").TryGetProperty("status", out _));
+        }
+
+        // 驗證未登入、缺少 USER 角色、跨帳號與不存在識別碼的回應。
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(rangeUrl)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await anonymous.PutAsJsonAsync(editUrl, new { completionDate = today })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await admin.GetAsync(rangeUrl)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await admin.PutAsJsonAsync(editUrl, new { completionDate = today })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync(rangeUrl)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await other.PutAsJsonAsync(editUrl, new { completionDate = today })).StatusCode);
+
+        var missingId = Guid.NewGuid();
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await owner.GetAsync($"/api/v1/plantings/{missingId}/completion-date-range")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await owner.PutAsJsonAsync($"/api/v1/plantings/{missingId}/completion-date", new { completionDate = today })).StatusCode);
+
+        var detail = await owner.GetFromJsonAsync<JsonElement>($"/api/v1/plantings/{completedId}");
+        Assert.Equal(initialCompletion.ToString("yyyy-MM-dd"), detail.GetProperty("completionDate").GetString());
+    }
+
+    /// <summary>並行提前結束日與補登灌溉時，兩者不得同時成功而使灌溉日晚於結束日。</summary>
+    [Fact]
+    public async Task ConcurrentCompletionDateEditAndIrrigationBackfillStayConsistent()
+    {
+        using var owner = (await fixture.CreateAccountClientAsync()).Client;
+        var fieldId = await CreateFieldAsync(owner, "北側田");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+        var plantingId = await CreateCompletedPlantingAsync(
+            owner, fieldId, today.AddDays(-20), today.AddDays(-2));
+        var shortenedDate = today.AddDays(-10);
+        var backfillDate = today.AddDays(-5);
+
+        var editTask = owner.PutAsJsonAsync($"/api/v1/plantings/{plantingId}/completion-date",
+            new { completionDate = shortenedDate });
+        var irrigateTask = owner.PostAsJsonAsync($"/api/v1/plantings/{plantingId}/irrigations",
+            new { operationDate = backfillDate, method = "drip" });
+        await Task.WhenAll(editTask, irrigateTask);
+        using var edited = await editTask;
+        using var irrigated = await irrigateTask;
+
+        Assert.True((edited.StatusCode, irrigated.StatusCode) is
+            (HttpStatusCode.OK, HttpStatusCode.BadRequest) or (HttpStatusCode.Conflict, HttpStatusCode.Created),
+            $"Unexpected statuses: edit={edited.StatusCode}, irrigate={irrigated.StatusCode}");
+
+        var detail = await owner.GetFromJsonAsync<JsonElement>($"/api/v1/plantings/{plantingId}");
+        var irrigations = (await owner.GetFromJsonAsync<JsonElement>($"/api/v1/plantings/{plantingId}/irrigations"))
+            .EnumerateArray().ToList();
+        if (edited.StatusCode == HttpStatusCode.OK)
+        {
+            Assert.Equal(shortenedDate.ToString("yyyy-MM-dd"), detail.GetProperty("completionDate").GetString());
+            Assert.Empty(irrigations);
+        }
+        else
+        {
+            Assert.Equal(today.AddDays(-2).ToString("yyyy-MM-dd"), detail.GetProperty("completionDate").GetString());
+            var createdIrrigation = Assert.Single(irrigations);
+            Assert.Equal(backfillDate.ToString("yyyy-MM-dd"), createdIrrigation.GetProperty("operationDate").GetString());
+        }
+    }
+
+    /// <summary>透過田區與栽培 API 建立測試用已結束栽培紀錄。</summary>
+    private static async Task<Guid> CreateCompletedPlantingAsync(HttpClient owner, Guid fieldId,
+        DateOnly actualPlantingDate, DateOnly completionDate, DateOnly? plannedPlantingDate = null,
+        string cropName = "番茄", string? variety = null, string? notes = null)
+    {
+        using var created = await owner.PostAsJsonAsync($"{FieldsUrl}/{fieldId}/plantings", new
+        {
+            cropName,
+            variety,
+            areaSquareMeters = 25,
+            status = "growing",
+            plannedPlantingDate,
+            actualPlantingDate,
+            notes
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var plantingUrl = created.Headers.Location!;
+        var plantingId = Guid.Parse(plantingUrl.AbsolutePath.Split('/')[^1]);
+
+        using var completed = await owner.PutAsJsonAsync(plantingUrl, new
+        {
+            cropName,
+            variety,
+            areaSquareMeters = 25,
+            status = "completed",
+            plannedPlantingDate,
+            actualPlantingDate,
+            completionDate,
+            notes
+        });
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        return plantingId;
+    }
+
     /// <summary>透過田區 API 建立測試用田區。</summary>
     private static async Task<Guid> CreateFieldAsync(HttpClient owner, string name)
     {
