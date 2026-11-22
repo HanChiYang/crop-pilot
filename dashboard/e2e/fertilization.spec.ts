@@ -114,7 +114,8 @@ test('從栽培歷史補登施肥，衝突保留輸入，並可編輯原明細',
   await expect(list).toContainText('2 公斤');
   await page.getByRole('link', { name: '返回栽培詳情' }).click();
   await expect(page).toHaveURL(historyPath);
-  await expect(page.getByRole('region', { name: '栽培紀錄資料' })).toContainText('已結束');
+  await expect(page.getByRole('heading', { name: '番茄' })).toBeVisible();
+  await expect(page.getByText('已結束', { exact: true })).toBeVisible();
 });
 
 test('肥料進貨支援六位小數及未知價格，既有期初批次仍可維護', async ({ page }) => {
