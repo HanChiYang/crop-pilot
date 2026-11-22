@@ -1,14 +1,16 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, catchError, forkJoin, map, of, startWith, switchMap, tap } from 'rxjs';
+import { CompletionDateDialog } from './completion-date-dialog';
 import { FieldsService } from './generated/api/fields.service';
 import { PlantingsService } from './generated/api/plantings.service';
 import { PlantingRsDto } from './generated/model/plantingRsDto';
 import { HarvestRecords } from './harvest-records';
-import { plantingStatusLabel } from './planting-display';
+import { formatSlashDate, plantingStatusLabel } from './planting-display';
+import { PlantingHistoryPage } from './planting-history-page';
 
 type DetailState =
   | { status: 'loading' | 'error' | 'missing' }
@@ -25,7 +27,7 @@ type DetailTab = (typeof detailTabs)[number]['id'];
 
 @Component({
   selector: 'app-planting-detail-page',
-  imports: [DecimalPipe, RouterLink, HarvestRecords],
+  imports: [DecimalPipe, RouterLink, HarvestRecords, CompletionDateDialog],
   styles: `
     dl { margin: 0; overflow-wrap: anywhere; }
     dt { font-weight: 700; }
@@ -33,7 +35,11 @@ type DetailTab = (typeof detailTabs)[number]['id'];
     .notes { grid-column: 1 / -1; white-space: pre-wrap; }
     .operations, .detail-title { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
     .detail-status { padding: .25rem .7rem; border-radius: 999px; background: var(--pale); font-size: .875rem; font-weight: 700; }
+    .detail-notice { color: var(--green); font-size: .95rem; font-weight: 700; }
+    .detail-summary { max-width: none; }
     .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 1rem; }
+    .completion-date-cell { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+    .button-compact { min-height: 1.9rem; padding: .2rem .65rem; font-size: .875rem; }
     .detail-tabs {
       display: flex;
       flex-wrap: wrap;
@@ -61,9 +67,12 @@ type DetailTab = (typeof detailTabs)[number]['id'];
     @let detail = state();
     <header class="page-heading">
       <div class="detail-title">
-        <h1>{{ !fromHistory && detail.status === 'ready' ? detail.planting.cropName : '栽培紀錄詳情' }}</h1>
-        @if (!fromHistory && detail.status === 'ready') {
+        <h1>{{ detail.status === 'ready' ? detail.planting.cropName : '栽培紀錄詳情' }}</h1>
+        @if (detail.status === 'ready') {
           <span class="detail-status">{{ statusLabel[detail.planting.status] }}</span>
+          @if (completionNotice(); as notice) {
+            <span class="detail-notice" role="status">{{ notice }}</span>
+          }
         }
       </div>
       <a class="button button-outline" [routerLink]="operationBase" [queryParams]="backQuery">
@@ -91,18 +100,25 @@ type DetailTab = (typeof detailTabs)[number]['id'];
           <a class="button button-outline" [queryParams]="backQuery"
             [routerLink]="[operationBase, planting.fieldId, planting.id, 'irrigations']">灌溉紀錄</a>
         </p>
-        <section class="panel field-form" aria-label="栽培紀錄資料">
-          <dl [class.field-form-grid]="fromHistory" [class.summary-grid]="!fromHistory">
+        <section class="panel field-form detail-summary" aria-label="栽培紀錄資料">
+          <dl class="summary-grid">
             <div><dt>田區</dt><dd>{{ detail.fieldName }}</dd></div>
-            @if (fromHistory) {
-              <div><dt>作物</dt><dd>{{ planting.cropName }}</dd></div>
-              <div><dt>狀態</dt><dd>{{ statusLabel[planting.status] }}</dd></div>
+            <div><dt>品種</dt><dd>{{ planting.variety || '—' }}</dd></div>
+            @if (fromHistory || planting.plannedPlantingDate) {
               <div><dt>預定栽種日</dt><dd>{{ planting.plannedPlantingDate || '—' }}</dd></div>
             }
-            <div><dt>品種</dt><dd>{{ planting.variety || '—' }}</dd></div>
             <div><dt>實際栽種日</dt><dd>{{ planting.actualPlantingDate || '—' }}</dd></div>
             @if (planting.completionDate) {
-              <div><dt>結束日</dt><dd>{{ planting.completionDate }}</dd></div>
+              <div>
+                <dt>結束日</dt>
+                <dd class="completion-date-cell">
+                  <span>{{ planting.completionDate }}</span>
+                  @if (fromHistory && planting.status === 'completed') {
+                    <button class="button button-outline button-compact" type="button"
+                      (click)="openCompletionDialog()">修正</button>
+                  }
+                </dd>
+              </div>
             }
             <div><dt>占用面積</dt><dd>{{ planting.areaSquareMeters | number: '1.0-4' }} m²</dd></div>
             @if (fromHistory || planting.notes) {
@@ -110,6 +126,10 @@ type DetailTab = (typeof detailTabs)[number]['id'];
             }
           </dl>
         </section>
+        @if (fromHistory && planting.status === 'completed') {
+          <app-completion-date-dialog [fieldName]="detail.fieldName" [planting]="planting"
+            (saved)="onCompletionDateSaved($event)" />
+        }
         <div #tablist class="detail-tabs" role="tablist" aria-label="栽培詳情">
           @for (tab of tabs; track tab.id; let index = $index) {
             <button type="button" role="tab" [id]="'detail-tab-' + tab.id"
@@ -139,6 +159,8 @@ export class PlantingDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly fields = inject(FieldsService);
   private readonly plantings = inject(PlantingsService);
+  private readonly historyPage = inject(PlantingHistoryPage, { optional: true });
+  private readonly completionDialog = viewChild(CompletionDateDialog);
 
   protected readonly fromHistory = this.route.snapshot.data['fromHistory'] === true;
   protected readonly operationBase = this.fromHistory ? '/dashboard/planting-history' : '/dashboard/plantings';
@@ -146,11 +168,17 @@ export class PlantingDetailPage {
   protected readonly statusLabel = plantingStatusLabel;
   protected readonly tabs = detailTabs;
   protected readonly selectedTab = signal<DetailTab>('harvest');
+  protected readonly completionNotice = signal('');
+  private readonly plantingOverride = signal<PlantingRsDto | null>(null);
   protected readonly reload = new Subject<void>();
-  protected readonly state = toSignal(this.route.paramMap.pipe(
-    tap(() => this.selectedTab.set('harvest')),
+  private readonly loadedState = toSignal(this.route.paramMap.pipe(
     switchMap(params => this.reload.pipe(
       startWith(undefined),
+      tap(() => {
+        this.selectedTab.set('harvest');
+        this.plantingOverride.set(null);
+        this.completionNotice.set('');
+      }),
       switchMap(() => {
         const fieldId = params.get('fieldId')!;
         const plantingId = params.get('plantingId')!;
@@ -170,6 +198,26 @@ export class PlantingDetailPage {
       }),
     )),
   ), { initialValue: { status: 'loading' } });
+  protected readonly state = computed<DetailState>(() => {
+    const loaded = this.loadedState();
+    const override = this.plantingOverride();
+    if (loaded.status === 'ready' && override && override.id === loaded.planting.id) {
+      return { status: 'ready', fieldName: loaded.fieldName, planting: override };
+    }
+    return loaded;
+  });
+
+  protected openCompletionDialog(): void {
+    this.completionDialog()?.open();
+  }
+
+  protected onCompletionDateSaved(updated: PlantingRsDto): void {
+    this.plantingOverride.set(updated);
+    if (updated.completionDate) {
+      this.completionNotice.set(`結束日已更新為 ${formatSlashDate(updated.completionDate)}。`);
+    }
+    this.historyPage?.refreshResults();
+  }
 
   protected handleTabKey(event: KeyboardEvent, index: number, tablist: HTMLElement): void {
     const last = this.tabs.length - 1;
