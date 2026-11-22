@@ -68,6 +68,80 @@ public sealed class PlantingRepository(CropPilotDbContext database)
         return harvest > operation || operation is null ? harvest : operation;
     }
 
+    /// <summary>取得栽培的最後採收日、資材施用日與灌溉日，沒有該類紀錄時回傳 null。</summary>
+    private async Task<PlantingActivityMaxDates> LatestActivityMaxDatesAsync(Guid plantingId,
+        CancellationToken cancellationToken)
+    {
+        var harvest = await database.Harvests
+            .Where(value => value.PlantingId == plantingId)
+            .MaxAsync(value => (DateOnly?)value.HarvestDate, cancellationToken);
+        var materialApplication = await database.FieldOperations
+            .Where(value => value.PlantingId == plantingId && value.OperationType == FieldOperation.MaterialApplication)
+            .MaxAsync(value => (DateOnly?)value.OperationDate, cancellationToken);
+        var irrigation = await database.FieldOperations
+            .Where(value => value.PlantingId == plantingId && value.OperationType == FieldOperation.Irrigation)
+            .MaxAsync(value => (DateOnly?)value.OperationDate, cancellationToken);
+        return new(harvest, materialApplication, irrigation);
+    }
+
+    /// <summary>從同一資料庫快照讀取帳號擁有的栽培及各項活動最新日期，不鎖定資料。</summary>
+    internal async Task<PlantingCompletionDateSnapshot?> ReadCompletionDateSnapshotAsync(Guid accountId,
+        Guid plantingId, CancellationToken cancellationToken)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
+        var planting = await OwnedPlantings(accountId).AsNoTracking()
+            .SingleOrDefaultAsync(value => value.Id == plantingId, cancellationToken);
+        if (planting is null)
+        {
+            return null;
+        }
+        if (planting.Status != Planting.Completed)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new(planting, null);
+        }
+
+        var latestActivities = await LatestActivityMaxDatesAsync(plantingId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new(planting, latestActivities);
+    }
+
+    /// <summary>鎖定帳號擁有的栽培列並取得最新活動日期，業務驗證通過且有變更時提交結束日修正。</summary>
+    internal async Task<PlantingWriteResult> EditCompletionDateAsync(Guid accountId, Guid plantingId,
+        Func<Planting, PlantingActivityMaxDates?, PlantingWriteResult> apply, CancellationToken cancellationToken)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        // 與採收、灌溉及資材施用共用同一列 plantings 鎖，避免並行補登與修正結束日互相交錯。
+        var lockedIds = await database.Database.SqlQuery<Guid>($"""
+            SELECT p.id AS "Value"
+            FROM plantings p JOIN fields f ON f.id = p.field_id
+            WHERE p.id = {plantingId} AND f.main_account_id = {accountId}
+            FOR UPDATE OF p
+            """).ToListAsync(cancellationToken);
+        if (lockedIds.Count == 0)
+        {
+            return new(PlantingWriteStatus.NotFound);
+        }
+
+        var planting = await database.Plantings.SingleAsync(value => value.Id == plantingId, cancellationToken);
+        var latestActivities = planting.Status == Planting.Completed
+            ? await LatestActivityMaxDatesAsync(plantingId, cancellationToken)
+            : null;
+        var result = apply(planting, latestActivities);
+        if (result.Status != PlantingWriteStatus.Success)
+        {
+            return result;
+        }
+
+        if (database.ChangeTracker.HasChanges())
+        {
+            await database.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
     /// <summary>從同一資料庫快照讀取栽培與作業，供刪除確認使用。</summary>
     internal async Task<PlantingDeletion?> ReadDeletionAsync(Guid accountId, Guid plantingId, CancellationToken ct)
     {
@@ -228,3 +302,10 @@ internal sealed record FieldPlantings(Field Field, List<Planting> Plantings);
 /// <summary>歷史清單顯示的已結束紀錄與目前田區名稱。</summary>
 internal sealed record PlantingHistoryEntry(Guid Id, Guid FieldId, string FieldName, string CropName,
     string? Variety, DateOnly ActualPlantingDate, DateOnly CompletionDate, decimal AreaSquareMeters);
+
+/// <summary>包含栽培各項活動在資料庫中的最新日期，沒有紀錄時為 null。</summary>
+internal sealed record PlantingActivityMaxDates(DateOnly? HarvestDate, DateOnly? MaterialApplicationDate,
+    DateOnly? IrrigationDate);
+
+/// <summary>包含同一快照讀取的栽培紀錄與已結束栽培的最新活動日期。</summary>
+internal sealed record PlantingCompletionDateSnapshot(Planting Planting, PlantingActivityMaxDates? LatestActivities);

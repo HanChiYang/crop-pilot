@@ -29,6 +29,8 @@ import { CreatePlantingRqDto } from '../model/createPlantingRqDto';
 // @ts-ignore
 import { EditMaterialApplicationRqDto } from '../model/editMaterialApplicationRqDto';
 // @ts-ignore
+import { EditPlantingCompletionDateRqDto } from '../model/editPlantingCompletionDateRqDto';
+// @ts-ignore
 import { EditPlantingRqDto } from '../model/editPlantingRqDto';
 // @ts-ignore
 import { FieldPlantingsRsDto } from '../model/fieldPlantingsRsDto';
@@ -40,6 +42,8 @@ import { HarvestRsDto } from '../model/harvestRsDto';
 import { IrrigationRsDto } from '../model/irrigationRsDto';
 // @ts-ignore
 import { MaterialApplicationRsDto } from '../model/materialApplicationRsDto';
+// @ts-ignore
+import { PlantingCompletionDateRangeRsDto } from '../model/plantingCompletionDateRangeRsDto';
 // @ts-ignore
 import { PlantingDeletePreviewRsDto } from '../model/plantingDeletePreviewRsDto';
 // @ts-ignore
@@ -127,6 +131,12 @@ export interface EditPlantingRequestParams {
     editPlantingRqDto: EditPlantingRqDto;
 }
 
+export interface EditPlantingCompletionDateRequestParams {
+    /** 栽培紀錄的 UUID。 */
+    plantingId: string;
+    editPlantingCompletionDateRqDto: EditPlantingCompletionDateRqDto;
+}
+
 export interface GetHarvetsRequestParams {
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
@@ -141,6 +151,11 @@ export interface GetHarvetsRequestParams {
 }
 
 export interface GetPlantingRequestParams {
+    /** 栽培紀錄的 UUID。 */
+    plantingId: string;
+}
+
+export interface GetPlantingCompletionDateRangeRequestParams {
     /** 栽培紀錄的 UUID。 */
     plantingId: string;
 }
@@ -981,7 +996,7 @@ export class PlantingsService extends BaseService {
 
     /**
      * 編輯單筆栽培紀錄
-     * 更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日，改為已結束時另需結束日。
+     * 更新完整表單。已結束的紀錄不可透過此端點編輯，結束日修正請改用 completion-date 端點。栽培中及已結束均需實際栽種日，改為已結束時另需結束日。
      * @endpoint put /api/v1/plantings/{plantingId}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -1045,6 +1060,82 @@ export class PlantingsService extends BaseService {
             {
                 context: localVarHttpContext,
                 body: editPlantingRqDto,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 修正單筆已結束栽培的結束日
+     * 需要 USER 角色。只更新已結束栽培的結束日，其他欄位與狀態不變。 儲存時鎖定栽培列並重新核對實際栽種日、最後一筆採收與田間作業日期及台北當日。 新日期與原結束日相同時回傳 200 並保留原更新時間。 紀錄不存在或所屬田區屬於其他帳號時回傳 404。
+     * @endpoint put /api/v1/plantings/{plantingId}/completion-date
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public editPlantingCompletionDate(requestParameters: EditPlantingCompletionDateRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<PlantingRsDto>;
+    public editPlantingCompletionDate(requestParameters: EditPlantingCompletionDateRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<PlantingRsDto>>;
+    public editPlantingCompletionDate(requestParameters: EditPlantingCompletionDateRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<PlantingRsDto>>;
+    public editPlantingCompletionDate(requestParameters: EditPlantingCompletionDateRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling editPlantingCompletionDate.');
+        }
+        const editPlantingCompletionDateRqDto = requestParameters?.editPlantingCompletionDateRqDto;
+        if (editPlantingCompletionDateRqDto === null || editPlantingCompletionDateRqDto === undefined) {
+            throw new Error('Required parameter editPlantingCompletionDateRqDto was null or undefined when calling editPlantingCompletionDate.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/completion-date`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<PlantingRsDto>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: editPlantingCompletionDateRqDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
@@ -1210,6 +1301,68 @@ export class PlantingsService extends BaseService {
         let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<PlantingRsDto>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * 列出已結束栽培的結束日可填範圍詳細資料
+     * 需要 USER 角色。依栽培紀錄識別碼查詢已結束栽培目前的結束日及可填範圍。 下限為實際栽種日與該批最後一筆採收、資材施用、灌溉日期中最晚的一天，多個來源在同一天時依 harvest、materialApplication、irrigation、actualPlanting 順序取第一個；上限為伺服器計算的台北當日。 回應為快照，不鎖定資料。紀錄不存在或所屬田區屬於其他帳號時回傳 404；栽培未結束時回傳 409。
+     * @endpoint get /api/v1/plantings/{plantingId}/completion-date-range
+     * @param requestParameters
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public getPlantingCompletionDateRange(requestParameters: GetPlantingCompletionDateRangeRequestParams, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<PlantingCompletionDateRangeRsDto>;
+    public getPlantingCompletionDateRange(requestParameters: GetPlantingCompletionDateRangeRequestParams, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<PlantingCompletionDateRangeRsDto>>;
+    public getPlantingCompletionDateRange(requestParameters: GetPlantingCompletionDateRangeRequestParams, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<PlantingCompletionDateRangeRsDto>>;
+    public getPlantingCompletionDateRange(requestParameters: GetPlantingCompletionDateRangeRequestParams, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        const plantingId = requestParameters?.plantingId;
+        if (plantingId === null || plantingId === undefined) {
+            throw new Error('Required parameter plantingId was null or undefined when calling getPlantingCompletionDateRange.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (BearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('BearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/plantings/${this.configuration.encodeParam({name: "plantingId", value: plantingId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/completion-date-range`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<PlantingCompletionDateRangeRsDto>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,

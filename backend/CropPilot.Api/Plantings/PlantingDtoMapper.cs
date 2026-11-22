@@ -35,6 +35,22 @@ internal static class PlantingDtoMapper
         Status = ToStatus(planting.Status)
     };
 
+    /// <summary>轉換已結束栽培的結束日可填範圍與下限來源。</summary>
+    internal static PlantingCompletionDateRangeRsDto ToCompletionDateRangeDto(PlantingCompletionDateRange range) => new()
+    {
+        CompletionDate = range.CompletionDate,
+        EarliestDate = range.EarliestDate,
+        EarliestDateSource = range.EarliestDateSource switch
+        {
+            CompletionDateLowerBoundOrigin.Harvest => CompletionDateLowerBoundSource.HarvestEnum,
+            CompletionDateLowerBoundOrigin.MaterialApplication => CompletionDateLowerBoundSource.MaterialApplicationEnum,
+            CompletionDateLowerBoundOrigin.Irrigation => CompletionDateLowerBoundSource.IrrigationEnum,
+            CompletionDateLowerBoundOrigin.ActualPlanting => CompletionDateLowerBoundSource.ActualPlantingEnum,
+            _ => throw new InvalidOperationException(Constants.ErrorMessages.CompletionDateLowerBoundSourceInvalid)
+        },
+        LatestDate = range.LatestDate
+    };
+
     /// <summary>轉換栽培刪除預覽，包含原批次恢復用量及預覽版本。</summary>
     internal static PlantingDeletePreviewRsDto ToDeletePreviewDto(PlantingDeletion deletion) => new()
     {
