@@ -103,6 +103,99 @@ public sealed class PlantingService(PlantingRepository repository)
         }, cancellationToken);
     }
 
+    /// <summary>讀取已結束栽培目前的結束日及可填上下限。</summary>
+    internal async Task<PlantingCompletionDateRangeResult> GetCompletionDateRangeAsync(
+        Guid accountId, Guid plantingId, CancellationToken cancellationToken)
+    {
+        var snapshot = await repository.ReadCompletionDateSnapshotAsync(accountId, plantingId, cancellationToken);
+        if (snapshot is null)
+        {
+            return new(PlantingWriteStatus.NotFound);
+        }
+        if (snapshot.Planting.Status != Planting.Completed)
+        {
+            return new(PlantingWriteStatus.Conflict,
+                Errors: new() { ["status"] = ErrorMessages.PlantingCompletionDateCorrectionOnlyCompleted });
+        }
+
+        var (earliestDate, earliestOrigin) = ResolveCompletionLowerBound(
+            snapshot.Planting.ActualPlantingDate!.Value, snapshot.LatestActivities!);
+        var range = new PlantingCompletionDateRange(
+            snapshot.Planting.CompletionDate!.Value, earliestDate, earliestOrigin, Today);
+        return new(PlantingWriteStatus.Success, range);
+    }
+
+    /// <summary>在鎖定栽培後驗證新結束日並更新結束日及修改時間，未變更時保留原修改時間。</summary>
+    internal Task<PlantingWriteResult> EditCompletionDateAsync(Guid accountId, Guid plantingId,
+        EditPlantingCompletionDateRqDto request, CancellationToken cancellationToken)
+    {
+        if (request.CompletionDate == default)
+        {
+            return Task.FromResult(new PlantingWriteResult(PlantingWriteStatus.InvalidInput,
+                Errors: new() { ["completionDate"] = ErrorMessages.PlantingCompletionDateInputRequired }));
+        }
+        if (request.CompletionDate > Today)
+        {
+            return Task.FromResult(new PlantingWriteResult(PlantingWriteStatus.InvalidInput,
+                Errors: new() { ["completionDate"] = ErrorMessages.PlantingCompletionDateAfterToday }));
+        }
+
+        return repository.EditCompletionDateAsync(accountId, plantingId, (planting, latestActivities) =>
+        {
+            if (planting.Status != Planting.Completed)
+            {
+                return new(PlantingWriteStatus.Conflict,
+                    Errors: new() { ["status"] = ErrorMessages.PlantingCompletionDateCorrectionOnlyCompleted });
+            }
+
+            var (earliestDate, earliestOrigin) = ResolveCompletionLowerBound(
+                planting.ActualPlantingDate!.Value, latestActivities!);
+            if (request.CompletionDate < earliestDate)
+            {
+                var template = earliestOrigin == CompletionDateLowerBoundOrigin.ActualPlanting
+                    ? ErrorMessages.PlantingCompletionBeforeActualPlanting
+                    : ErrorMessages.PlantingCompletionBeforeActivity;
+                return new(PlantingWriteStatus.Conflict, Errors: new()
+                {
+                    ["completionDate"] = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        template, earliestDate)
+                });
+            }
+
+            if (planting.CompletionDate != request.CompletionDate)
+            {
+                planting.CompletionDate = request.CompletionDate;
+                planting.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+
+            return new(PlantingWriteStatus.Success, planting);
+        }, cancellationToken);
+    }
+
+    /// <summary>依實際栽種日與各項活動最新日期計算結束日下限，同日依採收、資材施用、灌溉、實際栽種日順序決定來源。</summary>
+    private static (DateOnly EarliestDate, CompletionDateLowerBoundOrigin Origin) ResolveCompletionLowerBound(
+        DateOnly actualPlantingDate, PlantingActivityMaxDates latestActivities)
+    {
+        var earliestDate = actualPlantingDate;
+        var earliestOrigin = CompletionDateLowerBoundOrigin.ActualPlanting;
+        if (latestActivities.IrrigationDate is { } irrigation && irrigation >= earliestDate)
+        {
+            earliestDate = irrigation;
+            earliestOrigin = CompletionDateLowerBoundOrigin.Irrigation;
+        }
+        if (latestActivities.MaterialApplicationDate is { } materialApplication && materialApplication >= earliestDate)
+        {
+            earliestDate = materialApplication;
+            earliestOrigin = CompletionDateLowerBoundOrigin.MaterialApplication;
+        }
+        if (latestActivities.HarvestDate is { } harvest && harvest >= earliestDate)
+        {
+            earliestDate = harvest;
+            earliestOrigin = CompletionDateLowerBoundOrigin.Harvest;
+        }
+        return (earliestDate, earliestOrigin);
+    }
+
     /// <summary>查詢帳號擁有的栽培將刪除的作業與批次用量。</summary>
     internal async Task<(PlantingWriteStatus Status, PlantingDeletion? Deletion)> GetDeletePreviewAsync(Guid accountId,
         Guid plantingId, CancellationToken ct)
@@ -249,3 +342,14 @@ internal enum PlantingWriteStatus { Success, InvalidInput, NotFound, Conflict, P
 /// <summary>包含寫入狀態、儲存後的紀錄或欄位錯誤。</summary>
 internal sealed record PlantingWriteResult(PlantingWriteStatus Status, Planting? Planting = null,
     Dictionary<string, string>? Errors = null);
+
+/// <summary>表示結束日可填下限的資料來源。</summary>
+internal enum CompletionDateLowerBoundOrigin { Harvest, MaterialApplication, Irrigation, ActualPlanting }
+
+/// <summary>包含已結束栽培目前的結束日、可填上下限及下限來源。</summary>
+internal sealed record PlantingCompletionDateRange(DateOnly CompletionDate, DateOnly EarliestDate,
+    CompletionDateLowerBoundOrigin EarliestDateSource, DateOnly LatestDate);
+
+/// <summary>包含結束日可填範圍查詢的狀態、範圍結果或欄位錯誤。</summary>
+internal sealed record PlantingCompletionDateRangeResult(PlantingWriteStatus Status,
+    PlantingCompletionDateRange? Range = null, Dictionary<string, string>? Errors = null);

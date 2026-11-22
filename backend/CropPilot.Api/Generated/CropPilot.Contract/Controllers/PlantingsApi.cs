@@ -306,7 +306,7 @@ namespace CropPilot.Contract.Controllers
         /// <summary>
         /// 編輯單筆栽培紀錄
         /// </summary>
-        /// <remarks>更新完整表單。已結束的紀錄保留且不可編輯。栽培中及已結束均需實際栽種日，改為已結束時另需結束日。</remarks>
+        /// <remarks>更新完整表單。已結束的紀錄不可透過此端點編輯，結束日修正請改用 completion-date 端點。栽培中及已結束均需實際栽種日，改為已結束時另需結束日。</remarks>
         /// <param name="plantingId">栽培紀錄的 UUID。</param>
         /// <param name="editPlantingRqDto"></param>
         /// <response code="200">已更新的栽培紀錄</response>
@@ -329,6 +329,33 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> EditPlanting([FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromBody]EditPlantingRqDto editPlantingRqDto);
+
+        /// <summary>
+        /// 修正單筆已結束栽培的結束日
+        /// </summary>
+        /// <remarks>需要 USER 角色。只更新已結束栽培的結束日，其他欄位與狀態不變。 儲存時鎖定栽培列並重新核對實際栽種日、最後一筆採收與田間作業日期及台北當日。 新日期與原結束日相同時回傳 200 並保留原更新時間。 紀錄不存在或所屬田區屬於其他帳號時回傳 404。</remarks>
+        /// <param name="plantingId">栽培紀錄的 UUID。</param>
+        /// <param name="editPlantingCompletionDateRqDto"></param>
+        /// <response code="200">已更新結束日的栽培紀錄</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpPut]
+        [Route("/api/v1/plantings/{plantingId}/completion-date")]
+        [Authorize]
+        [Consumes("application/json")]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(PlantingRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> EditPlantingCompletionDate([FromRoute (Name = "plantingId")][Required]Guid plantingId, [FromBody]EditPlantingCompletionDateRqDto editPlantingCompletionDateRqDto);
 
         /// <summary>
         /// 查詢單筆栽培的採收清單與累計重量
@@ -379,6 +406,31 @@ namespace CropPilot.Contract.Controllers
         [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
         [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
         public abstract Task<IActionResult> GetPlanting([FromRoute (Name = "plantingId")][Required]Guid plantingId);
+
+        /// <summary>
+        /// 列出已結束栽培的結束日可填範圍詳細資料
+        /// </summary>
+        /// <remarks>需要 USER 角色。依栽培紀錄識別碼查詢已結束栽培目前的結束日及可填範圍。 下限為實際栽種日與該批最後一筆採收、資材施用、灌溉日期中最晚的一天，多個來源在同一天時依 harvest、materialApplication、irrigation、actualPlanting 順序取第一個；上限為伺服器計算的台北當日。 回應為快照，不鎖定資料。紀錄不存在或所屬田區屬於其他帳號時回傳 404；栽培未結束時回傳 409。</remarks>
+        /// <param name="plantingId">栽培紀錄的 UUID。</param>
+        /// <response code="200">結束日可填範圍</response>
+        /// <response code="400">請求驗證或防偽權杖驗證失敗。欄位錯誤可依 errors 內的 JSON 欄位名顯示。</response>
+        /// <response code="401">權杖無效、未登入或工作階段已失效</response>
+        /// <response code="403">登入帳號沒有使用田區功能所需的 USER 角色。</response>
+        /// <response code="404">資源不存在、類型不符，或資源屬於其他帳號</response>
+        /// <response code="409">請求與資源目前的狀態衝突。detail 說明原因，有欄位提示時附上 errors。</response>
+        /// <response code="500">伺服器處理失敗</response>
+        [HttpGet]
+        [Route("/api/v1/plantings/{plantingId}/completion-date-range")]
+        [Authorize]
+        [ValidateModelState]
+        [ProducesResponseType(statusCode: 200, type: typeof(PlantingCompletionDateRangeRsDto))]
+        [ProducesResponseType(statusCode: 400, type: typeof(ApiValidationProblemRsDto))]
+        [ProducesResponseType(statusCode: 401, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 403, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 404, type: typeof(ApiProblemRsDto))]
+        [ProducesResponseType(statusCode: 409, type: typeof(ApiConflictRsDto))]
+        [ProducesResponseType(statusCode: 500, type: typeof(ApiProblemRsDto))]
+        public abstract Task<IActionResult> GetPlantingCompletionDateRange([FromRoute (Name = "plantingId")][Required]Guid plantingId);
 
         /// <summary>
         /// 查詢刪除栽培的影響

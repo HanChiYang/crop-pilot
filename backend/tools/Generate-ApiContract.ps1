@@ -18,6 +18,7 @@ $apis = 'Auth:Fields:Plantings:Overview:Materials'
 $models = 'LoginRqDto:AccessTokenRsDto:LogoutRqDto:ApiProblemRsDto:ApiValidationProblemRsDto:CreateFieldRqDto:EditFieldRqDto:DeleteFieldRqDto:FieldDto:FieldRsDto:CreatePlantingRqDto:EditPlantingRqDto:PlantingRsDto:PlantingStatus:FieldPlantingsRsDto:FieldOverviewRsDto:PlantingHistoryItemDto:CreateFertilizerMaterialRqDto:FertilizerMaterialRsDto:CreateFertilizerLotRqDto:EditFertilizerLotRqDto:FertilizerLotRsDto:CreateMaterialApplicationRqDto:EditMaterialApplicationRqDto:MaterialApplicationRsDto:MaterialApplicationDetailRqDto:EditMaterialApplicationDetailRqDto:MaterialApplicationDetailRsDto:MaterialApplicationMethod:CreatePesticideMaterialRqDto:PesticideMaterialRsDto:CreatePesticideLotRqDto:PesticideLotRsDto:PesticideStockUnit:ApiConflictRsDto:SaveIrrigationRqDto:IrrigationRsDto:IrrigationMethod:SaveHarvestRqDto:HarvestRsDto:HarvestListRsDto'
 
 $models += ':MaterialPackageDto:MaterialPackageUnit:PlantingDeletePreviewRsDto:PlantingInventoryReturnDto'
+$models += ':EditPlantingCompletionDateRqDto:CompletionDateLowerBoundSource:PlantingCompletionDateRangeRsDto'
 
 & java -jar $generator generate -g aspnetcore -i $contract -o $output `
     --additional-properties 'packageName=CropPilot.Contract,sourceFolder=.,buildTarget=library,classModifier=abstract,operationModifier=abstract,operationResultTask=true,aspnetCoreVersion=10.0' `

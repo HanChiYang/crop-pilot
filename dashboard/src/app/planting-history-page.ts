@@ -175,4 +175,8 @@ export class PlantingHistoryPage {
   protected retryQuery(): void {
     if (this.lastQuery) this.queries.next(this.lastQuery);
   }
+
+  refreshResults(): void {
+    if (this.lastQuery) this.queries.next({ ...this.lastQuery });
+  }
 }

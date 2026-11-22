@@ -22,10 +22,14 @@ internal static class ErrorMessages
     internal const string PlantingNotesInvalid = "備註最多 1000 個字元，且不得含有無效字元。";
     internal const string PlantingActualDateRequired = "栽培中或已結束須填寫實際栽種日。";
     internal const string PlantingCompletionDateRequired = "已結束須填寫結束日。";
+    internal const string PlantingCompletionDateInputRequired = "請填寫結束日。";
     internal const string PlantingCompletionDateAfterToday = "結束日不得晚於今天。";
     internal const string PlantingCompletionDateBeforePlanting = "結束日不得早於實際栽種日。";
+    internal const string PlantingCompletionBeforeActualPlanting = "結束日不得早於實際栽種日 {0:yyyy-MM-dd}。";
     internal const string PlantingCompletionDateNotAllowed = "只有已結束的栽培可填寫結束日。";
+    internal const string PlantingCompletionDateCorrectionOnlyCompleted = "只有已結束的栽培可修正結束日。";
     internal const string PlantingCompletionBeforeActivity = "結束日不得早於最後一筆採收或作業日 {0:yyyy-MM-dd}。";
+    internal const string CompletionDateLowerBoundSourceInvalid = "結束日下限來源不正確。";
     internal const string DateAfterCompletion = "已結束的栽培，日期不得晚於結束日 {0:yyyy-MM-dd}。";
     internal const string PlantingStatusInvalid = "栽培狀態不正確。";
     internal const string PlantingTransitionInvalid = "目前的栽培狀態無法變更為所選狀態。";

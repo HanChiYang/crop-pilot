@@ -40,6 +40,25 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
         return result.Planting is { } planting ? Ok(PlantingDtoMapper.ToDto(planting)) : WriteProblem(result);
     }
 
+    /// <summary>查詢已結束栽培目前的結束日及可填上下限，查無紀錄回傳 404，未結束回傳 409。</summary>
+    public override async Task<IActionResult> GetPlantingCompletionDateRange(Guid plantingId)
+    {
+        var result = await plantings.GetCompletionDateRangeAsync(AccountId, plantingId, HttpContext.RequestAborted);
+        return result.Range is { } range
+            ? Ok(PlantingDtoMapper.ToCompletionDateRangeDto(range))
+            : WriteProblem(result.Status, result.Errors);
+    }
+
+    /// <summary>修正已結束栽培的結束日並回傳更新後的栽培紀錄。</summary>
+    public override async Task<IActionResult> EditPlantingCompletionDate(Guid plantingId,
+        EditPlantingCompletionDateRqDto request)
+    {
+        var result = await plantings.EditCompletionDateAsync(AccountId, plantingId, request, HttpContext.RequestAborted);
+        return result.Planting is { } planting
+            ? Ok(PlantingDtoMapper.ToDto(planting))
+            : WriteProblem(result.Status, result.Errors);
+    }
+
     /// <summary>顯示栽培刪除後將移除的田間作業與回復的庫存用量。</summary>
     public override async Task<IActionResult> GetPlantingDeletePreview(Guid plantingId)
     {
@@ -68,18 +87,21 @@ public sealed class PlantingsController(PlantingService plantings, FertilizerSer
     };
 
     /// <summary>將寫入失敗轉換成找不到紀錄或指定欄位的錯誤回應。</summary>
-    private IActionResult WriteProblem(PlantingWriteResult result)
+    private IActionResult WriteProblem(PlantingWriteResult result) => WriteProblem(result.Status, result.Errors);
+
+    /// <summary>依結果狀態與欄位錯誤清單回傳 404、409 或 400 問題回應。</summary>
+    private IActionResult WriteProblem(PlantingWriteStatus status, Dictionary<string, string>? errors)
     {
-        if (result.Status == PlantingWriteStatus.NotFound)
+        if (status == PlantingWriteStatus.NotFound)
         {
             return NotFound();
         }
 
-        foreach (var (property, message) in result.Errors!)
+        foreach (var (property, message) in errors!)
         {
             ModelState.AddModelError(property, message);
         }
-        return ValidationProblem(modelStateDictionary: ModelState, statusCode: result.Status == PlantingWriteStatus.Conflict
+        return ValidationProblem(modelStateDictionary: ModelState, statusCode: status == PlantingWriteStatus.Conflict
             ? StatusCodes.Status409Conflict
             : StatusCodes.Status400BadRequest);
     }

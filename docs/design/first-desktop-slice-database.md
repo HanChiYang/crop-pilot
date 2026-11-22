@@ -135,7 +135,7 @@ PostgreSQL 的資料表與欄位統一使用小寫 `snake_case`。應用程式�
 | `area_square_meters` | `numeric(14,4)` | NOT NULL，無預設值，CHECK 大於 0 | 栽培占用面積，單位為平方公尺。於栽培占用面積切片加入。 |
 | `planned_planting_date` | `date` | 可為 NULL | 預計開始栽種的日期。 |
 | `actual_planting_date` | `date` | `GROWING` 或 `COMPLETED` 時必填，其餘可為 NULL | 實際開始栽種的日期。規劃中的新增表單不提供此欄，API 仍接受日期或空值。補登採收中紀錄時，日期未知可留空。 |
-| `completion_date` | `date` | `COMPLETED` 時必填，其他狀態須為 NULL，不得早於 `actual_planting_date` | 栽培結束日。改為已結束時由表單填寫，預設台北當日，不得晚於當日，也不得早於最後一筆採收或田間作業。結束後補登的採收與作業不得晚於結束日，兩者都在鎖定栽培列後於交易內核對。`AddPlantingCompletionDate` migration 以實際栽種日、最後採收日及最後作業日中最晚的一天回填既有已結束紀錄。 |
+| `completion_date` | `date` | `COMPLETED` 時必填，其他狀態須為 NULL，不得早於 `actual_planting_date` | 栽培結束日。改為已結束時由表單填寫，預設台北當日，不得晚於當日，也不得早於最後一筆採收或田間作業。結束後補登的採收與作業不得晚於結束日，兩者都在鎖定栽培列後於交易內核對。`AddPlantingCompletionDate` migration 以實際栽種日、最後採收日及最後作業日中最晚的一天回填既有已結束紀錄。已結束後可透過[修正結束日](first-desktop-slice-data-api.md#修正結束日)更新，同樣在鎖定栽培列後核對，不需要 migration。 |
 | `status` | `varchar(16)` | NOT NULL，預設 `PLANNED`，以 `CHECK` 限定 `PLANNED`、`GROWING`、`HARVESTING`、`COMPLETED` | 目前的栽培階段。 |
 | `description` | `varchar(1000)` | 可為 NULL | 這筆栽培紀錄的備註。 |
 | `created_at` | `timestamptz` | NOT NULL、DEFAULT CURRENT_TIMESTAMP | 建立時間。 |

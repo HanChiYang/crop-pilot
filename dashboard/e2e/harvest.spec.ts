@@ -101,6 +101,7 @@ test('作物栽培列選單可進詳情，使用 API 排序、篩選及新增採
   await page.getByRole('button', { name: '操作 番茄（北側田）' }).click();
   await page.getByRole('link', { name: '查看詳情' }).click();
   await expect(page.getByRole('heading', { name: '番茄' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '修正', exact: true })).toBeHidden();
   await expect(page.getByText('無法載入採收紀錄，請再試一次。')).toBeVisible();
   await page.getByRole('button', { name: '重新載入' }).click();
 
@@ -170,7 +171,8 @@ test('已結束批次可修改與刪除採收，失敗時保留輸入並可重�
   await page.goto(historyPage);
   await page.getByRole('button', { name: '查詢', exact: true }).click();
   await page.getByRole('link', { name: /查看詳情/ }).click();
-  await expect(page.getByRole('region', { name: '栽培紀錄資料' })).toContainText('已結束');
+  await expect(page.getByRole('heading', { name: '番茄' })).toBeVisible();
+  await expect(page.getByText('已結束', { exact: true })).toBeVisible();
   await expect(page.getByRole('tab', { name: '採收紀錄', selected: true })).toBeVisible();
   await expect(page.getByRole('tab', { name: '累計損益' })).toBeVisible();
   const list = page.getByRole('table', { name: '採收紀錄清單' });
